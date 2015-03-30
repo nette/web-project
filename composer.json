@@ -1,0 +1,9 @@
+{
+	"name": "nette/web-project",
+	"description": "Nette: Standard Web Project",
+	"type": "project",
+	"license": ["MIT", "BSD-3-Clause", "GPL-2.0", "GPL-3.0"],
+	"require": {
+		"php": ">= 5.4.0",
+	}
+}
