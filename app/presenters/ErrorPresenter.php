@@ -2,8 +2,8 @@
 
 namespace App\Presenters;
 
-use Nette,
-	Tracy\ILogger;
+use Nette;
+use Tracy\ILogger;
 
 
 class ErrorPresenter extends Nette\Application\UI\Presenter
