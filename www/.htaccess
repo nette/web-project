@@ -11,6 +11,7 @@
 	# RewriteBase /
 
 	# prevents files starting with dot to be viewed by browser
+	RewriteCond %{REQUEST_URI} !^/.well-known/
 	RewriteRule /\.|^\. - [F]
 
 	# front controller
