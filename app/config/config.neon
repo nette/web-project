@@ -4,10 +4,6 @@
 parameters:
 
 
-php:
-	date.timezone: Europe/Prague
-
-
 application:
 	errorPresenter: Error
 	mapping:
