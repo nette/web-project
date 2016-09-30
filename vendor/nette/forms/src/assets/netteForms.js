@@ -158,7 +158,7 @@ Nette.validateControl = function(elem, rules, onlyCheck, value, emptyOptional) {
 			emptyOptional = !Nette.validateRule(elem, ':filled', null, value);
 			continue;
 		} else if (emptyOptional && !rule.condition && rule.op !== ':filled') {
-			return true;
+			continue;
 		}
 
 		curElem = curElem.tagName ? curElem : curElem[0]; // RadioNodeList
@@ -190,8 +190,10 @@ Nette.validateControl = function(elem, rules, onlyCheck, value, emptyOptional) {
 		}
 	}
 
-	if (!onlyCheck && elem.type === 'number' && !elem.validity.valid) {
-		Nette.addError(elem, 'Please enter a valid value.');
+	if (elem.type === 'number' && !elem.validity.valid) {
+		if (!onlyCheck) {
+			Nette.addError(elem, 'Please enter a valid value.');
+		}
 		return false;
 	}
 
@@ -202,7 +204,7 @@ Nette.validateControl = function(elem, rules, onlyCheck, value, emptyOptional) {
 /**
  * Validates whole form.
  */
-Nette.validateForm = function(sender) {
+Nette.validateForm = function(sender, onlyCheck) {
 	var form = sender.form || sender,
 		scope = false;
 
@@ -237,7 +239,7 @@ Nette.validateForm = function(sender) {
 			continue;
 		}
 
-		if (!Nette.validateControl(elem) && !Nette.formErrors.length) {
+		if (!Nette.validateControl(elem, null, onlyCheck) && !Nette.formErrors.length) {
 			return false;
 		}
 	}
@@ -281,7 +283,7 @@ Nette.showFormErrors = function(form, errors) {
 	var messages = [],
 		focusElem;
 
-	for (var i in errors) {
+	for (var i = 0; i < errors.length; i++) {
 		var elem = errors[i].element,
 			message = errors[i].message;
 
@@ -478,7 +480,7 @@ Nette.validators = {
 				return null;
 			}
 		}
-		return Nette.validators.range(elem, [arg, null], val);
+		return arg === null || parseFloat(val) >= arg;
 	},
 
 	max: function(elem, arg, val) {
@@ -489,7 +491,7 @@ Nette.validators = {
 				return null;
 			}
 		}
-		return Nette.validators.range(elem, [null, arg], val);
+		return arg === null || parseFloat(val) <= arg;
 	},
 
 	range: function(elem, arg, val) {

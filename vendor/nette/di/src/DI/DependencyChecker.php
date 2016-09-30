@@ -96,7 +96,7 @@ class DependencyChecker
 			} catch (\ReflectionException $e) {
 				return;
 			}
-			$hash[] = [$name, PhpReflection::getUseStatements($class)];
+			$hash[] = [$name, PhpReflection::getUseStatements($class), $class->isAbstract()];
 			foreach ($class->getProperties(\ReflectionProperty::IS_PUBLIC) as $prop) {
 				if ($prop->getDeclaringClass() == $class) { // intentionally ==
 					$hash[] = [$name, $prop->getName(), $prop->getDocComment()];
@@ -109,7 +109,7 @@ class DependencyChecker
 						$method->getName(),
 						$method->getDocComment(),
 						self::hashParameters($method),
-						PHP_VERSION >= 70000 ? $method->getReturnType() : NULL
+						PHP_VERSION_ID >= 70000 ? $method->getReturnType() : NULL
 					];
 				}
 			}
@@ -131,7 +131,7 @@ class DependencyChecker
 				$class ? PhpReflection::getUseStatements($method->getDeclaringClass()) : NULL,
 				$method->getDocComment(),
 				self::hashParameters($method),
-				PHP_VERSION >= 70000 ? $method->getReturnType() : NULL
+				PHP_VERSION_ID >= 70000 ? $method->getReturnType() : NULL
 			];
 		}
 
@@ -142,10 +142,14 @@ class DependencyChecker
 	private static function hashParameters(\ReflectionFunctionAbstract $method)
 	{
 		$res = [];
+		if (PHP_VERSION_ID < 70000 && $method->getNumberOfParameters() && $method->getFileName()) {
+			$res[] = file($method->getFileName())[$method->getStartLine() - 1];
+		}
 		foreach ($method->getParameters() as $param) {
 			$res[] = [
 				$param->getName(),
-				PhpReflection::getParameterType($param),
+				PHP_VERSION_ID >= 70000 ? PhpReflection::getParameterType($param) : NULL,
+				$param->isVariadic(),
 				$param->isDefaultValueAvailable()
 					? ($param->isDefaultValueConstant() ? $param->getDefaultValueConstantName() : [$param->getDefaultValue()])
 					: NULL

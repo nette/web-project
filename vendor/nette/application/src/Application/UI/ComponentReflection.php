@@ -125,10 +125,11 @@ class ComponentReflection extends \ReflectionClass
 		foreach ($method->getParameters() as $i => $param) {
 			$name = $param->getName();
 			list($type, $isClass) = self::getParameterType($param);
+			$exception = $isClass ? Nette\InvalidArgumentException::class : BadRequestException::class;
 			if (isset($args[$name])) {
 				$res[$i] = $args[$name];
 				if (!self::convertType($res[$i], $type, $isClass)) {
-					throw new BadRequestException(sprintf(
+					throw new $exception(sprintf(
 						'Argument $%s passed to %s() must be %s, %s given.',
 						$name,
 						($method instanceof \ReflectionMethod ? $method->getDeclaringClass()->getName() . '::' : '') . $method->getName(),
@@ -138,12 +139,12 @@ class ComponentReflection extends \ReflectionClass
 				}
 			} elseif ($param->isDefaultValueAvailable()) {
 				$res[$i] = $param->getDefaultValue();
+			} elseif ($type === 'NULL' || $param->allowsNull()) {
+				$res[$i] = NULL;
 			} elseif ($type === 'array') {
 				$res[$i] = [];
-			} elseif ($type === 'NULL') {
-				$res[$i] = NULL;
 			} else {
-				throw new BadRequestException(sprintf(
+				throw new $exception(sprintf(
 					'Missing parameter $%s required by %s()',
 					$name,
 					($method instanceof \ReflectionMethod ? $method->getDeclaringClass()->getName() . '::' : '') . $method->getName()
@@ -195,7 +196,7 @@ class ComponentReflection extends \ReflectionClass
 	 */
 	public static function parseAnnotation(\Reflector $ref, $name)
 	{
-		if (!preg_match_all('#[\\s*]@' . preg_quote($name, '#') . '(?:\(\\s*([^)]*)\\s*\))?#', $ref->getDocComment(), $m)) {
+		if (!preg_match_all('#[\\s*]@' . preg_quote($name, '#') . '(?:\(\\s*([^)]*)\\s*\)|\\s|$)#', $ref->getDocComment(), $m)) {
 			return FALSE;
 		}
 		static $tokens = ['true' => TRUE, 'false' => FALSE, 'null' => NULL];
@@ -216,7 +217,9 @@ class ComponentReflection extends \ReflectionClass
 	{
 		$def = gettype($param->isDefaultValueAvailable() ? $param->getDefaultValue() : NULL);
 		if (PHP_VERSION_ID >= 70000) {
-			return [(string) $param->getType() ?: $def, $param->hasType() && !$param->getType()->isBuiltin()];
+			return $param->hasType()
+				? [PHP_VERSION_ID >= 70100 ? $param->getType()->getName() : (string) $param->getType(), !$param->getType()->isBuiltin()]
+				: [$def, FALSE];
 		} elseif ($param->isArray() || $param->isCallable()) {
 			return [$param->isArray() ? 'array' : 'callable', FALSE];
 		} else {

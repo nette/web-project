@@ -55,6 +55,7 @@ class Filters
 	 */
 	public static function escapeHtmlAttr($s, $double = TRUE)
 	{
+		$double = $double && $s instanceof IHtmlString ? FALSE : $double;
 		$s = (string) $s;
 		if (strpos($s, '`') !== FALSE && strpbrk($s, ' <>"\'') === FALSE) {
 			$s .= ' '; // protection against innerHTML mXSS vulnerability nette/nette#1496
@@ -252,6 +253,7 @@ class Filters
 				'htmlAttrJs' => 'escapeHtmlAttr', 'xhtmlAttrJs' => 'escapeHtmlAttr',
 				'htmlAttrCss' => 'escapeHtmlAttr', 'xhtmlAttrCss' => 'escapeHtmlAttr',
 				'htmlAttrUrl' => 'escapeHtmlAttr', 'xhtmlAttrUrl' => 'escapeHtmlAttr',
+				'htmlComment' => 'escapeHtmlComment', 'xhtmlComment' => 'escapeHtmlComment',
 				'xml' => 'escapeXml', 'xmlAttr' => 'escapeXml',
 			],
 			Engine::CONTENT_JS => [
@@ -259,24 +261,28 @@ class Filters
 				'htmlAttr' => 'escapeHtmlAttr', 'xhtmlAttr' => 'escapeHtmlAttr',
 				'htmlAttrJs' => 'escapeHtmlAttr', 'xhtmlAttrJs' => 'escapeHtmlAttr',
 				'htmlJs' => 'escapeHtmlRawText', 'xhtmlJs' => 'escapeHtmlRawText',
+				'htmlComment' => 'escapeHtmlComment', 'xhtmlComment' => 'escapeHtmlComment',
 			],
 			Engine::CONTENT_CSS => [
 				'html' => 'escapeHtmlText', 'xhtml' => 'escapeHtmlText',
 				'htmlAttr' => 'escapeHtmlAttr', 'xhtmlAttr' => 'escapeHtmlAttr',
 				'htmlAttrCss' => 'escapeHtmlAttr', 'xhtmlAttrCss' => 'escapeHtmlAttr',
 				'htmlCss' => 'escapeHtmlRawText', 'xhtmlCss' => 'escapeHtmlRawText',
+				'htmlComment' => 'escapeHtmlComment', 'xhtmlComment' => 'escapeHtmlComment',
 			],
 			Engine::CONTENT_HTML => [
 				'htmlAttr' => 'escapeHtmlAttrConv',
 				'htmlAttrJs' => 'escapeHtmlAttrConv',
 				'htmlAttrCss' => 'escapeHtmlAttrConv',
 				'htmlAttrUrl' => 'escapeHtmlAttrConv',
+				'htmlComment' => 'escapeHtmlComment',
 			],
 			Engine::CONTENT_XHTML => [
 				'xhtmlAttr' => 'escapeHtmlAttrConv',
 				'xhtmlAttrJs' => 'escapeHtmlAttrConv',
 				'xhtmlAttrCss' => 'escapeHtmlAttrConv',
 				'xhtmlAttrUrl' => 'escapeHtmlAttrConv',
+				'xhtmlComment' => 'escapeHtmlComment',
 			],
 		];
 		return isset($table[$source][$dest]) ? [__CLASS__, $table[$source][$dest]] : NULL;

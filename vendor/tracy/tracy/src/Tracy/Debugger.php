@@ -16,7 +16,7 @@ use ErrorException;
  */
 class Debugger
 {
-	const VERSION = '2.4.2';
+	const VERSION = '2.4.3';
 
 	/** server modes for Debugger::enable() */
 	const
@@ -387,6 +387,7 @@ class Debugger
 		} elseif (self::$productionMode && ($severity & self::$logSeverity) === $severity) {
 			$e = new ErrorException($message, 0, $severity, $file, $line);
 			$e->context = $context;
+			Helpers::improveException($e);
 			try {
 				self::log($e, self::ERROR);
 			} catch (\Throwable $e) {

@@ -40,7 +40,7 @@ class InjectExtension extends DI\CompilerExtension
 			$injects[] = new DI\Statement('$' . $property, ['@\\' . ltrim($type, '\\')]);
 		}
 
-		foreach (self::getInjectMethods($def->getClass()) as $method) {
+		foreach (array_reverse(self::getInjectMethods($def->getClass())) as $method) {
 			$injects[] = new DI\Statement($method);
 		}
 
@@ -65,9 +65,18 @@ class InjectExtension extends DI\CompilerExtension
 	 */
 	public static function getInjectMethods($class)
 	{
-		return array_values(array_filter(get_class_methods($class), function ($name) {
-			return substr($name, 0, 6) === 'inject';
-		}));
+		$res = [];
+		foreach (get_class_methods($class) as $name) {
+			if (substr($name, 0, 6) === 'inject') {
+				$res[$name] = (new \ReflectionMethod($class, $name))->getDeclaringClass()->getName();
+			}
+		}
+		uksort($res, function ($a, $b) use ($res) {
+			return $res[$a] === $res[$b]
+				? strcmp($a, $b)
+				: (is_a($res[$a], $res[$b], TRUE) ? 1 : -1);
+		});
+		return array_keys($res);
 	}
 
 
@@ -103,7 +112,7 @@ class InjectExtension extends DI\CompilerExtension
 			throw new Nette\InvalidArgumentException(sprintf('Service must be object, %s given.', gettype($service)));
 		}
 
-		foreach (array_reverse(self::getInjectMethods($service)) as $method) {
+		foreach (self::getInjectMethods($service) as $method) {
 			$container->callMethod([$service, $method]);
 		}
 

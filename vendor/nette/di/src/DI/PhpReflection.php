@@ -59,7 +59,10 @@ class PhpReflection
 	public static function getParameterType(\ReflectionParameter $param)
 	{
 		if (PHP_VERSION_ID >= 70000) {
-			return $param->hasType() ? (string) $param->getType() : NULL;
+			if ($param->hasType()) {
+				$type = PHP_VERSION_ID >= 70100 ? $param->getType()->getName() : (string) $param->getType();
+				return strtolower($type) === 'self' ? $param->getDeclaringClass()->getName() : $type;
+			}
 		} elseif ($param->isArray() || $param->isCallable()) {
 			return $param->isArray() ? 'array' : 'callable';
 		} else {
@@ -81,7 +84,7 @@ class PhpReflection
 	public static function getReturnType(\ReflectionFunctionAbstract $func)
 	{
 		if (PHP_VERSION_ID >= 70000 && $func->hasReturnType()) {
-			$type = (string) $func->getReturnType();
+			$type = PHP_VERSION_ID >= 70100 ? $func->getReturnType()->getName() : (string) $func->getReturnType();
 			return strtolower($type) === 'self' ? $func->getDeclaringClass()->getName() : $type;
 		}
 		$type = preg_replace('#[|\s].*#', '', (string) self::parseAnnotation($func, 'return'));
@@ -209,8 +212,22 @@ class PhpReflection
 				case T_USE:
 					while (!$class && ($name = self::fetch($tokens, [T_STRING, T_NS_SEPARATOR]))) {
 						$name = ltrim($name, '\\');
-						if (self::fetch($tokens, T_AS)) {
+						if (self::fetch($tokens, '{')) {
+							while ($suffix = self::fetch($tokens, [T_STRING, T_NS_SEPARATOR])) {
+								if (self::fetch($tokens, T_AS)) {
+									$uses[self::fetch($tokens, T_STRING)] = $name . $suffix;
+								} else {
+									$tmp = explode('\\', $suffix);
+									$uses[end($tmp)] = $name . $suffix;
+								}
+								if (!self::fetch($tokens, ',')) {
+									break;
+								}
+							}
+
+						} elseif (self::fetch($tokens, T_AS)) {
 							$uses[self::fetch($tokens, T_STRING)] = $name;
+
 						} else {
 							$tmp = explode('\\', $name);
 							$uses[end($tmp)] = $name;

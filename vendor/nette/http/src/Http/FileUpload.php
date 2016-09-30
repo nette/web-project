@@ -141,6 +141,15 @@ class FileUpload
 
 
 	/**
+	 * @return bool
+	 */
+	public function hasFile()
+	{
+		return $this->error !== UPLOAD_ERR_NO_FILE;
+	}
+
+
+	/**
 	 * Move uploaded file to new location.
 	 * @param  string
 	 * @return self
@@ -156,7 +165,7 @@ class FileUpload
 		Nette\Utils\Callback::invokeSafe(
 			is_uploaded_file($this->tmpName) ? 'move_uploaded_file' : 'rename',
 			[$this->tmpName, $dest],
-			function ($message) {
+			function ($message) use ($dest) {
 				throw new Nette\InvalidStateException("Unable to move uploaded file '$this->tmpName' to '$dest'. $message");
 			}
 		);
