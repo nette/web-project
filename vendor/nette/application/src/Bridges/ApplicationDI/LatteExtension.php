@@ -19,6 +19,7 @@ class LatteExtension extends Nette\DI\CompilerExtension
 	public $defaults = [
 		'xhtml' => FALSE,
 		'macros' => [],
+		'templateClass' => NULL,
 	];
 
 	/** @var bool */
@@ -54,12 +55,10 @@ class LatteExtension extends Nette\DI\CompilerExtension
 
 		$builder->addDefinition($this->prefix('templateFactory'))
 			->setClass(Nette\Application\UI\ITemplateFactory::class)
-			->setFactory(Nette\Bridges\ApplicationLatte\TemplateFactory::class);
+			->setFactory(Nette\Bridges\ApplicationLatte\TemplateFactory::class)
+			->setArguments(['templateClass' => $config['templateClass']]);
 
 		foreach ($config['macros'] as $macro) {
-			if (strpos($macro, '::') === FALSE && class_exists($macro)) {
-				$macro .= '::install';
-			}
 			$this->addMacro($macro);
 		}
 
@@ -71,14 +70,28 @@ class LatteExtension extends Nette\DI\CompilerExtension
 
 
 	/**
-	 * @param  callable
+	 * @param  string
 	 * @return void
 	 */
-	public function addMacro(callable $macro)
+	public function addMacro($macro)
 	{
 		$builder = $this->getContainerBuilder();
-		$builder->getDefinition($this->prefix('latteFactory'))
-			->addSetup('?->onCompile[] = function ($engine) { ' . $macro . '($engine->getCompiler()); }', ['@self']);
+		$definition = $builder->getDefinition($this->prefix('latteFactory'));
+
+		if (isset($macro[0]) && $macro[0] === '@') {
+			if (strpos($macro, '::') === FALSE) {
+				$method = 'install';
+			} else {
+				list($macro, $method) = explode('::', $macro);
+			}
+			$definition->addSetup('?->onCompile[] = function ($engine) { ?->' . $method . '($engine->getCompiler()); }', ['@self', $macro]);
+
+		} else {
+			if (strpos($macro, '::') === FALSE && class_exists($macro)) {
+				$macro .= '::install';
+			}
+			$definition->addSetup('?->onCompile[] = function ($engine) { ' . $macro . '($engine->getCompiler()); }', ['@self']);
+		}
 	}
 
 }

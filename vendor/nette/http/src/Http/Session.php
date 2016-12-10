@@ -42,11 +42,7 @@ class Session
 		'cookie_httponly' => TRUE,// must be enabled to prevent Session Hijacking
 
 		// other
-		'gc_maxlifetime' => self::DEFAULT_FILE_LIFETIME,// 3 hours
-		'cache_limiter' => NULL,  // (default "nocache", special value "\0")
-		'cache_expire' => NULL,   // (default "180")
-		'hash_function' => NULL,  // (default "0", means MD5)
-		'hash_bits_per_character' => NULL, // (default "4")
+		'gc_maxlifetime' => self::DEFAULT_FILE_LIFETIME, // 3 hours
 	];
 
 	/** @var IRequest */
@@ -102,25 +98,21 @@ class Session
 		self::$started = TRUE;
 
 		/* structure:
-			__NF: BrowserKey, Data, Meta, Time
+			__NF: Data, Meta, Time
 				DATA: section->variable = data
-				META: section->variable = Timestamp, Browser
+				META: section->variable = Timestamp
 		*/
 		$nf = & $_SESSION['__NF'];
+
+		if (!is_array($nf)) {
+			$nf = [];
+		}
 
 		// regenerate empty session
 		if (empty($nf['Time'])) {
 			$nf['Time'] = time();
 			$this->regenerated = TRUE;
 		}
-
-		// browser closing detection
-		$browserKey = $this->request->getCookie('nette-browser');
-		if (!is_string($browserKey) || !preg_match('#^[0-9a-z]{10}\z#', $browserKey)) {
-			$browserKey = Nette\Utils\Random::generate();
-		}
-		$browserClosed = !isset($nf['B']) || $nf['B'] !== $browserKey;
-		$nf['B'] = $browserKey;
 
 		// resend cookie
 		$this->sendCookie();
@@ -132,7 +124,7 @@ class Session
 			foreach ($nf['META'] as $section => $metadata) {
 				if (is_array($metadata)) {
 					foreach ($metadata as $variable => $value) {
-						if ((!empty($value['B']) && $browserClosed) || (!empty($value['T']) && $now > $value['T'])) { // whenBrowserIsClosed || Time
+						if (!empty($value['T']) && $now > $value['T']) {
 							if ($variable === '') { // expire whole section
 								unset($nf['META'][$section], $nf['DATA'][$section]);
 								continue 2;
@@ -243,7 +235,7 @@ class Session
 	/**
 	 * Sets the session name to a specified one.
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function setName($name)
 	{
@@ -354,7 +346,7 @@ class Session
 	/**
 	 * Sets session options.
 	 * @param  array
-	 * @return self
+	 * @return static
 	 * @throws Nette\NotSupportedException
 	 * @throws Nette\InvalidStateException
 	 */
@@ -441,7 +433,7 @@ class Session
 	/**
 	 * Sets the amount of time allowed between requests before the session will be terminated.
 	 * @param  string|int|\DateTimeInterface  time, value 0 means "until the browser is closed"
-	 * @return self
+	 * @return static
 	 */
 	public function setExpiration($time)
 	{
@@ -466,7 +458,7 @@ class Session
 	 * @param  string  path
 	 * @param  string  domain
 	 * @param  bool    secure
-	 * @return self
+	 * @return static
 	 */
 	public function setCookieParameters($path, $domain = NULL, $secure = NULL)
 	{
@@ -490,7 +482,7 @@ class Session
 
 	/**
 	 * Sets path of the directory used to save session data.
-	 * @return self
+	 * @return static
 	 */
 	public function setSavePath($path)
 	{
@@ -502,7 +494,7 @@ class Session
 
 	/**
 	 * @deprecated  use setHandler().
-	 * @return self
+	 * @return static
 	 */
 	public function setStorage(ISessionStorage $storage)
 	{
@@ -519,7 +511,7 @@ class Session
 
 	/**
 	 * Sets user session handler.
-	 * @return self
+	 * @return static
 	 */
 	public function setHandler(\SessionHandlerInterface $handler)
 	{
@@ -542,10 +534,6 @@ class Session
 			session_name(), session_id(),
 			$cookie['lifetime'] ? $cookie['lifetime'] + time() : 0,
 			$cookie['path'], $cookie['domain'], $cookie['secure'], $cookie['httponly']
-		);
-		$this->response->setCookie(
-			'nette-browser', $_SESSION['__NF']['B'],
-			Response::BROWSER, $cookie['path'], $cookie['domain']
 		);
 	}
 

@@ -17,7 +17,7 @@ class Bar
 	private $panels = [];
 
 	/** @var bool */
-	private $dispatched;
+	private $useSession;
 
 
 	/**
@@ -56,8 +56,16 @@ class Bar
 	 */
 	public function render()
 	{
-		$useSession = $this->dispatched && session_status() === PHP_SESSION_ACTIVE;
+		$useSession = $this->useSession && session_status() === PHP_SESSION_ACTIVE;
 		$redirectQueue = & $_SESSION['_tracy']['redirect'];
+
+		foreach (['bar', 'redirect', 'bluescreen'] as $key) {
+			$queue = & $_SESSION['_tracy'][$key];
+			$queue = array_slice((array) $queue, -10, NULL, TRUE);
+			$queue = array_filter($queue, function ($item) {
+				return isset($item['time']) && $item['time'] > time() - 60;
+			});
+		}
 
 		if (!Helpers::isHtmlMode() && !Helpers::isAjax()) {
 			return;
@@ -68,12 +76,12 @@ class Bar
 			$contentId = $useSession ? $_SERVER['HTTP_X_TRACY_AJAX'] . '-ajax' : NULL;
 
 		} elseif (preg_match('#^Location:#im', implode("\n", headers_list()))) { // redirect
-			$redirectQueue = array_slice((array) $redirectQueue, -10);
 			Dumper::fetchLiveData();
 			Dumper::$livePrefix = count($redirectQueue) . 'p';
 			$redirectQueue[] = [
 				'panels' => $this->renderPanels('-r' . count($redirectQueue)),
 				'dumps' => Dumper::fetchLiveData(),
+				'time' => time(),
 			];
 			return;
 
@@ -94,13 +102,10 @@ class Bar
 		$content = Helpers::fixEncoding(ob_get_clean());
 
 		if ($contentId) {
-			$queue = & $_SESSION['_tracy']['bar'];
-			$queue = array_slice(array_filter((array) $queue), -5, NULL, TRUE);
-			$queue[$contentId] = ['content' => $content, 'dumps' => $dumps];
+			$_SESSION['_tracy']['bar'][$contentId] = ['content' => $content, 'dumps' => $dumps, 'time' => time()];
 		}
 
 		if (Helpers::isHtmlMode()) {
-			$baseUrl = extension_loaded('xdebug') ? '?XDEBUG_SESSION_STOP=1&' : '?';
 			require __DIR__ . '/assets/Bar/loader.phtml';
 		}
 	}
@@ -155,42 +160,30 @@ class Bar
 	 */
 	public function dispatchAssets()
 	{
-		if (isset($_GET['_tracy_bar']) && $_GET['_tracy_bar'] === 'assets') {
+		$asset = isset($_GET['_tracy_bar']) ? $_GET['_tracy_bar'] : NULL;
+		if ($asset === 'js') {
 			header('Content-Type: text/javascript');
 			header('Cache-Control: max-age=864000');
 			header_remove('Pragma');
 			header_remove('Set-Cookie');
-			$css = file_get_contents(__DIR__ . '/assets/Bar/bar.css')
-				. file_get_contents(__DIR__ . '/assets/Toggle/toggle.css')
-				. file_get_contents(__DIR__ . '/assets/Dumper/dumper.css')
-				. file_get_contents(__DIR__ . '/assets/BlueScreen/bluescreen.css');
-			$js = file_get_contents(__DIR__ . '/assets/Bar/bar.js')
-				. file_get_contents(__DIR__ . '/assets/Toggle/toggle.js')
-				. file_get_contents(__DIR__ . '/assets/Dumper/dumper.js')
-				. file_get_contents(__DIR__ . '/assets/BlueScreen/bluescreen.js');
-			echo 'localStorage.setItem("tracy-style", ' . json_encode($css) . ');';
-			echo 'localStorage.setItem("tracy-script", ' . json_encode($js) . ');';
-			echo 'localStorage.setItem("tracy-version", ' . json_encode(Debugger::VERSION) . ');';
+			$this->renderAssets();
 			return TRUE;
 		}
-	}
 
+		$this->useSession = session_status() === PHP_SESSION_ACTIVE;
 
-	/**
-	 * Renders debug bar content.
-	 * @return bool
-	 */
-	public function dispatchContent()
-	{
-		$this->dispatched = TRUE;
-		if (Helpers::isAjax()) {
+		if ($this->useSession && Helpers::isAjax()) {
 			header('X-Tracy-Ajax: 1'); // session must be already locked
 		}
-		if (preg_match('#^content(-ajax)?.(\w+)$#', isset($_GET['_tracy_bar']) ? $_GET['_tracy_bar'] : '', $m)) {
+
+		if ($this->useSession && preg_match('#^content(-ajax)?.(\w+)$#', $asset, $m)) {
 			$session = & $_SESSION['_tracy']['bar'][$m[2] . $m[1]];
 			header('Content-Type: text/javascript');
 			header('Cache-Control: max-age=60');
 			header_remove('Set-Cookie');
+			if (!$m[1]) {
+				$this->renderAssets();
+			}
 			if ($session) {
 				$method = $m[1] ? 'loadAjax' : 'init';
 				echo "Tracy.Debug.$method(", json_encode($session['content']), ', ', json_encode($session['dumps']), ');';
@@ -203,6 +196,26 @@ class Bar
 			}
 			return TRUE;
 		}
+	}
+
+
+	private function renderAssets()
+	{
+		$css = array_map('file_get_contents', [
+			__DIR__ . '/assets/Bar/bar.css',
+			__DIR__ . '/assets/Toggle/toggle.css',
+			__DIR__ . '/assets/Dumper/dumper.css',
+			__DIR__ . '/assets/BlueScreen/bluescreen.css',
+		]);
+		$css = json_encode(preg_replace('#\s+#u', ' ', implode($css)));
+		echo "(function(){var el = document.createElement('style'); el.className='tracy-debug'; el.textContent=$css; document.head.appendChild(el);})();\n";
+
+		array_map('readfile', [
+			__DIR__ . '/assets/Bar/bar.js',
+			__DIR__ . '/assets/Toggle/toggle.js',
+			__DIR__ . '/assets/Dumper/dumper.js',
+			__DIR__ . '/assets/BlueScreen/bluescreen.js',
+		]);
 	}
 
 }

@@ -640,7 +640,13 @@ Nette.toggle = function(id, visible, srcElement) {
  * Setup handlers.
  */
 Nette.initForm = function(form) {
-	form.noValidate = 'novalidate';
+	Nette.toggleForm(form);
+
+	if (form.noValidate) {
+		return;
+	}
+
+	form.noValidate = true;
 
 	Nette.addEvent(form, 'submit', function(e) {
 		if (!Nette.validateForm(form)) {
@@ -653,8 +659,6 @@ Nette.initForm = function(form) {
 			}
 		}
 	});
-
-	Nette.toggleForm(form);
 };
 
 
@@ -675,8 +679,12 @@ Nette.initOnLoad = function() {
 
 		Nette.addEvent(document.body, 'click', function(e) {
 			var target = e.target || e.srcElement;
-			if (target.form && target.type in {submit: 1, image: 1}) {
-				target.form['nette-submittedBy'] = target;
+			while (target) {
+				if (target.form && target.type in {submit: 1, image: 1}) {
+					target.form['nette-submittedBy'] = target;
+					break;
+				}
+				target = target.parentNode;
 			}
 		});
 	});

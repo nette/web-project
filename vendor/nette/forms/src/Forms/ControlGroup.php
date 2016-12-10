@@ -31,7 +31,7 @@ class ControlGroup
 
 
 	/**
-	 * @return self
+	 * @return static
 	 */
 	public function add(...$items)
 	{
@@ -67,15 +67,15 @@ class ControlGroup
 	/**
 	 * Sets user-specific option.
 	 * Options recognized by DefaultFormRenderer
-	 * - 'label' - textual or Html object label
+	 * - 'label' - textual or IHtmlString object label
 	 * - 'visual' - indicates visual group
 	 * - 'container' - container as Html object
-	 * - 'description' - textual or Html object description
+	 * - 'description' - textual or IHtmlString object description
 	 * - 'embedNext' - describes how render next group
 	 *
 	 * @param  string key
 	 * @param  mixed  value
-	 * @return self
+	 * @return static
 	 */
 	public function setOption($key, $value)
 	{

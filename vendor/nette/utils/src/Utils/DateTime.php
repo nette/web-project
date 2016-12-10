@@ -39,12 +39,12 @@ class DateTime extends \DateTime implements \JsonSerializable
 	/**
 	 * DateTime object factory.
 	 * @param  string|int|\DateTimeInterface
-	 * @return self
+	 * @return static
 	 */
 	public static function from($time)
 	{
 		if ($time instanceof \DateTimeInterface) {
-			return new static($time->format('Y-m-d H:i:s'), $time->getTimezone());
+			return new static($time->format('Y-m-d H:i:s.u'), $time->getTimezone());
 
 		} elseif (is_numeric($time)) {
 			if ($time <= self::YEAR) {
@@ -59,6 +59,20 @@ class DateTime extends \DateTime implements \JsonSerializable
 
 
 	/**
+	 * Creates DateTime object.
+	 * @return static
+	 */
+	public static function fromParts($year, $month, $day, $hour = 0, $minute = 0, $second = 0)
+	{
+		$s = sprintf("%04d-%02d-%02d %02d:%02d:%02.5f", $year, $month, $day, $hour, $minute, $second);
+		if (!checkdate($month, $day, $year) || $hour < 0 || $hour > 23 || $minute < 0 || $minute > 59 || $second < 0 || $second >= 60) {
+			throw new Nette\InvalidArgumentException("Invalid date '$s'");
+		}
+		return new static($s);
+	}
+
+
+	/**
 	 * @return string
 	 */
 	public function __toString()
@@ -69,7 +83,7 @@ class DateTime extends \DateTime implements \JsonSerializable
 
 	/**
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function modifyClone($modify = '')
 	{
@@ -80,7 +94,7 @@ class DateTime extends \DateTime implements \JsonSerializable
 
 	/**
 	 * @param  int
-	 * @return self
+	 * @return static
 	 */
 	public function setTimestamp($timestamp)
 	{
@@ -105,7 +119,7 @@ class DateTime extends \DateTime implements \JsonSerializable
 	 * @param string The format the $time parameter should be in
 	 * @param string String representing the time
 	 * @param string|\DateTimeZone desired timezone (default timezone is used if NULL is passed)
-	 * @return self|FALSE
+	 * @return static|FALSE
 	 */
 	public static function createFromFormat($format, $time, $timezone = NULL)
 	{

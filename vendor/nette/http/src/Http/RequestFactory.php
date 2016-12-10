@@ -36,7 +36,7 @@ class RequestFactory
 
 	/**
 	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
 	public function setBinary($binary = TRUE)
 	{
@@ -47,7 +47,7 @@ class RequestFactory
 
 	/**
 	 * @param  array|string
-	 * @return self
+	 * @return static
 	 */
 	public function setProxy($proxy)
 	{
@@ -233,7 +233,7 @@ class RequestFactory
 					}
 				}
 
-				$scheme = (isset($proxyParams['scheme']) && count($proxyParams['scheme']) === 1) ? $proxyParams['scheme'][0] : 'http';
+				$scheme = (isset($proxyParams['proto']) && count($proxyParams['proto']) === 1) ? $proxyParams['proto'][0] : 'http';
 				$url->setScheme(strcasecmp($scheme, 'https') === 0 ? 'https' : 'http');
 			} else {
 				if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {

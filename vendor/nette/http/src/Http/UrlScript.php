@@ -27,13 +27,20 @@ namespace Nette\Http;
 class UrlScript extends Url
 {
 	/** @var string */
-	private $scriptPath = '/';
+	private $scriptPath;
+
+
+	public function __construct($url = NULL, $scriptPath = '')
+	{
+		parent::__construct($url);
+		$this->setScriptPath($scriptPath);
+	}
 
 
 	/**
 	 * Sets the script-path part of URI.
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function setScriptPath($value)
 	{
@@ -48,7 +55,7 @@ class UrlScript extends Url
 	 */
 	public function getScriptPath()
 	{
-		return $this->scriptPath;
+		return $this->scriptPath ?: $this->path;
 	}
 
 
@@ -58,7 +65,7 @@ class UrlScript extends Url
 	 */
 	public function getBasePath()
 	{
-		$pos = strrpos($this->scriptPath, '/');
+		$pos = strrpos($this->getScriptPath(), '/');
 		return $pos === FALSE ? '' : substr($this->getPath(), 0, $pos + 1);
 	}
 
@@ -69,7 +76,7 @@ class UrlScript extends Url
 	 */
 	public function getPathInfo()
 	{
-		return (string) substr($this->getPath(), strlen($this->scriptPath));
+		return (string) substr($this->getPath(), strlen($this->getScriptPath()));
 	}
 
 }
