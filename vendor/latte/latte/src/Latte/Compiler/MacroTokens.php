@@ -30,7 +30,7 @@ class MacroTokens extends TokenIterator
 	public $depth = 0;
 
 
-	public function __construct($input = NULL)
+	public function __construct($input = [])
 	{
 		parent::__construct(is_array($input) ? $input : $this->parse($input));
 		$this->ignored = [self::T_COMMENT, self::T_WHITESPACE];
@@ -56,14 +56,15 @@ class MacroTokens extends TokenIterator
 
 	/**
 	 * Appends simple token or string (will be parsed).
-	 * @return self
+	 * @return static
 	 */
 	public function append($val, $position = NULL)
 	{
 		if ($val != NULL) { // intentionally @
 			array_splice(
 				$this->tokens,
-				$position === NULL ? count($this->tokens) : $position, 0,
+				$position === NULL ? count($this->tokens) : $position,
+				0,
 				is_array($val) ? [$val] : $this->parse($val)
 			);
 		}
@@ -73,7 +74,7 @@ class MacroTokens extends TokenIterator
 
 	/**
 	 * Prepends simple token or string (will be parsed).
-	 * @return self
+	 * @return static
 	 */
 	public function prepend($val)
 	{

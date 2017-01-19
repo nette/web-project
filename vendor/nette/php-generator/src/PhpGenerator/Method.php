@@ -15,13 +15,8 @@ use Nette;
  *
  * @property string $body
  */
-class Method
+class Method extends Member
 {
-	use Nette\SmartObject;
-
-	/** @var string|NULL */
-	private $name;
-
 	/** @var array of name => Parameter */
 	private $parameters = [];
 
@@ -33,9 +28,6 @@ class Method
 
 	/** @var bool */
 	private $static = FALSE;
-
-	/** @var string|NULL  public|protected|private */
-	private $visibility;
 
 	/** @var bool */
 	private $final = FALSE;
@@ -49,47 +41,24 @@ class Method
 	/** @var bool */
 	private $variadic = FALSE;
 
-	/** @var string|NULL */
-	private $comment;
-
 	/** @var PhpNamespace|NULL */
 	private $namespace;
 
 	/** @var string|NULL */
 	private $returnType;
 
+	/** @var bool */
+	private $returnNullable;
+
 
 	/**
-	 * @return self
+	 * @return static
 	 */
 	public static function from($from)
 	{
-		if (is_string($from) && strpos($from, '::')) {
-			$from = new \ReflectionMethod($from);
-		} elseif (is_array($from)) {
-			$from = new \ReflectionMethod($from[0], $from[1]);
-		} elseif (!$from instanceof \ReflectionFunctionAbstract) {
-			$from = new \ReflectionFunction($from);
-		}
-
-		$method = new static($from->isClosure() ? NULL : $from->getName());
-		foreach ($from->getParameters() as $param) {
-			$method->parameters[$param->getName()] = Parameter::from($param);
-		}
-		if ($from instanceof \ReflectionMethod) {
-			$method->static = $from->isStatic();
-			$method->visibility = $from->isPrivate() ? 'private' : ($from->isProtected() ? 'protected' : NULL);
-			$method->final = $from->isFinal();
-			$method->abstract = $from->isAbstract() && !$from->getDeclaringClass()->isInterface();
-			$method->body = $from->isAbstract() ? FALSE : '';
-		}
-		$method->returnReference = $from->returnsReference();
-		$method->variadic = $from->isVariadic();
-		$method->comment = $from->getDocComment() ? preg_replace('#^\s*\* ?#m', '', trim($from->getDocComment(), "/* \r\n\t")) : NULL;
-		if (PHP_VERSION_ID >= 70000 && $from->hasReturnType()) {
-			$method->returnType = (string) $from->getReturnType();
-		}
-		return $method;
+		return (new Factory)->fromFunctionReflection(
+			$from instanceof \ReflectionFunctionAbstract ? $from : Nette\Utils\Callback::toReflection($from)
+		);
 	}
 
 
@@ -111,53 +80,37 @@ class Method
 		foreach ($this->parameters as $param) {
 			$variadic = $this->variadic && $param === end($this->parameters);
 			$hint = $param->getTypeHint();
-			$parameters[] = ($hint ? ($this->namespace ? $this->namespace->unresolveName($hint) : $hint) . ' ' : '')
+			$parameters[] = ($hint ? ($param->isNullable() ? '?' : '') . ($this->namespace ? $this->namespace->unresolveName($hint) : $hint) . ' ' : '')
 				. ($param->isReference() ? '&' : '')
 				. ($variadic ? '...' : '')
 				. '$' . $param->getName()
-				. ($param->isOptional() && !$variadic ? ' = ' . Helpers::dump($param->defaultValue) : '');
+				. ($param->hasDefaultValue() && !$variadic ? ' = ' . Helpers::dump($param->defaultValue) : '');
 		}
 		$uses = [];
 		foreach ($this->uses as $param) {
 			$uses[] = ($param->isReference() ? '&' : '') . '$' . $param->getName();
 		}
 
-		return ($this->comment ? str_replace("\n", "\n * ", "/**\n" . $this->comment) . "\n */\n" : '')
+		return Helpers::formatDocComment($this->getComment() . "\n")
 			. ($this->abstract ? 'abstract ' : '')
 			. ($this->final ? 'final ' : '')
-			. ($this->visibility ? $this->visibility . ' ' : '')
+			. ($this->getVisibility() ? $this->getVisibility() . ' ' : '')
 			. ($this->static ? 'static ' : '')
-			. 'function'
-			. ($this->returnReference ? ' &' : '')
-			. ' ' . $this->name
+			. 'function '
+			. ($this->returnReference ? '&' : '')
+			. $this->getName()
 			. '(' . implode(', ', $parameters) . ')'
 			. ($this->uses ? ' use (' . implode(', ', $uses) . ')' : '')
-			. ($this->returnType ? ': ' . ($this->namespace ? $this->namespace->unresolveName($this->returnType) : $this->returnType) : '')
+			. ($this->returnType ? ': ' . ($this->returnNullable ? '?' : '')
+				. ($this->namespace ? $this->namespace->unresolveName($this->returnType) : $this->returnType) : '')
 			. ($this->abstract || $this->body === FALSE ? ';'
-				: ($this->name ? "\n" : ' ') . "{\n" . Nette\Utils\Strings::indent(ltrim(rtrim($this->body) . "\n"), 1) . '}');
-	}
-
-
-	/** @deprecated */
-	public function setName($name)
-	{
-		$this->name = $name ? (string) $name : NULL;
-		return $this;
-	}
-
-
-	/**
-	 * @return string|NULL
-	 */
-	public function getName()
-	{
-		return $this->name;
+				: ($this->getName() ? "\n" : ' ') . "{\n" . Nette\Utils\Strings::indent(ltrim(rtrim($this->body) . "\n"), 1) . '}');
 	}
 
 
 	/**
 	 * @param  Parameter[]
-	 * @return self
+	 * @return static
 	 */
 	public function setParameters(array $val)
 	{
@@ -196,7 +149,7 @@ class Method
 
 
 	/**
-	 * @return self
+	 * @return static
 	 */
 	public function setUses(array $val)
 	{
@@ -224,11 +177,11 @@ class Method
 
 
 	/**
-	 * @return self
+	 * @return static
 	 */
-	public function setBody($statement, array $args = NULL)
+	public function setBody($code, array $args = NULL)
 	{
-		$this->body = func_num_args() > 1 ? Helpers::formatArgs($statement, $args) : $statement;
+		$this->body = $args === NULL ? $code : Helpers::formatArgs($code, $args);
 		return $this;
 	}
 
@@ -243,18 +196,18 @@ class Method
 
 
 	/**
-	 * @return self
+	 * @return static
 	 */
-	public function addBody($statement, array $args = NULL)
+	public function addBody($code, array $args = NULL)
 	{
-		$this->body .= (func_num_args() > 1 ? Helpers::formatArgs($statement, $args) : $statement) . "\n";
+		$this->body .= ($args === NULL ? $code : Helpers::formatArgs($code, $args)) . "\n";
 		return $this;
 	}
 
 
 	/**
 	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
 	public function setStatic($val)
 	{
@@ -273,31 +226,8 @@ class Method
 
 
 	/**
-	 * @param  string|NULL  public|protected|private
-	 * @return self
-	 */
-	public function setVisibility($val)
-	{
-		if (!in_array($val, ['public', 'protected', 'private', NULL], TRUE)) {
-			throw new Nette\InvalidArgumentException('Argument must be public|protected|private|NULL.');
-		}
-		$this->visibility = $val ? (string) $val : NULL;
-		return $this;
-	}
-
-
-	/**
-	 * @return string|NULL
-	 */
-	public function getVisibility()
-	{
-		return $this->visibility;
-	}
-
-
-	/**
 	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
 	public function setFinal($val)
 	{
@@ -317,7 +247,7 @@ class Method
 
 	/**
 	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
 	public function setAbstract($val)
 	{
@@ -337,7 +267,7 @@ class Method
 
 	/**
 	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
 	public function setReturnReference($val)
 	{
@@ -357,7 +287,27 @@ class Method
 
 	/**
 	 * @param  bool
-	 * @return self
+	 * @return static
+	 */
+	public function setReturnNullable($val)
+	{
+		$this->returnNullable = (bool) $val;
+		return $this;
+	}
+
+
+	/**
+	 * @return bool
+	 */
+	public function getReturnNullable()
+	{
+		return $this->returnNullable;
+	}
+
+
+	/**
+	 * @param  bool
+	 * @return static
 	 */
 	public function setVariadic($val)
 	{
@@ -376,62 +326,7 @@ class Method
 
 
 	/**
-	 * @param  string|NULL
-	 * @return self
-	 */
-	public function setComment($val)
-	{
-		$this->comment = $val ? (string) $val : NULL;
-		return $this;
-	}
-
-
-	/**
-	 * @return string|NULL
-	 */
-	public function getComment()
-	{
-		return $this->comment;
-	}
-
-
-	/**
-	 * @param  string
-	 * @return self
-	 */
-	public function addComment($val)
-	{
-		$this->comment .= $this->comment ? "\n$val" : $val;
-		return $this;
-	}
-
-
-	/** @deprecated */
-	public function setDocuments(array $s)
-	{
-		trigger_error(__METHOD__ . '() is deprecated, use similar setComment()', E_USER_DEPRECATED);
-		return $this->setComment(implode("\n", $s));
-	}
-
-
-	/** @deprecated */
-	public function getDocuments()
-	{
-		trigger_error(__METHOD__ . '() is deprecated, use similar getComment()', E_USER_DEPRECATED);
-		return $this->comment ? [$this->comment] : [];
-	}
-
-
-	/** @deprecated */
-	public function addDocument($s)
-	{
-		trigger_error(__METHOD__ . '() is deprecated, use addComment()', E_USER_DEPRECATED);
-		return $this->addComment($s);
-	}
-
-
-	/**
-	 * @return self
+	 * @return static
 	 */
 	public function setNamespace(PhpNamespace $val = NULL)
 	{
@@ -442,7 +337,7 @@ class Method
 
 	/**
 	 * @param  string|NULL
-	 * @return self
+	 * @return static
 	 */
 	public function setReturnType($val)
 	{

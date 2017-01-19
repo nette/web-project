@@ -19,34 +19,34 @@ class Decoder
 
 	const PATTERNS = [
 		'
-			\'\'\'\n (?:(?: [^\n] | \n(?![\t\ ]*\'\'\') )*+ \n)?[\t\ ]*\'\'\' |
-			"""\n (?:(?: [^\n] | \n(?![\t\ ]*""") )*+ \n)?[\t\ ]*""" |
-			\'[^\'\n]*\' |
-			" (?: \\\\. | [^"\\\\\n] )* "
+			\'\'\'\n (?:(?: [^\n] | \n(?![\t\ ]*+\'\'\') )*+ \n)?[\t\ ]*+\'\'\' |
+			"""\n (?:(?: [^\n] | \n(?![\t\ ]*+""") )*+ \n)?[\t\ ]*+""" |
+			\'[^\'\n]*+\' |
+			" (?: \\\\. | [^"\\\\\n] )*+ "
 		', // string
 		'
 			(?: [^#"\',:=[\]{}()\x00-\x20!`-] | [:-][^"\',\]})\s] )
 			(?:
-				[^,:=\]})(\x00-\x20]+ |
+				[^,:=\]})(\x00-\x20]++ |
 				:(?! [\s,\]})] | $ ) |
-				[\ \t]+ [^#,:=\]})(\x00-\x20]
-			)*
+				[\ \t]++ [^#,:=\]})(\x00-\x20]
+			)*+
 		', // literal / boolean / integer / float
 		'
 			[,:=[\]{}()-]
 		', // symbol
-		'?:\#.*', // comment
-		'\n[\t\ ]*', // new line + indent
-		'?:[\t\ ]+', // whitespace
+		'?:\#.*+', // comment
+		'\n[\t\ ]*+', // new line + indent
+		'?:[\t\ ]++', // whitespace
 	];
 
-	const PATTERN_DATETIME = '#\d\d\d\d-\d\d?-\d\d?(?:(?:[Tt]| +)\d\d?:\d\d:\d\d(?:\.\d*)? *(?:Z|[-+]\d\d?(?::?\d\d)?)?)?\z#A';
+	const PATTERN_DATETIME = '#\d\d\d\d-\d\d?-\d\d?(?:(?:[Tt]| ++)\d\d?:\d\d:\d\d(?:\.\d*+)? *+(?:Z|[-+]\d\d?(?::?\d\d)?)?)?\z#A';
 
-	const PATTERN_HEX = '#0x[0-9a-fA-F]+\z#A';
+	const PATTERN_HEX = '#0x[0-9a-fA-F]++\z#A';
 
-	const PATTERN_OCTAL = '#0o[0-7]+\z#A';
+	const PATTERN_OCTAL = '#0o[0-7]++\z#A';
 
-	const PATTERN_BINARY = '#0b[0-1]+\z#A';
+	const PATTERN_BINARY = '#0b[0-1]++\z#A';
 
 	const SIMPLE_TYPES = [
 		'true' => 'TRUE', 'True' => 'TRUE', 'TRUE' => 'TRUE', 'yes' => 'TRUE', 'Yes' => 'TRUE', 'YES' => 'TRUE', 'on' => 'TRUE', 'On' => 'TRUE', 'ON' => 'TRUE',
@@ -124,9 +124,9 @@ class Decoder
 		$value = NULL;
 		$hasValue = FALSE;
 		$tokens = $this->tokens;
-		$n = & $this->pos;
+		$n = &$this->pos;
 		$count = count($tokens);
-		$mainResult = & $result;
+		$mainResult = &$result;
 
 		for (; $n < $count; $n++) {
 			$t = $tokens[$n][0];
@@ -161,7 +161,7 @@ class Decoder
 					$key = (string) $value;
 					$hasKey = TRUE;
 					$hasValue = FALSE;
-					$result = & $mainResult;
+					$result = &$mainResult;
 				}
 
 			} elseif ($t === '-') { // BlockArray bullet
@@ -242,7 +242,7 @@ class Decoder
 						} elseif ($hasKey) {
 							$this->addValue($result, $key, $hasValue ? $value : NULL);
 							if ($key !== NULL && !$hasValue && $newIndent === $indent && isset($tokens[$n + 1]) && $tokens[$n + 1][0] === '-') {
-								$result = & $result[$key];
+								$result = &$result[$key];
 							}
 							$hasKey = $hasValue = FALSE;
 						}
@@ -255,7 +255,7 @@ class Decoder
 
 			} else { // Value
 				if ($t[0] === '"' || $t[0] === "'") {
-					if (preg_match('#^...\n+([\t ]*)#', $t, $m)) {
+					if (preg_match('#^...\n++([\t ]*+)#', $t, $m)) {
 						$converted = substr($t, 3, -3);
 						$converted = str_replace("\n" . $m[1], "\n", $converted);
 						$converted = preg_replace('#^\n|\n[\t ]*+\z#', '', $converted);
@@ -315,7 +315,7 @@ class Decoder
 	}
 
 
-	private function addValue(& $result, $key, $value)
+	private function addValue(&$result, $key, $value)
 	{
 		if ($key === NULL) {
 			$result[] = $value;

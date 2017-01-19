@@ -5,52 +5,43 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
-namespace Nette\DI;
+namespace Nette\Utils;
 
 use Nette;
 
 
 /**
  * PHP reflection helpers.
- * @internal
- * @deprecated
  */
-class PhpReflection
+class Reflection
 {
 	use Nette\StaticClass;
 
+	private static $builtinTypes = [
+		'string' => 1, 'int' => 1, 'float' => 1, 'bool' => 1, 'array' => 1,
+		'callable' => 1, 'iterable' => 1, 'void' => 1
+	];
+
+
 	/**
-	 * Returns an annotation value.
-	 * @return string|NULL
+	 * @param  string
+	 * @return bool
 	 */
-	public static function parseAnnotation(\Reflector $ref, $name)
+	public static function isBuiltinType($type)
 	{
-		static $ok;
-		if (!$ok) {
-			if (!(new \ReflectionMethod(__METHOD__))->getDocComment()) {
-				throw new Nette\InvalidStateException('You have to enable phpDoc comments in opcode cache.');
-			}
-			$ok = TRUE;
-		}
-		$name = preg_quote($name, '#');
-		if ($ref->getDocComment() && preg_match("#[\\s*]@$name(?:\\s++([^@]\\S*)?|$)#", trim($ref->getDocComment(), '/*'), $m)) {
-			return isset($m[1]) ? $m[1] : '';
-		}
+		return isset(self::$builtinTypes[strtolower($type)]);
 	}
 
 
 	/**
-	 * Returns declaring class or trait.
-	 * @return \ReflectionClass
+	 * @return string|NULL
 	 */
-	public static function getDeclaringClass(\ReflectionProperty $prop)
+	public static function getReturnType(\ReflectionFunctionAbstract $func)
 	{
-		foreach ($prop->getDeclaringClass()->getTraits() as $trait) {
-			if ($trait->hasProperty($prop->getName())) {
-				return self::getDeclaringClass($trait->getProperty($prop->getName()));
-			}
+		if (PHP_VERSION_ID >= 70000 && $func->hasReturnType()) {
+			$type = (string) $func->getReturnType();
+			return strtolower($type) === 'self' ? $func->getDeclaringClass()->getName() : $type;
 		}
-		return $prop->getDeclaringClass();
 	}
 
 
@@ -78,47 +69,76 @@ class PhpReflection
 
 
 	/**
-	 * @return string|NULL
+	 * @return mixed
+	 * @throws \ReflectionException when default value is not available or resolvable
 	 */
-	public static function getReturnType(\ReflectionFunctionAbstract $func)
+	public static function getParameterDefaultValue(\ReflectionParameter $param)
 	{
-		if (PHP_VERSION_ID >= 70000 && $func->hasReturnType()) {
-			$type = (string) $func->getReturnType();
-			return strtolower($type) === 'self' ? $func->getDeclaringClass()->getName() : $type;
+		if ($param->isDefaultValueConstant()) {
+			$const = $orig = $param->getDefaultValueConstantName();
+			$pair = explode('::', $const);
+			if (isset($pair[1]) && strtolower($pair[0]) === 'self') {
+				$const = $param->getDeclaringClass()->getName() . '::' . $pair[1];
+			}
+			if (!defined($const)) {
+				$const = substr((string) strrchr($const, '\\'), 1);
+				if (isset($pair[1]) || !defined($const)) {
+					$name = self::toString($param);
+					throw new \ReflectionException("Unable to resolve constant $orig used as default value of $name.");
+				}
+			}
+			return constant($const);
 		}
-		$type = preg_replace('#[|\s].*#', '', (string) self::parseAnnotation($func, 'return'));
-		if ($type) {
-			return $func instanceof \ReflectionMethod
-				? self::expandClassName($type, $func->getDeclaringClass())
-				: ltrim($type, '\\');
-		}
+		return $param->getDefaultValue();
 	}
 
 
 	/**
-	 * @param  string
+	 * Returns declaring class or trait.
+	 * @return \ReflectionClass
+	 */
+	public static function getPropertyDeclaringClass(\ReflectionProperty $prop)
+	{
+		foreach ($prop->getDeclaringClass()->getTraits() as $trait) {
+			if ($trait->hasProperty($prop->getName())) {
+				return self::getPropertyDeclaringClass($trait->getProperty($prop->getName()));
+			}
+		}
+		return $prop->getDeclaringClass();
+	}
+
+
+	/**
+	 * Are documentation comments available?
 	 * @return bool
 	 */
-	public static function isBuiltinType($type)
+	public static function areCommentsAvailable()
 	{
-		return in_array(strtolower($type), ['string', 'int', 'float', 'bool', 'array', 'callable'], TRUE);
+		static $res;
+		return $res === NULL
+			? $res = (bool) (new \ReflectionMethod(__METHOD__))->getDocComment()
+			: $res;
 	}
 
 
 	/**
-	 * Returns class and all its descendants.
-	 * @return string[]
+	 * @return string
 	 */
-	public static function getClassTree(\ReflectionClass $class)
+	public static function toString(\Reflector $ref)
 	{
-		$addTraits = function ($types) use (&$addTraits) {
-			if ($traits = array_merge(...array_map('class_uses', array_values($types)))) {
-				$types += $traits + $addTraits($traits);
-			}
-			return $types;
-		};
-		$class = $class->getName();
-		return array_values($addTraits([$class] + class_parents($class) + class_implements($class)));
+		if ($ref instanceof \ReflectionClass) {
+			return $ref->getName();
+		} elseif ($ref instanceof \ReflectionMethod) {
+			return $ref->getDeclaringClass()->getName() . '::' . $ref->getName();
+		} elseif ($ref instanceof \ReflectionFunction) {
+			return $ref->getName();
+		} elseif ($ref instanceof \ReflectionProperty) {
+			return self::getPropertyDeclaringClass($ref)->getName() . '::$' . $ref->getName();
+		} elseif ($ref instanceof \ReflectionParameter) {
+			return '$' . $ref->getName() . ' in ' . self::toString($ref->getDeclaringFunction()) . '()';
+		} else {
+			throw new Nette\InvalidArgumentException;
+		}
 	}
 
 
@@ -134,10 +154,10 @@ class PhpReflection
 		if (empty($name)) {
 			throw new Nette\InvalidArgumentException('Class name must not be empty.');
 
-		} elseif (self::isBuiltinType($lower)) {
+		} elseif (isset(self::$builtinTypes[$lower])) {
 			return $lower;
 
-		} elseif ($lower === 'self' || $lower === 'static' || $lower === '$this') {
+		} elseif ($lower === 'self') {
 			return $rc->getName();
 
 		} elseif ($name[0] === '\\') { // fully qualified name
@@ -182,7 +202,7 @@ class PhpReflection
 	 * @param  string
 	 * @return array of [class => [alias => class, ...]]
 	 */
-	public static function parseUseStatements($code, $forClass = NULL)
+	private static function parseUseStatements($code, $forClass = NULL)
 	{
 		$tokens = token_get_all($code);
 		$namespace = $class = $classLevel = $level = NULL;

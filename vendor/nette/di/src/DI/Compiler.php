@@ -46,7 +46,7 @@ class Compiler
 
 	/**
 	 * Add custom configurator extension.
-	 * @return self
+	 * @return static
 	 */
 	public function addExtension($name, CompilerExtension $extension)
 	{
@@ -79,7 +79,7 @@ class Compiler
 
 
 	/**
-	 * @return self
+	 * @return static
 	 */
 	public function setClassName($className)
 	{
@@ -90,7 +90,7 @@ class Compiler
 
 	/**
 	 * Adds new configuration.
-	 * @return self
+	 * @return static
 	 */
 	public function addConfig(array $config)
 	{
@@ -101,7 +101,7 @@ class Compiler
 
 	/**
 	 * Adds new configuration from file.
-	 * @return self
+	 * @return static
 	 */
 	public function loadConfig($file)
 	{
@@ -125,7 +125,7 @@ class Compiler
 	/**
 	 * Adds dependencies to the list.
 	 * @param  array of ReflectionClass|\ReflectionFunctionAbstract|string
-	 * @return self
+	 * @return static
 	 */
 	public function addDependencies(array $deps)
 	{
@@ -147,7 +147,7 @@ class Compiler
 	/**
 	 * @return string
 	 */
-	public function compile(array $config = NULL, $className = NULL, $parentName = NULL)
+	public function compile()
 	{
 		if (func_num_args()) {
 			trigger_error(__METHOD__ . ' arguments are deprecated, use Compiler::addConfig() and Compiler::setClassName().', E_USER_DEPRECATED);
@@ -292,8 +292,14 @@ class Compiler
 			}
 			$def = Helpers::expand($def, $params);
 
+			if (is_array($def) && !empty($def['alteration']) && !$builder->hasDefinition($name)) {
+				throw new ServiceCreationException("Service '$name': missing original definition for alteration.");
+			}
+
 			if (($parent = Config\Helpers::takeParent($def)) && $parent !== $name) {
-				trigger_error("Section inheritance $name < $parent is deprecated.", E_USER_DEPRECATED);
+				if ($parent !== Config\Helpers::OVERWRITE) {
+					trigger_error("Section inheritance $name < $parent is deprecated.", E_USER_DEPRECATED);
+				}
 				$builder->removeDefinition($name);
 				$definition = $builder->addDefinition(
 					$name,
@@ -339,7 +345,7 @@ class Compiler
 			unset($config['create']);
 		}
 
-		$known = ['class', 'factory', 'arguments', 'setup', 'autowired', 'dynamic', 'inject', 'parameters', 'implement', 'run', 'tags'];
+		$known = ['class', 'factory', 'arguments', 'setup', 'autowired', 'dynamic', 'inject', 'parameters', 'implement', 'run', 'tags', 'alteration'];
 		if ($error = array_diff(array_keys($config), $known)) {
 			$hints = array_filter(array_map(function ($error) use ($known) {
 				return Nette\Utils\ObjectMixin::getSuggestion($known, $error);

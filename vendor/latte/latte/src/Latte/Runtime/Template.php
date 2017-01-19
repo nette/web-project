@@ -188,7 +188,7 @@ class Template
 		// old accumulators for back compatibility
 		$this->params['_l'] = new \stdClass;
 		$this->params['_g'] = $this->global;
-		$this->params['_b'] = (object) ['blocks' => & $this->blockQueue, 'types' => & $this->blockTypes];
+		$this->params['_b'] = (object) ['blocks' => &$this->blockQueue, 'types' => &$this->blockTypes];
 		if (isset($this->global->snippetDriver) && $this->global->snippetBridge->isSnippetMode()) {
 			if ($this->global->snippetDriver->renderSnippets($this->blockQueue, $this->params)) {
 				return;
@@ -216,8 +216,8 @@ class Template
 			foreach ($child->blockTypes as $nm => $type) {
 				$this->checkBlockContentType($type, $nm);
 			}
-			$child->blockQueue = & $this->blockQueue;
-			$child->blockTypes = & $this->blockTypes;
+			$child->blockQueue = &$this->blockQueue;
+			$child->blockTypes = &$this->blockTypes;
 		}
 		return $child;
 	}
@@ -230,14 +230,17 @@ class Template
 	 */
 	protected function renderToContentType($mod)
 	{
-		if ($mod && $mod !== $this->contentType) {
-			if ($filter = (is_string($mod) ? Filters::getConvertor($this->contentType, $mod) : $mod)) {
-				echo $filter($this->capture([$this, 'render']), $this->contentType);
-				return;
+		if ($mod instanceof \Closure) {
+			echo $mod($this->capture([$this, 'render']), $this->contentType);
+		} elseif ($mod && $mod !== $this->contentType) {
+			if ($filter = Filters::getConvertor($this->contentType, $mod)) {
+				echo $filter($this->capture([$this, 'render']));
+			} else {
+				trigger_error("Including '$this->name' with content type " . strtoupper($this->contentType) . ' into incompatible type ' . strtoupper($mod) . '.', E_USER_WARNING);
 			}
-			trigger_error("Including '$this->name' with content type " . strtoupper($this->contentType) . ' into incompatible type ' . strtoupper($mod) . '.', E_USER_WARNING);
+		} else {
+			$this->render();
 		}
-		$this->render();
 	}
 
 
@@ -301,7 +304,7 @@ class Template
 	 */
 	protected function checkBlockContentType($current, $name)
 	{
-		$expected = & $this->blockTypes[$name];
+		$expected = &$this->blockTypes[$name];
 		if ($expected === NULL) {
 			$expected = $current;
 		} elseif ($expected !== $current) {

@@ -27,37 +27,22 @@ class Parameter
 	private $typeHint;
 
 	/** @var bool */
-	private $optional = FALSE;
+	private $nullable = FALSE;
+
+	/** @var bool */
+	private $hasDefaultValue = FALSE;
 
 	/** @var mixed */
 	public $defaultValue;
 
 
 	/**
-	 * @return self
+	 * @deprecated
+	 * @return static
 	 */
 	public static function from(\ReflectionParameter $from)
 	{
-		$param = new static($from->getName());
-		$param->reference = $from->isPassedByReference();
-		if (PHP_VERSION_ID >= 70000) {
-			$param->typeHint = $from->hasType() ? (string) $from->getType() : NULL;
-		} elseif ($from->isArray() || $from->isCallable()) {
-			$param->typeHint = $from->isArray() ? 'array' : 'callable';
-		} else {
-			try {
-				$param->typeHint = $from->getClass() ? $from->getClass()->getName() : NULL;
-			} catch (\ReflectionException $e) {
-				if (preg_match('#Class (.+) does not exist#', $e->getMessage(), $m)) {
-					$param->typeHint = $m[1];
-				} else {
-					throw $e;
-				}
-			}
-		}
-		$param->optional = $from->isDefaultValueAvailable();
-		$param->defaultValue = $from->isDefaultValueAvailable() ? $from->getDefaultValue() : NULL;
-		return $param;
+		return (new Factory)->fromParameterReflection($from);
 	}
 
 
@@ -89,7 +74,7 @@ class Parameter
 
 	/**
 	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
 	public function setReference($state = TRUE)
 	{
@@ -109,7 +94,7 @@ class Parameter
 
 	/**
 	 * @param  string|NULL
-	 * @return self
+	 * @return static
 	 */
 	public function setTypeHint($hint)
 	{
@@ -129,11 +114,32 @@ class Parameter
 
 	/**
 	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
 	public function setOptional($state = TRUE)
 	{
-		$this->optional = (bool) $state;
+		$this->hasDefaultValue = (bool) $state;
+		return $this;
+	}
+
+
+	/**
+	 * @deprecated  use hasDefaultValue()
+	 * @return bool
+	 */
+	public function isOptional()
+	{
+		return $this->hasDefaultValue;
+	}
+
+
+	/**
+	 * @param  bool
+	 * @return static
+	 */
+	public function setNullable($state = TRUE)
+	{
+		$this->nullable = (bool) $state;
 		return $this;
 	}
 
@@ -141,14 +147,14 @@ class Parameter
 	/**
 	 * @return bool
 	 */
-	public function isOptional()
+	public function isNullable()
 	{
-		return $this->optional;
+		return $this->nullable;
 	}
 
 
 	/**
-	 * @return self
+	 * @return static
 	 */
 	public function setDefaultValue($val)
 	{
@@ -163,6 +169,15 @@ class Parameter
 	public function getDefaultValue()
 	{
 		return $this->defaultValue;
+	}
+
+
+	/**
+	 * @return bool
+	 */
+	public function hasDefaultValue()
+	{
+		return $this->hasDefaultValue;
 	}
 
 }

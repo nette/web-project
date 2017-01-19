@@ -30,7 +30,7 @@ class ClassType
 	/** @var PhpNamespace|NULL */
 	private $namespace;
 
-	/** @var string */
+	/** @var string|NULL */
 	private $name;
 
 	/** @var string  class|interface|trait */
@@ -54,7 +54,7 @@ class ClassType
 	/** @var string|NULL */
 	private $comment;
 
-	/** @var array name => value */
+	/** @var Constant[] name => Constant */
 	private $consts = [];
 
 	/** @var Property[] name => Property */
@@ -66,40 +66,17 @@ class ClassType
 
 	/**
 	 * @param  \ReflectionClass|string
-	 * @return self
+	 * @return static
 	 */
 	public static function from($from)
 	{
-		$from = $from instanceof \ReflectionClass ? $from : new \ReflectionClass($from);
-		if (PHP_VERSION_ID >= 70000 && $from->isAnonymous()) {
-			$class = new static('anonymous');
-		} else {
-			$class = new static($from->getShortName(), new PhpNamespace($from->getNamespaceName()));
-		}
-		$class->type = $from->isInterface() ? 'interface' : ($from->isTrait() ? 'trait' : 'class');
-		$class->final = $from->isFinal() && $class->type === 'class';
-		$class->abstract = $from->isAbstract() && $class->type === 'class';
-		$class->implements = $from->getInterfaceNames();
-		$class->comment = $from->getDocComment() ? preg_replace('#^\s*\* ?#m', '', trim($from->getDocComment(), "/* \r\n\t")) : NULL;
-		if ($from->getParentClass()) {
-			$class->extends = $from->getParentClass()->getName();
-			$class->implements = array_diff($class->implements, $from->getParentClass()->getInterfaceNames());
-		}
-		foreach ($from->getProperties() as $prop) {
-			if ($prop->isDefault() && $prop->getDeclaringClass()->getName() === $from->getName()) {
-				$class->properties[$prop->getName()] = Property::from($prop);
-			}
-		}
-		foreach ($from->getMethods() as $method) {
-			if ($method->getDeclaringClass()->getName() === $from->getName()) {
-				$class->methods[$method->getName()] = Method::from($method)->setNamespace($class->namespace);
-			}
-		}
-		return $class;
+		return (new Factory)->fromClassReflection(
+			$from instanceof \ReflectionClass ? $from : new \ReflectionClass($from)
+		);
 	}
 
 
-	public function __construct($name = '', PhpNamespace $namespace = NULL)
+	public function __construct($name = NULL, PhpNamespace $namespace = NULL)
 	{
 		$this->setName($name);
 		$this->namespace = $namespace;
@@ -112,15 +89,16 @@ class ClassType
 	public function __toString()
 	{
 		$consts = [];
-		foreach ($this->consts as $name => $value) {
-			$consts[] = "const $name = " . Helpers::dump($value) . ";\n";
+		foreach ($this->consts as $const) {
+			$consts[] = Helpers::formatDocComment($const->getComment())
+				. ($const->getVisibility() ? $const->getVisibility() . ' ' : '')
+				. 'const ' . $const->getName() . ' = ' . Helpers::dump($const->getValue()) . ";\n";
 		}
 
 		$properties = [];
 		foreach ($this->properties as $property) {
-			$doc = str_replace("\n", "\n * ", $property->getComment());
-			$properties[] = ($doc ? (strpos($doc, "\n") === FALSE ? "/** $doc */\n" : "/**\n * $doc\n */\n") : '')
-				. $property->getVisibility() . ($property->isStatic() ? ' static' : '') . ' $' . $property->getName()
+			$properties[] = Helpers::formatDocComment($property->getComment())
+				. ($property->getVisibility() ?: 'public') . ($property->isStatic() ? ' static' : '') . ' $' . $property->getName()
 				. ($property->value === NULL ? '' : ' = ' . Helpers::dump($property->value))
 				. ";\n";
 		}
@@ -130,21 +108,20 @@ class ClassType
 		};
 
 		return Strings::normalize(
-			($this->comment ? str_replace("\n", "\n * ", "/**\n" . $this->comment) . "\n */\n" : '')
+			Helpers::formatDocComment($this->comment . "\n")
 			. ($this->abstract ? 'abstract ' : '')
 			. ($this->final ? 'final ' : '')
-			. $this->type . ' '
-			. $this->name . ' '
+			. ($this->name ? "$this->type $this->name " : '')
 			. ($this->extends ? 'extends ' . implode(', ', $mapper((array) $this->extends)) . ' ' : '')
 			. ($this->implements ? 'implements ' . implode(', ', $mapper($this->implements)) . ' ' : '')
-			. "\n{\n"
+			. ($this->name ? "\n" : '') . "{\n"
 			. Strings::indent(
 				($this->traits ? 'use ' . implode(";\nuse ", $mapper($this->traits)) . ";\n\n" : '')
 				. ($this->consts ? implode('', $consts) . "\n" : '')
 				. ($this->properties ? implode("\n", $properties) . "\n" : '')
 				. ($this->methods ? "\n" . implode("\n\n\n", $this->methods) . "\n\n" : ''), 1)
 			. '}'
-		) . "\n";
+		) . ($this->name ? "\n" : '');
 	}
 
 
@@ -158,18 +135,18 @@ class ClassType
 
 
 	/**
-	 * @param  string
-	 * @return self
+	 * @param  string|NULL
+	 * @return static
 	 */
 	public function setName($name)
 	{
-		$this->name = (string) $name;
+		$this->name = $name;
 		return $this;
 	}
 
 
 	/**
-	 * @return string
+	 * @return string|NULL
 	 */
 	public function getName()
 	{
@@ -179,7 +156,7 @@ class ClassType
 
 	/**
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function setType($type)
 	{
@@ -202,7 +179,7 @@ class ClassType
 
 	/**
 	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
 	public function setFinal($state = TRUE)
 	{
@@ -222,7 +199,7 @@ class ClassType
 
 	/**
 	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
 	public function setAbstract($state = TRUE)
 	{
@@ -242,7 +219,7 @@ class ClassType
 
 	/**
 	 * @param  string|string[]
-	 * @return self
+	 * @return static
 	 */
 	public function setExtends($types)
 	{
@@ -265,7 +242,7 @@ class ClassType
 
 	/**
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function addExtend($type)
 	{
@@ -277,7 +254,7 @@ class ClassType
 
 	/**
 	 * @param  string[]
-	 * @return self
+	 * @return static
 	 */
 	public function setImplements(array $types)
 	{
@@ -297,7 +274,7 @@ class ClassType
 
 	/**
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function addImplement($type)
 	{
@@ -308,7 +285,7 @@ class ClassType
 
 	/**
 	 * @param  string[]
-	 * @return self
+	 * @return static
 	 */
 	public function setTraits(array $traits)
 	{
@@ -328,7 +305,7 @@ class ClassType
 
 	/**
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function addTrait($trait)
 	{
@@ -339,7 +316,7 @@ class ClassType
 
 	/**
 	 * @param  string|NULL
-	 * @return self
+	 * @return static
 	 */
 	public function setComment($val)
 	{
@@ -359,7 +336,7 @@ class ClassType
 
 	/**
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function addComment($val)
 	{
@@ -393,19 +370,56 @@ class ClassType
 
 
 	/**
-	 * @return self
+	 * @deprecated  use setConstants()
+	 * @return static
 	 */
 	public function setConsts(array $consts)
 	{
-		$this->consts = $consts;
+		return $this->setConstants($consts);
+	}
+
+
+	/**
+	 * @deprecated  use getConstants()
+	 * @return array
+	 */
+	public function getConsts()
+	{
+		return array_map(function ($const) { return $const->getValue(); }, $this->consts);
+	}
+
+
+	/**
+	 * @deprecated  use addConstant()
+	 * @param  string
+	 * @param  mixed
+	 * @return static
+	 */
+	public function addConst($name, $value)
+	{
+		$this->addConstant($name, $value);
 		return $this;
 	}
 
 
 	/**
-	 * @return array
+	 * @return static
 	 */
-	public function getConsts()
+	public function setConstants(array $consts)
+	{
+		$this->consts = [];
+		foreach ($consts as $k => $v) {
+			$const = $v instanceof Constant ? $v : (new Constant($k))->setValue($v);
+			$this->consts[$const->getName()] = $const;
+		}
+		return $this;
+	}
+
+
+	/**
+	 * @return Constant[]
+	 */
+	public function getConstants()
 	{
 		return $this->consts;
 	}
@@ -414,18 +428,17 @@ class ClassType
 	/**
 	 * @param  string
 	 * @param  mixed
-	 * @return self
+	 * @return Constant
 	 */
-	public function addConst($name, $value)
+	public function addConstant($name, $value)
 	{
-		$this->consts[$name] = $value;
-		return $this;
+		return $this->consts[$name] = (new Constant($name))->setValue($value);
 	}
 
 
 	/**
 	 * @param  Property[]
-	 * @return self
+	 * @return static
 	 */
 	public function setProperties(array $props)
 	{
@@ -474,7 +487,7 @@ class ClassType
 
 	/**
 	 * @param  Method[]
-	 * @return self
+	 * @return static
 	 */
 	public function setMethods(array $methods)
 	{

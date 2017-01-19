@@ -8,6 +8,7 @@
 namespace Nette\DI;
 
 use Nette;
+use Nette\Utils\Reflection;
 
 
 /**
@@ -85,8 +86,7 @@ class Helpers
 		$optCount = 0;
 		$num = -1;
 		$res = [];
-		$methodName = ($method instanceof \ReflectionMethod ? $method->getDeclaringClass()->getName() . '::' : '')
-			. $method->getName() . '()';
+		$methodName = Reflection::toString($method) . '()';
 
 		foreach ($method->getParameters() as $num => $parameter) {
 			if (!$parameter->isVariadic() && array_key_exists($parameter->getName(), $arguments)) {
@@ -99,18 +99,18 @@ class Helpers
 				unset($arguments[$num]);
 				$optCount = 0;
 
-			} elseif (($class = PhpReflection::getParameterType($parameter)) && !PhpReflection::isBuiltinType($class)) {
+			} elseif (($class = Reflection::getParameterType($parameter)) && !Reflection::isBuiltinType($class)) {
 				$res[$num] = $container->getByType($class, FALSE);
 				if ($res[$num] === NULL) {
 					if ($parameter->allowsNull()) {
 						$optCount++;
 					} elseif (class_exists($class) || interface_exists($class)) {
 						if ($class !== ($hint = (new \ReflectionClass($class))->getName())) {
-							throw new ServiceCreationException("Service of type {$class} needed by $methodName not found, did you mean $hint?");
+							throw new ServiceCreationException("Service of type $class needed by $methodName not found, did you mean $hint?");
 						}
-						throw new ServiceCreationException("Service of type {$class} needed by $methodName not found. Did you register it in configuration file?");
+						throw new ServiceCreationException("Service of type $class needed by $methodName not found. Did you register it in configuration file?");
 					} else {
-						throw new ServiceCreationException("Class {$class} needed by $methodName not found. Check type hint and 'use' statements.");
+						throw new ServiceCreationException("Class $class needed by $methodName not found. Check type hint and 'use' statements.");
 					}
 				} else {
 					if ($container instanceof ContainerBuilder) {
@@ -122,7 +122,7 @@ class Helpers
 			} elseif (($class && $parameter->allowsNull()) || $parameter->isOptional() || $parameter->isDefaultValueAvailable()) {
 				// !optional + defaultAvailable = func($a = NULL, $b) since 5.4.7
 				// optional + !defaultAvailable = i.e. Exception::__construct, mysqli::mysqli, ...
-				$res[$num] = $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : NULL;
+				$res[$num] = $parameter->isDefaultValueAvailable() ? Reflection::getParameterDefaultValue($parameter) : NULL;
 				$optCount++;
 
 			} else {
@@ -184,11 +184,47 @@ class Helpers
 				self::prefixServiceName($config->arguments, $namespace)
 			);
 		} elseif (is_array($config)) {
-			foreach ($config as & $val) {
+			foreach ($config as &$val) {
 				$val = self::prefixServiceName($val, $namespace);
 			}
 		}
 		return $config;
+	}
+
+
+	/**
+	 * Returns an annotation value.
+	 * @return string|NULL
+	 */
+	public static function parseAnnotation(\Reflector $ref, $name)
+	{
+		if (!Reflection::areCommentsAvailable()) {
+			throw new Nette\InvalidStateException('You have to enable phpDoc comments in opcode cache.');
+		}
+		$name = preg_quote($name, '#');
+		if ($ref->getDocComment() && preg_match("#[\\s*]@$name(?:\\s++([^@]\\S*)?|$)#", trim($ref->getDocComment(), '/*'), $m)) {
+			return isset($m[1]) ? $m[1] : '';
+		}
+	}
+
+
+	/**
+	 * @return string|NULL
+	 */
+	public static function getReturnType(\ReflectionFunctionAbstract $func)
+	{
+		if ($type = Reflection::getReturnType($func)) {
+			return $type;
+		} elseif ($type = preg_replace('#[|\s].*#', '', (string) self::parseAnnotation($func, 'return'))) {
+			if ($func instanceof \ReflectionMethod) {
+				$lower = strtolower($type);
+				return $lower === 'static' || $lower === '$this'
+					? $func->getDeclaringClass()->getName()
+					: Reflection::expandClassName($type, $func->getDeclaringClass());
+			} else {
+				return ltrim($type, '\\');
+			}
+		}
 	}
 
 }

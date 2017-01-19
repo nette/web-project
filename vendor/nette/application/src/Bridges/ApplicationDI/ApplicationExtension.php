@@ -109,7 +109,9 @@ class ApplicationExtension extends Nette\DI\CompilerExtension
 		}
 
 		foreach ($all as $def) {
-			$def->setInject(TRUE)->addTag('nette.presenter', $def->getClass());
+			$def->addTag(Nette\DI\Extensions\InjectExtension::TAG_INJECT)
+				->addTag('nette.presenter', $def->getClass());
+
 			if (is_subclass_of($def->getClass(), UI\Presenter::class)) {
 				$def->addSetup('$invalidLinkMode', [$this->invalidLinkMode]);
 			}
@@ -128,7 +130,6 @@ class ApplicationExtension extends Nette\DI\CompilerExtension
 				throw new Nette\NotSupportedException("RobotLoader is required to find presenters, install package `nette/robot-loader` or disable option {$this->prefix('scanDirs')}: false");
 			}
 			$robot = new Nette\Loaders\RobotLoader;
-			$robot->setCacheStorage(new Nette\Caching\Storages\DevNullStorage);
 			$robot->addDirectory($config['scanDirs']);
 			$robot->acceptFiles = '*' . $config['scanFilter'] . '*.php';
 			$robot->rebuild();

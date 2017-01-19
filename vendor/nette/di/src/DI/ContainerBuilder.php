@@ -11,6 +11,7 @@ use Nette;
 use Nette\PhpGenerator\Helpers as PhpHelpers;
 use Nette\Utils\Strings;
 use Nette\Utils\Validators;
+use Nette\Utils\Reflection;
 use ReflectionClass;
 
 
@@ -169,7 +170,7 @@ class ContainerBuilder
 
 	/**
 	 * @param  string[]
-	 * @return self
+	 * @return static
 	 */
 	public function addExcludedClasses(array $classes)
 	{
@@ -236,6 +237,22 @@ class ContainerBuilder
 				: '';
 			throw new ServiceCreationException("Multiple services of type $class found: " . implode(', ', $list) . $hint);
 		}
+	}
+
+
+	/**
+	 * Gets the service definition of the specified type.
+	 * @param  string
+	 * @return ServiceDefinition
+	 */
+	public function getDefinitionByType($class)
+	{
+		$definitionName = $this->getByType($class);
+		if (!$definitionName) {
+			throw new MissingServiceException("Service of type '$class' not found.");
+		}
+
+		return $this->getDefinition($definitionName);
 	}
 
 
@@ -391,21 +408,22 @@ class ContainerBuilder
 		if (count($rc->getMethods()) !== 1 || !$method || $method->isStatic()) {
 			throw new ServiceCreationException("Interface $interface used in service '$name' must have just one non-static method create() or get().");
 		}
-		$def->setImplementMode($methodName = $rc->hasMethod('create') ? $def::IMPLEMENT_MODE_CREATE : $def::IMPLEMENT_MODE_GET);
+		$def->setImplementMode($rc->hasMethod('create') ? $def::IMPLEMENT_MODE_CREATE : $def::IMPLEMENT_MODE_GET);
+		$methodName = Reflection::toString($method) . '()';
 
 		if (!$def->getClass() && !$def->getEntity()) {
-			$returnType = PhpReflection::getReturnType($method);
+			$returnType = Helpers::getReturnType($method);
 			if (!$returnType) {
-				throw new ServiceCreationException("Method $interface::$methodName() used in service '$name' has no @return annotation.");
+				throw new ServiceCreationException("Method $methodName used in service '$name' has not return type hint or annotation @return.");
 			} elseif (!class_exists($returnType)) {
-				throw new ServiceCreationException("Check a @return annotation of the $interface::$methodName() method used in service '$name', class '$returnType' cannot be found.");
+				throw new ServiceCreationException("Check a type hint or annotation @return of the $methodName method used in service '$name', class '$returnType' cannot be found.");
 			}
 			$def->setClass($returnType);
 		}
 
-		if ($methodName === 'get') {
+		if ($rc->hasMethod('get')) {
 			if ($method->getParameters()) {
-				throw new ServiceCreationException("Method $interface::get() used in service '$name' must have no arguments.");
+				throw new ServiceCreationException("Method $methodName used in service '$name' must have no arguments.");
 			}
 			if (!$def->getEntity()) {
 				$def->setFactory('@\\' . ltrim($def->getClass(), '\\'));
@@ -428,20 +446,21 @@ class ContainerBuilder
 			}
 
 			foreach ($method->getParameters() as $param) {
-				$hint = PhpReflection::getParameterType($param);
+				$hint = Reflection::getParameterType($param);
 				if (isset($ctorParams[$param->getName()])) {
 					$arg = $ctorParams[$param->getName()];
-					if ($hint !== PhpReflection::getParameterType($arg)) {
-						throw new ServiceCreationException("Type hint for \${$param->getName()} in $interface::$methodName() doesn't match type hint in $class constructor.");
+					if ($hint !== Reflection::getParameterType($arg)) {
+						throw new ServiceCreationException("Type hint for \${$param->getName()} in $methodName doesn't match type hint in $class constructor.");
 					}
 					$def->getFactory()->arguments[$arg->getPosition()] = self::literal('$' . $arg->getName());
 				} elseif (!$def->getSetup()) {
 					$hint = Nette\Utils\ObjectMixin::getSuggestion(array_keys($ctorParams), $param->getName());
-					throw new ServiceCreationException("Unused parameter \${$param->getName()} when implementing method $interface::$methodName()" . ($hint ? ", did you mean \${$hint}?" : '.'));
+					throw new ServiceCreationException("Unused parameter \${$param->getName()} when implementing method $methodName" . ($hint ? ", did you mean \${$hint}?" : '.'));
 				}
-				$paramDef = $hint . ' ' . $param->getName();
+				$nullable = $hint && $param->allowsNull() && (!$param->isDefaultValueAvailable() || $param->getDefaultValue() !== NULL);
+				$paramDef = ($nullable ? '?' : '') . $hint . ' ' . $param->getName();
 				if ($param->isDefaultValueAvailable()) {
-					$def->parameters[$paramDef] = $param->getDefaultValue();
+					$def->parameters[$paramDef] = Reflection::getParameterDefaultValue($param);
 				} else {
 					$def->parameters[] = $paramDef;
 				}
@@ -506,7 +525,7 @@ class ContainerBuilder
 			}
 			$this->addDependency($reflection);
 
-			$type = PhpReflection::getReturnType($reflection);
+			$type = Helpers::getReturnType($reflection);
 			if ($type && !class_exists($type) && !interface_exists($type)) {
 				throw new ServiceCreationException(sprintf("Class or interface '%s' not found. Is return type of %s() used in service '%s' correct?", $type, Nette\Utils\Callback::toString($entity), $serviceName));
 			}
@@ -554,7 +573,7 @@ class ContainerBuilder
 
 				$this->currentService = $name;
 				$setups = $def->getSetup();
-				foreach ($setups as & $setup) {
+				foreach ($setups as &$setup) {
 					if (is_string($setup->getEntity()) && strpbrk($setup->getEntity(), ':@?\\') === FALSE) { // auto-prepend @self
 						$setup = new Statement(['@' . $name, $setup->getEntity()], $setup->arguments);
 					}
@@ -645,7 +664,7 @@ class ContainerBuilder
 			}
 		}
 
-		array_walk_recursive($arguments, function (& $val) {
+		array_walk_recursive($arguments, function (&$val) {
 			if ($val instanceof Statement) {
 				$val = $this->completeStatement($val);
 
@@ -684,7 +703,7 @@ class ContainerBuilder
 	/**
 	 * Adds item to the list of dependencies.
 	 * @param  ReflectionClass|\ReflectionFunctionAbstract|string
-	 * @return self
+	 * @return static
 	 * @internal
 	 */
 	public function addDependency($dep)
@@ -718,9 +737,9 @@ class ContainerBuilder
 	/**
 	 * @return Nette\PhpGenerator\PhpLiteral
 	 */
-	public static function literal($phpCode)
+	public static function literal($code, array $args = NULL)
 	{
-		return new Nette\PhpGenerator\PhpLiteral($phpCode);
+		return new Nette\PhpGenerator\PhpLiteral($args === NULL ? $code : PhpHelpers::formatArgs($code, $args));
 	}
 
 
@@ -820,7 +839,7 @@ class ContainerBuilder
 	/** @deprecated */
 	public function formatPhp($statement, $args)
 	{
-		array_walk_recursive($args, function (& $val) {
+		array_walk_recursive($args, function (&$val) {
 			if ($val instanceof Statement) {
 				$val = $this->completeStatement($val);
 

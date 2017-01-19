@@ -35,7 +35,11 @@ class NeonAdapter implements Nette\DI\Config\IAdapter
 	}
 
 
-	private function process(array $arr)
+	/**
+	 * @return array
+	 * @throws Nette\InvalidStateException
+	 */
+	public function process(array $arr)
 	{
 		$res = [];
 		foreach ($arr as $key => $val) {
@@ -95,7 +99,7 @@ class NeonAdapter implements Nette\DI\Config\IAdapter
 		}
 		array_walk_recursive(
 			$tmp,
-			function (& $val) {
+			function (&$val) {
 				if ($val instanceof Statement) {
 					$val = self::statementToEntity($val);
 				}
@@ -113,7 +117,7 @@ class NeonAdapter implements Nette\DI\Config\IAdapter
 	{
 		array_walk_recursive(
 			$val->arguments,
-			function (& $val) {
+			function (&$val) {
 				if ($val instanceof Statement) {
 					$val = self::statementToEntity($val);
 				}

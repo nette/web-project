@@ -57,7 +57,7 @@ class RobotLoader
 	/**
 	 * Register autoloader.
 	 * @param  bool  prepend autoloader?
-	 * @return self
+	 * @return static
 	 */
 	public function register($prepend = FALSE)
 	{
@@ -113,7 +113,7 @@ class RobotLoader
 	/**
 	 * Add path or paths to list.
 	 * @param  string|string[]  absolute path
-	 * @return self
+	 * @return static
 	 */
 	public function addDirectory($path)
 	{
@@ -143,7 +143,11 @@ class RobotLoader
 	 */
 	public function rebuild()
 	{
-		$this->getCache()->save($this->getKey(), Nette\Utils\Callback::closure($this, 'rebuildCallback'));
+		if ($this->cacheStorage) {
+			$this->getCache()->save($this->getKey(), Nette\Utils\Callback::closure($this, 'rebuildCallback'));
+		} else {
+			$this->rebuildCallback();
+		}
 	}
 
 
@@ -337,7 +341,7 @@ class RobotLoader
 
 	/**
 	 * Sets auto-refresh mode.
-	 * @return self
+	 * @return static
 	 */
 	public function setAutoRefresh($on = TRUE)
 	{
@@ -347,7 +351,25 @@ class RobotLoader
 
 
 	/**
-	 * @return self
+	 * Sets path to temporary directory.
+	 * @return static
+	 */
+	public function setTempDirectory($dir)
+	{
+		if ($dir) {
+			if (!is_dir($dir)) {
+				@mkdir($dir); // @ - directory may already exist
+			}
+			$this->cacheStorage = new Nette\Caching\Storages\FileStorage($dir);
+		} else {
+			$this->cacheStorage = new Nette\Caching\Storages\DevNullStorage;
+		}
+		return $this;
+	}
+
+
+	/**
+	 * @return static
 	 */
 	public function setCacheStorage(Nette\Caching\IStorage $storage)
 	{
@@ -371,7 +393,7 @@ class RobotLoader
 	protected function getCache()
 	{
 		if (!$this->cacheStorage) {
-			trigger_error('Missing cache storage.', E_USER_WARNING);
+			trigger_error('Set path to temporary directory using setTempDirectory().', E_USER_WARNING);
 			$this->cacheStorage = new Nette\Caching\Storages\DevNullStorage;
 		}
 		return new Cache($this->cacheStorage, 'Nette.RobotLoader');

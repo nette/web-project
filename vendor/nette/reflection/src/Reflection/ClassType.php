@@ -47,7 +47,7 @@ class ClassType extends \ReflectionClass
 
 	/**
 	 * @param  string|object
-	 * @return self
+	 * @return static
 	 */
 	public static function from($class)
 	{
@@ -93,7 +93,7 @@ class ClassType extends \ReflectionClass
 
 
 	/**
-	 * @return self[]
+	 * @return static[]
 	 */
 	public function getInterfaces()
 	{
@@ -127,7 +127,7 @@ class ClassType extends \ReflectionClass
 
 
 	/**
-	 * @return self|NULL
+	 * @return static|NULL
 	 */
 	public function getParentClass()
 	{

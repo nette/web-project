@@ -94,7 +94,7 @@ class Compiler
 	/**
 	 * Adds new macro with IMacro flags.
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function addMacro($name, IMacro $macro, $flags = NULL)
 	{
@@ -117,7 +117,7 @@ class Compiler
 	{
 		$this->tokens = $tokens;
 		$output = '';
-		$this->output = & $output;
+		$this->output = &$output;
 		$this->inHead = TRUE;
 		$this->htmlNode = $this->macroNode = $this->context = NULL;
 		$this->placeholders = $this->properties = [];
@@ -186,7 +186,7 @@ class Compiler
 
 
 	/**
-	 * @return self
+	 * @return static
 	 */
 	public function setContentType($type)
 	{
@@ -308,7 +308,7 @@ class Compiler
 
 	private function processText(Token $token)
 	{
-		if ($this->lastAttrValue === '' && Helpers::startsWith($this->context, self::CONTEXT_HTML_ATTRIBUTE)) {
+		if ($this->lastAttrValue === '' && $this->context && Helpers::startsWith($this->context, self::CONTEXT_HTML_ATTRIBUTE)) {
 			$this->lastAttrValue = $token->text;
 		}
 		$this->output .= $this->escape($token->text);
@@ -317,7 +317,7 @@ class Compiler
 
 	private function processMacroTag(Token $token)
 	{
-		if ($this->context === self::CONTEXT_HTML_TAG || Helpers::startsWith($this->context, self::CONTEXT_HTML_ATTRIBUTE)) {
+		if ($this->context === self::CONTEXT_HTML_TAG || $this->context && Helpers::startsWith($this->context, self::CONTEXT_HTML_ATTRIBUTE)) {
 			$this->lastAttrValue = TRUE;
 		}
 
@@ -452,7 +452,7 @@ class Compiler
 			return;
 		}
 
-		$this->lastAttrValue = & $this->htmlNode->attrs[$token->name];
+		$this->lastAttrValue = &$this->htmlNode->attrs[$token->name];
 		$this->output .= $this->escape($token->text);
 
 		$lower = strtolower($token->name);
@@ -529,14 +529,15 @@ class Compiler
 	{
 		$node = $this->expandMacro($name, $args, $modifiers, $nPrefix);
 		if ($node->empty) {
-			$this->writeCode($node->openingCode, $node->replaced, $isRightmost);
+			$this->writeCode((string) $node->openingCode, $node->replaced, $isRightmost);
 			if ($node->prefix && $node->prefix !== MacroNode::PREFIX_TAG) {
 				$this->htmlNode->attrCode .= $node->attrCode;
 			}
 		} else {
 			$this->macroNode = $node;
-			$node->saved = [& $this->output, $isRightmost];
-			$this->output = & $node->content;
+			$node->saved = [&$this->output, $isRightmost];
+			$this->output = &$node->content;
+			$this->output = '';
 		}
 		return $node;
 	}
@@ -588,10 +589,10 @@ class Compiler
 		if ($node->prefix && $node->prefix !== MacroNode::PREFIX_TAG) {
 			$this->htmlNode->attrCode .= $node->attrCode;
 		}
-		$this->output = & $node->saved[0];
-		$this->writeCode($node->openingCode, $node->replaced, $node->saved[1]);
+		$this->output = &$node->saved[0];
+		$this->writeCode((string) $node->openingCode, $node->replaced, $node->saved[1]);
 		$this->output .= $node->content;
-		$this->writeCode($node->closingCode, $node->replaced, $isRightmost);
+		$this->writeCode((string) $node->closingCode, $node->replaced, $isRightmost);
 		return $node;
 	}
 
@@ -654,7 +655,7 @@ class Compiler
 				$this->output .= $this->htmlNode->innerMarker;
 			};
 		} else {
-			array_unshift($right, function () use (& $innerMarker) {
+			array_unshift($right, function () use (&$innerMarker) {
 				$this->output .= $innerMarker;
 			});
 		}
@@ -682,7 +683,7 @@ class Compiler
 						$this->closeMacro($name, '', NULL, NULL, MacroNode::PREFIX_NONE);
 					};
 				} else {
-					array_unshift($left, function () use ($name, $attrs, & $innerMarker) {
+					array_unshift($left, function () use ($name, $attrs, &$innerMarker) {
 						$node = $this->openMacro($name, $attrs[$name], NULL, NULL, MacroNode::PREFIX_NONE);
 						if ($node->empty) {
 							unset($this->htmlNode->macroAttrs[$name]); // don't call closeMacro
@@ -702,7 +703,7 @@ class Compiler
 		}
 
 		if (!$this->htmlNode->closing) {
-			$this->htmlNode->attrCode = & $this->placeholders[$uniq = ' n:q' . count($this->placeholders) . 'q'];
+			$this->htmlNode->attrCode = &$this->placeholders[$uniq = ' n:q' . count($this->placeholders) . 'q'];
 			$html = substr_replace($html, $uniq, strrpos($html, '/>') ?: strrpos($html, '>'), 0);
 		}
 
@@ -739,7 +740,7 @@ class Compiler
 			throw new CompileException("Unknown macro {{$name}}$hint" . ($inScript ? ' (in JavaScript or CSS, try to put a space after bracket or use n:syntax=off)' : ''));
 		}
 
-		if (preg_match('#\|(no)?safeurl(?!\w)#i', $modifiers, $m)) {
+		if ($modifiers && preg_match('#\|(no)?safeurl(?!\w)#i', $modifiers, $m)) {
 			$hint = $m[1] ? '|nocheck' : '|checkurl';
 			$modifiers = str_replace($m[0], $hint, $modifiers);
 			trigger_error("Modifier $m[0] is deprecated, please replace it with $hint.", E_USER_DEPRECATED);

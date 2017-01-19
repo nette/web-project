@@ -6,9 +6,10 @@
 #tracy-debug {
 	display: none;
 	direction: ltr;
+	line-height: 1.5;
 }
 
-body#tracy-debug {
+body#tracy-debug { /* in popup window */
 	margin: 0;
 	display: block;
 }
@@ -21,6 +22,7 @@ body #tracy-debug {
 
 #tracy-debug * {
 	font: inherit;
+	line-height: inherit;
 	color: inherit;
 	background: transparent;
 	margin: 0;
@@ -32,6 +34,17 @@ body #tracy-debug {
 	border-radius: 0;
 	box-shadow: none;
 	text-shadow: none;
+	box-sizing: border-box;
+	text-decoration: none;
+	text-transform: inherit;
+	white-space: inherit;
+	float: none;
+	clear: none;
+}
+
+#tracy-debug *:before
+#tracy-debug *:after {
+	all: unset;
 }
 
 #tracy-debug b,
@@ -49,51 +62,46 @@ body #tracy-debug {
 	text-decoration: none;
 }
 
-#tracy-debug .tracy-panel a {
-	color: #125EAE;
-	text-decoration: none;
-}
-
 #tracy-debug a:hover,
-#tracy-debug a:active,
 #tracy-debug a:focus {
 	background-color: #125EAE;
 	color: white;
 }
 
-#tracy-debug .tracy-panel h2,
-#tracy-debug .tracy-panel h3,
-#tracy-debug .tracy-panel p {
+#tracy-debug h2,
+#tracy-debug h3,
+#tracy-debug p {
 	margin: .4em 0;
 }
 
-#tracy-debug .tracy-panel table {
+#tracy-debug table {
 	border-collapse: collapse;
 	background: #FDF5CE;
 }
 
-#tracy-debug .tracy-panel tr:nth-child(2n) td {
+#tracy-debug tr:nth-child(2n) td {
 	background: #F7F0CB;
 }
 
-#tracy-debug .tracy-panel td,
-#tracy-debug .tracy-panel th {
+#tracy-debug td,
+#tracy-debug th {
 	border: 1px solid #E6DFBF;
 	padding: 2px 5px;
 	vertical-align: top;
 	text-align: left;
 }
 
-#tracy-debug .tracy-panel th {
+#tracy-debug th {
 	background: #F4F3F1;
 	color: #655E5E;
 	font-size: 90%;
 	font-weight: bold;
 }
 
-#tracy-debug .tracy-panel pre,
-#tracy-debug .tracy-panel code {
+#tracy-debug pre,
+#tracy-debug code {
 	font: 9pt/1.5 Consolas, monospace;
+	white-space: pre;
 }
 
 #tracy-debug table .tracy-right {
@@ -193,6 +201,10 @@ body #tracy-debug {
 	z-index: 20001;
 }
 
+body#tracy-debug .tracy-panel { /* in popup window */
+	display: block;
+}
+
 #tracy-debug h1 {
 	font: normal normal 23px/1.4 Tahoma, sans-serif;
 	color: #575753;
@@ -233,21 +245,19 @@ body #tracy-debug {
 	border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-#tracy-debug .tracy-mode-peek {
-	display: none;
-}
-
 #tracy-debug .tracy-mode-peek h1 {
 	cursor: move;
 }
 
 #tracy-debug .tracy-mode-float {
+	display: block;
 	opacity: .95;
 	transition: opacity 0.2s;
 	will-change: opacity, right, bottom;
 }
 
-#tracy-debug .tracy-mode-float.tracy-focused {
+#tracy-debug .tracy-focused {
+	display: block;
 	opacity: 1;
 	transition: opacity 0.1s;
 }
@@ -266,7 +276,6 @@ body #tracy-debug {
 
 #tracy-debug .tracy-mode-window {
 	padding: 10px;
-	display: block;
 }
 
 #tracy-debug .tracy-icons a {

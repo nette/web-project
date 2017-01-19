@@ -22,6 +22,7 @@ class HttpExtension extends Nette\DI\CompilerExtension
 			'Content-Type' => 'text/html; charset=utf-8',
 		],
 		'frames' => 'SAMEORIGIN', // X-Frame-Options
+		'csp' => [], // Content-Security-Policy
 	];
 
 	/** @var bool */
@@ -71,6 +72,7 @@ class HttpExtension extends Nette\DI\CompilerExtension
 
 		$initialize = $class->getMethod('initialize');
 		$config = $this->getConfig();
+		$headers = $config['headers'];
 
 		if (isset($config['frames']) && $config['frames'] !== TRUE) {
 			$frames = $config['frames'];
@@ -79,12 +81,30 @@ class HttpExtension extends Nette\DI\CompilerExtension
 			} elseif (preg_match('#^https?:#', $frames)) {
 				$frames = "ALLOW-FROM $frames";
 			}
-			$initialize->addBody('header(?);', ["X-Frame-Options: $frames"]);
+			$headers['X-Frame-Options'] = $frames;
 		}
 
-		foreach ($config['headers'] as $key => $value) {
+		if (!empty($config['csp'])) {
+			$value = '';
+			foreach ($config['csp'] as $type => $policy) {
+				$value .= $type;
+				foreach ((array) $policy as $item) {
+					$value .= preg_match('#^[a-z-]+\z#', $item) ? " '$item'" : " $item";
+				}
+				$value .= '; ';
+			}
+			if (strpos($value, "'nonce'")) {
+				$value = Nette\DI\ContainerBuilder::literal(
+					'str_replace(?, ? . base64_encode(Nette\Utils\Random::generate(16, "\x00-\xFF")), ?)',
+					["'nonce", "'nonce-", $value]
+				);
+			}
+			$headers['Content-Security-Policy'] = $value;
+		}
+
+		foreach ($headers as $key => $value) {
 			if ($value != NULL) { // intentionally ==
-				$initialize->addBody('header(?);', ["$key: $value"]);
+				$initialize->addBody('$this->getService(?)->setHeader(?, ?);', [$this->prefix('response'), $key, $value]);
 			}
 		}
 	}

@@ -116,7 +116,7 @@ class Image
 	/** @deprecated */
 	const ENLARGE = 0;
 
-	static private $formats = [self::JPEG => 'jpeg', self::PNG => 'png', self::GIF => 'gif', self::WEBP => 'webp'];
+	private static $formats = [self::JPEG => 'jpeg', self::PNG => 'png', self::GIF => 'gif', self::WEBP => 'webp'];
 
 	/** @var resource */
 	private $image;
@@ -149,7 +149,7 @@ class Image
 	 * @throws UnknownImageFileException if file not found or file type is not known
 	 * @return static
 	 */
-	public static function fromFile($file, & $format = NULL)
+	public static function fromFile($file, &$format = NULL)
 	{
 		if (!extension_loaded('gd')) {
 			throw new Nette\NotSupportedException('PHP extension GD is not loaded.');
@@ -176,7 +176,7 @@ class Image
 	 * @return static
 	 * @throws ImageException
 	 */
-	public static function fromString($s, & $format = NULL)
+	public static function fromString($s, &$format = NULL)
 	{
 		if (!extension_loaded('gd')) {
 			throw new Nette\NotSupportedException('PHP extension GD is not loaded.');

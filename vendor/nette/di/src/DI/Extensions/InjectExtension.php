@@ -9,7 +9,7 @@ namespace Nette\DI\Extensions;
 
 use Nette;
 use Nette\DI;
-use Nette\DI\PhpReflection;
+use Nette\Utils\Reflection;
 
 
 /**
@@ -96,9 +96,9 @@ class InjectExtension extends DI\CompilerExtension
 		$res = [];
 		foreach (get_class_vars($class) as $name => $foo) {
 			$rp = new \ReflectionProperty($class, $name);
-			if (PhpReflection::parseAnnotation($rp, 'inject') !== NULL) {
-				if ($type = PhpReflection::parseAnnotation($rp, 'var')) {
-					$type = PhpReflection::expandClassName($type, PhpReflection::getDeclaringClass($rp));
+			if (DI\Helpers::parseAnnotation($rp, 'inject') !== NULL) {
+				if ($type = DI\Helpers::parseAnnotation($rp, 'var')) {
+					$type = Reflection::expandClassName($type, Reflection::getPropertyDeclaringClass($rp));
 				}
 				$res[$name] = $type;
 			}
@@ -132,14 +132,13 @@ class InjectExtension extends DI\CompilerExtension
 	/** @internal */
 	private static function checkType($class, $name, $type, $container = NULL)
 	{
-		$rc = PhpReflection::getDeclaringClass(new \ReflectionProperty($class, $name));
-		$fullname = $rc->getName() . '::$' . $name;
+		$propName = Reflection::toString(new \ReflectionProperty($class, $name));
 		if (!$type) {
-			throw new Nette\InvalidStateException("Property $fullname has no @var annotation.");
+			throw new Nette\InvalidStateException("Property $propName has no @var annotation.");
 		} elseif (!class_exists($type) && !interface_exists($type)) {
-			throw new Nette\InvalidStateException("Class or interface '$type' used in @var annotation at $fullname not found. Check annotation and 'use' statements.");
+			throw new Nette\InvalidStateException("Class or interface '$type' used in @var annotation at $propName not found. Check annotation and 'use' statements.");
 		} elseif ($container && !$container->getByType($type, FALSE)) {
-			throw new Nette\InvalidStateException("Service of type {$type} used in @var annotation at $fullname not found. Did you register it in configuration file?");
+			throw new Nette\InvalidStateException("Service of type $type used in @var annotation at $propName not found. Did you register it in configuration file?");
 		}
 	}
 
