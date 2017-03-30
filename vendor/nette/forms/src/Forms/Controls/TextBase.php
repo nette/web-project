@@ -29,7 +29,6 @@ abstract class TextBase extends BaseControl
 
 	/**
 	 * Sets control's value.
-	 * @param  string
 	 * @return static
 	 * @internal
 	 */
@@ -40,18 +39,20 @@ abstract class TextBase extends BaseControl
 		} elseif (!is_scalar($value) && !method_exists($value, '__toString')) {
 			throw new Nette\InvalidArgumentException(sprintf("Value must be scalar or NULL, %s given in field '%s'.", gettype($value), $this->name));
 		}
-		$this->rawValue = $this->value = $value;
+		$this->value = $value;
+		$this->rawValue = (string) $value;
 		return $this;
 	}
 
 
 	/**
 	 * Returns control's value.
-	 * @return string
+	 * @return mixed
 	 */
 	public function getValue()
 	{
-		return $this->nullable && $this->value === '' ? NULL : $this->value;
+		$value = $this->value === Strings::trim($this->translate($this->emptyValue)) ? '' : $this->value;
+		return $this->nullable && $value === '' ? NULL : $value;
 	}
 
 
@@ -137,7 +138,10 @@ abstract class TextBase extends BaseControl
 	}
 
 
-	public function addRule($validator, $message = NULL, $arg = NULL)
+	/**
+	 * @return static
+	 */
+	public function addRule($validator, $errorMessage = NULL, $arg = NULL)
 	{
 		if ($validator === Form::LENGTH || $validator === Form::MAX_LENGTH) {
 			$tmp = is_array($arg) ? $arg[1] : $arg;
@@ -145,20 +149,7 @@ abstract class TextBase extends BaseControl
 				$this->control->maxlength = isset($this->control->maxlength) ? min($this->control->maxlength, $tmp) : $tmp;
 			}
 		}
-		return parent::addRule($validator, $message, $arg);
-	}
-
-
-	/**
-	 * Performs the server side validation.
-	 * @return void
-	 */
-	public function validate()
-	{
-		if ($this->value === Strings::trim($this->translate($this->emptyValue))) {
-			$this->value = '';
-		}
-		parent::validate();
+		return parent::addRule($validator, $errorMessage, $arg);
 	}
 
 }

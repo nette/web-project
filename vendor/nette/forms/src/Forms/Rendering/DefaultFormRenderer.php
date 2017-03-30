@@ -171,7 +171,7 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 			$query = parse_url($el->action, PHP_URL_QUERY);
 			$el->action = str_replace("?$query", '', $el->action);
 			$s = '';
-			foreach (preg_split('#[;&]#', $query, NULL, PREG_SPLIT_NO_EMPTY) as $param) {
+			foreach (preg_split('#[;&]#', $query, -1, PREG_SPLIT_NO_EMPTY) as $param) {
 				$parts = explode('=', $param, 2);
 				$name = urldecode($parts[0]);
 				if (!isset($this->form[$name])) {
@@ -215,11 +215,13 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 	 */
 	public function renderErrors(Nette\Forms\IControl $control = NULL, $own = TRUE)
 	{
+		$translator = $this->form->getTranslator();
+
 		$errors = $control
 			? $control->getErrors()
 			: ($own ? $this->form->getOwnErrors() : $this->form->getErrors());
 		if (!$errors) {
-			return;
+			return '';
 		}
 		$container = $this->getWrapper($control ? 'control errorcontainer' : 'error container');
 		$item = $this->getWrapper($control ? 'control erroritem' : 'error item');
@@ -229,7 +231,7 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 			if ($error instanceof IHtmlString) {
 				$item->addHtml($error);
 			} else {
-				$item->setText($error);
+				$item->setText($translator ? $translator->translate($error) : $error);
 			}
 			$container->addHtml($item);
 		}
@@ -407,7 +409,7 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Renders 'label' part of visual row of controls.
-	 * @return string
+	 * @return Html
 	 */
 	public function renderLabel(Nette\Forms\IControl $control)
 	{
@@ -427,7 +429,7 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Renders 'control' part of visual row of controls.
-	 * @return string
+	 * @return Html
 	 */
 	public function renderControl(Nette\Forms\IControl $control)
 	{
@@ -476,12 +478,12 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * @param  string
-	 * @return string
+	 * @return mixed
 	 */
 	protected function getValue($name)
 	{
 		$name = explode(' ', $name);
-		$data = & $this->wrappers[$name[0]][$name[1]];
+		$data = &$this->wrappers[$name[0]][$name[1]];
 		return $data;
 	}
 

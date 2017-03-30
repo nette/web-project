@@ -1,6 +1,7 @@
 {
 	"name": "nette/php-generator",
-	"description": "Nette PHP Generator",
+	"description": "🐘 Generates neat PHP code for you. Supports new PHP 7.1 features.",
+	"keywords": ["nette", "php", "code", "scaffolding"],
 	"homepage": "https://nette.org",
 	"license": ["BSD-3-Clause", "GPL-2.0", "GPL-3.0"],
 	"authors": [
@@ -14,11 +15,11 @@
 		}
 	],
 	"require": {
-		"php": ">=5.6.0",
-		"nette/utils": "~2.4"
+		"php": ">=7.0",
+		"nette/utils": "^2.4.2 || ~3.0.0"
 	},
 	"require-dev": {
-		"nette/tester": "~2.0",
+		"nette/tester": "^2.0",
 		"tracy/tracy": "^2.3"
 	},
 	"conflict": {
@@ -30,7 +31,7 @@
 	"minimum-stability": "dev",
 	"extra": {
 		"branch-alias": {
-			"dev-master": "2.5-dev"
+			"dev-master": "3.0-dev"
 		}
 	}
 }

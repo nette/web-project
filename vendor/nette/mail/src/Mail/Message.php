@@ -15,7 +15,7 @@ use Nette\Utils\Strings;
  * Mail provides functionality to compose and send both text and MIME-compliant multipart email messages.
  *
  * @property   string $subject
- * @property   mixed $htmlBody
+ * @property   string $htmlBody
  */
 class Message extends MimePart
 {
@@ -36,8 +36,8 @@ class Message extends MimePart
 	/** @var array */
 	private $inlines = [];
 
-	/** @var mixed */
-	private $html;
+	/** @var string */
+	private $htmlBody = '';
 
 
 	public function __construct()
@@ -53,7 +53,7 @@ class Message extends MimePart
 	 * Sets the sender of the message.
 	 * @param  string  email or format "John Doe" <doe@example.com>
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function setFrom($email, $name = NULL)
 	{
@@ -76,7 +76,7 @@ class Message extends MimePart
 	 * Adds the reply-to address.
 	 * @param  string  email or format "John Doe" <doe@example.com>
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function addReplyTo($email, $name = NULL)
 	{
@@ -88,7 +88,7 @@ class Message extends MimePart
 	/**
 	 * Sets the subject of the message.
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function setSubject($subject)
 	{
@@ -99,7 +99,7 @@ class Message extends MimePart
 
 	/**
 	 * Returns the subject of the message.
-	 * @return string
+	 * @return string|NULL
 	 */
 	public function getSubject()
 	{
@@ -111,7 +111,7 @@ class Message extends MimePart
 	 * Adds email recipient.
 	 * @param  string  email or format "John Doe" <doe@example.com>
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function addTo($email, $name = NULL) // addRecipient()
 	{
@@ -124,7 +124,7 @@ class Message extends MimePart
 	 * Adds carbon copy email recipient.
 	 * @param  string  email or format "John Doe" <doe@example.com>
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function addCc($email, $name = NULL)
 	{
@@ -137,7 +137,7 @@ class Message extends MimePart
 	 * Adds blind carbon copy email recipient.
 	 * @param  string  email or format "John Doe" <doe@example.com>
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function addBcc($email, $name = NULL)
 	{
@@ -149,7 +149,7 @@ class Message extends MimePart
 	/**
 	 * Formats recipient email.
 	 * @param  string
-	 * @param  string
+	 * @param  string|NULL
 	 * @return array
 	 */
 	private function formatEmail($email, $name)
@@ -165,7 +165,7 @@ class Message extends MimePart
 	/**
 	 * Sets the Return-Path header of the message.
 	 * @param  string  email
-	 * @return self
+	 * @return static
 	 */
 	public function setReturnPath($email)
 	{
@@ -187,7 +187,7 @@ class Message extends MimePart
 	/**
 	 * Sets email priority.
 	 * @param  int
-	 * @return self
+	 * @return static
 	 */
 	public function setPriority($priority)
 	{
@@ -209,8 +209,8 @@ class Message extends MimePart
 	/**
 	 * Sets HTML body.
 	 * @param  string
-	 * @param  mixed base-path
-	 * @return self
+	 * @param  string
+	 * @return static
 	 */
 	public function setHtmlBody($html, $basePath = NULL)
 	{
@@ -243,15 +243,14 @@ class Message extends MimePart
 		}
 
 		if ($this->getSubject() == NULL) { // intentionally ==
-			$html = Strings::replace($html, '#<title>(.+?)</title>#is', function ($m) use (& $title) {
-				$title = $m[1];
+			$html = Strings::replace($html, '#<title>(.+?)</title>#is', function ($m) {
+				$this->setSubject(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
 			});
-			$this->setSubject(html_entity_decode($title, ENT_QUOTES, 'UTF-8'));
 		}
 
-		$this->html = ltrim(str_replace("\r", '', $html), "\n");
+		$this->htmlBody = ltrim(str_replace("\r", '', $html), "\n");
 
-		if ($this->getBody() == NULL && $html != NULL) { // intentionally ==
+		if ($this->getBody() === '' && $html !== '') {
 			$this->setBody($this->buildText($html));
 		}
 
@@ -261,11 +260,11 @@ class Message extends MimePart
 
 	/**
 	 * Gets HTML body.
-	 * @return mixed
+	 * @return string
 	 */
 	public function getHtmlBody()
 	{
-		return $this->html;
+		return $this->htmlBody;
 	}
 
 
@@ -286,7 +285,7 @@ class Message extends MimePart
 	/**
 	 * Adds inlined Mime Part.
 	 * @param  MimePart
-	 * @return self
+	 * @return static
 	 */
 	public function addInlinePart(MimePart $part)
 	{
@@ -320,6 +319,10 @@ class Message extends MimePart
 
 	/**
 	 * Creates file MIME part.
+	 * @param  string
+	 * @param  string|NULL
+	 * @param  string|NULL
+	 * @param  string
 	 * @return MimePart
 	 */
 	private function createAttachment($file, $content, $contentType, $disposition)
@@ -335,7 +338,7 @@ class Message extends MimePart
 		}
 		$part->setBody($content);
 		$part->setContentType($contentType ? $contentType : finfo_buffer(finfo_open(FILEINFO_MIME_TYPE), $content));
-		$part->setEncoding(preg_match('#(multipart|message)/#A', $contentType) ? self::ENCODING_8BIT : self::ENCODING_BASE64);
+		$part->setEncoding($contentType && preg_match('#(multipart|message)/#A', $contentType) ? self::ENCODING_8BIT : self::ENCODING_BASE64);
 		$part->setHeader('Content-Disposition', $disposition . '; filename="' . Strings::fixEncoding(basename($file)) . '"');
 		return $part;
 	}
@@ -356,7 +359,7 @@ class Message extends MimePart
 
 	/**
 	 * Builds email. Does not modify itself, but returns a new object.
-	 * @return self
+	 * @return static
 	 */
 	protected function build()
 	{
@@ -372,7 +375,7 @@ class Message extends MimePart
 			}
 		}
 
-		if ($mail->html != NULL) { // intentionally ==
+		if ($mail->htmlBody !== '') {
 			$tmp = $cursor->setContentType('multipart/alternative');
 			$cursor = $cursor->addPart();
 			$alt = $tmp->addPart();
@@ -384,14 +387,14 @@ class Message extends MimePart
 				}
 			}
 			$alt->setContentType('text/html', 'UTF-8')
-				->setEncoding(preg_match('#[^\n]{990}#', $mail->html)
+				->setEncoding(preg_match('#[^\n]{990}#', $mail->htmlBody)
 					? self::ENCODING_QUOTED_PRINTABLE
-					: (preg_match('#[\x80-\xFF]#', $mail->html) ? self::ENCODING_8BIT : self::ENCODING_7BIT))
-				->setBody($mail->html);
+					: (preg_match('#[\x80-\xFF]#', $mail->htmlBody) ? self::ENCODING_8BIT : self::ENCODING_7BIT))
+				->setBody($mail->htmlBody);
 		}
 
 		$text = $mail->getBody();
-		$mail->setBody(NULL);
+		$mail->setBody('');
 		$cursor->setContentType('text/plain', 'UTF-8')
 			->setEncoding(preg_match('#[^\n]{990}#', $text)
 				? self::ENCODING_QUOTED_PRINTABLE
@@ -404,6 +407,7 @@ class Message extends MimePart
 
 	/**
 	 * Builds text content.
+	 * @param  string
 	 * @return string
 	 */
 	protected function buildText($html)

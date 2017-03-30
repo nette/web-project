@@ -35,7 +35,7 @@ interface ISupplementalDriver
 	/**
 	 * Formats boolean for use in a SQL statement.
 	 * @param  bool
-	 * @return mixed
+	 * @return string
 	 */
 	function formatBool($value);
 
@@ -66,7 +66,7 @@ interface ISupplementalDriver
 	 * @param  int|NULL
 	 * @return void
 	 */
-	function applyLimit(& $sql, $limit, $offset);
+	function applyLimit(&$sql, $limit, $offset);
 
 	/**
 	 * Normalizes result row.

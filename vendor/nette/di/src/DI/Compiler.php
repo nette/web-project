@@ -33,6 +33,9 @@ class Compiler
 	/** @var string */
 	private $className = 'Container';
 
+	/** @var string[] */
+	private $dynamicParams = [];
+
 	/** @var array reserved section names */
 	private static $reserved = ['services' => 1, 'parameters' => 1];
 
@@ -46,11 +49,14 @@ class Compiler
 
 	/**
 	 * Add custom configurator extension.
+	 * @param  string|NULL
 	 * @return static
 	 */
 	public function addExtension($name, CompilerExtension $extension)
 	{
-		if (isset($this->extensions[$name]) || isset(self::$reserved[$name])) {
+		if ($name === NULL) {
+			$name = '_' . count($this->extensions);
+		} elseif (isset($this->extensions[$name]) || isset(self::$reserved[$name])) {
 			throw new Nette\InvalidArgumentException("Name '$name' is already used or reserved.");
 		}
 		$this->extensions[$name] = $extension->setCompiler($this, $name);
@@ -123,6 +129,17 @@ class Compiler
 
 
 	/**
+	 * Sets the names of dynamic parameters.
+	 * @return static
+	 */
+	public function setDynamicParameterNames(array $names)
+	{
+		$this->dynamicParams = $names;
+		return $this;
+	}
+
+
+	/**
 	 * Adds dependencies to the list.
 	 * @param  array of ReflectionClass|\ReflectionFunctionAbstract|string
 	 * @return static
@@ -165,9 +182,13 @@ class Compiler
 	/** @internal */
 	public function processParameters()
 	{
-		if (isset($this->config['parameters'])) {
-			$this->builder->parameters = Helpers::expand($this->config['parameters'], $this->config['parameters'], TRUE);
+		$params = isset($this->config['parameters']) ? $this->config['parameters'] : [];
+		foreach ($this->dynamicParams as $key) {
+			$params[$key] = array_key_exists($key, $params)
+				? ContainerBuilder::literal('isset($this->parameters[?]) \? $this->parameters[?] : ?', [$key, $key, $params[$key]])
+				: ContainerBuilder::literal('$this->parameters[?]', [$key]);
 		}
+		$this->builder->parameters = Helpers::expand($params, $params, TRUE);
 	}
 
 
@@ -263,14 +284,16 @@ class Compiler
 					throw new ServiceCreationException("Circular reference detected for service '$name'.");
 				}
 			}
-			$depths[$name] = count($path);
+			$depths[$name] = count($path) + preg_match('#^@[\w\\\\]+\z#', $name);
 		}
 		array_multisort($depths, $services);
 
 		foreach ($services as $name => $def) {
-			if ((string) (int) $name === (string) $name) {
+			if (is_int($name)) {
 				$postfix = $def instanceof Statement && is_string($def->getEntity()) ? '.' . $def->getEntity() : (is_scalar($def) ? ".$def" : '');
 				$name = (count($builder->getDefinitions()) + 1) . preg_replace('#\W+#', '_', $postfix);
+			} elseif (preg_match('#^@[\w\\\\]+\z#', $name)) {
+				$name = $builder->getByType(substr($name, 1), TRUE);
 			} elseif ($namespace) {
 				$name = $namespace . '.' . $name;
 			}

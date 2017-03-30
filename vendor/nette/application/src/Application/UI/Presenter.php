@@ -46,7 +46,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	/** @var callable[]  function (Presenter $sender, IResponse $response = NULL); Occurs when the presenter is shutting down */
 	public $onShutdown;
 
-	/** @var Nette\Application\Request */
+	/** @var Nette\Application\Request|NULL */
 	private $request;
 
 	/** @var Nette\Application\IResponse */
@@ -91,7 +91,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	/** @var bool */
 	private $startupCheck;
 
-	/** @var Nette\Application\Request */
+	/** @var Nette\Application\Request|NULL */
 	private $lastCreatedRequest;
 
 	/** @var array */
@@ -132,7 +132,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 
 	/**
-	 * @return Nette\Application\Request
+	 * @return Nette\Application\Request|NULL
 	 */
 	public function getRequest()
 	{
@@ -144,7 +144,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	 * Returns self.
 	 * @return Presenter
 	 */
-	public function getPresenter($need = TRUE)
+	public function getPresenter($throw = TRUE)
 	{
 		return $this;
 	}
@@ -469,7 +469,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 	/**
 	 * Finds layout template file name.
-	 * @return string
+	 * @return string|NULL
 	 * @internal
 	 */
 	public function findLayoutTemplateFile()
@@ -664,18 +664,18 @@ abstract class Presenter extends Control implements Application\IPresenter
 	 * @return void
 	 * @throws Nette\Application\AbortException
 	 */
-	public function redirectUrl($url, $code = NULL)
+	public function redirectUrl($url, $httpCode = NULL)
 	{
 		if ($this->isAjax()) {
 			$this->payload->redirect = (string) $url;
 			$this->sendPayload();
 
-		} elseif (!$code) {
-			$code = $this->httpRequest->isMethod('post')
+		} elseif (!$httpCode) {
+			$httpCode = $this->httpRequest->isMethod('post')
 				? Http\IResponse::S303_POST_GET
 				: Http\IResponse::S302_FOUND;
 		}
-		$this->sendResponse(new Responses\RedirectResponse($url, $code));
+		$this->sendResponse(new Responses\RedirectResponse($url, $httpCode));
 	}
 
 
@@ -686,9 +686,9 @@ abstract class Presenter extends Control implements Application\IPresenter
 	 * @return void
 	 * @throws Nette\Application\BadRequestException
 	 */
-	public function error($message = NULL, $code = Http\IResponse::S404_NOT_FOUND)
+	public function error($message = NULL, $httpCode = Http\IResponse::S404_NOT_FOUND)
 	{
-		throw new Application\BadRequestException($message, $code);
+		throw new Application\BadRequestException($message, $httpCode);
 	}
 
 
@@ -706,7 +706,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 	/**
 	 * Returns the last created Request.
-	 * @return Nette\Application\Request
+	 * @return Nette\Application\Request|NULL
 	 * @internal
 	 */
 	public function getLastCreatedRequest()
@@ -772,7 +772,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	 * @param  string   destination in format "[//] [[[module:]presenter:]action | signal! | this] [#fragment]"
 	 * @param  array    array of arguments
 	 * @param  string   forward|redirect|link
-	 * @return string   URL
+	 * @return string|NULL   URL
 	 * @throws InvalidLinkException
 	 * @internal
 	 */

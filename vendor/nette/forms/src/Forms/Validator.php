@@ -112,6 +112,16 @@ class Validator
 
 
 	/**
+	 * Returns argument.
+	 * @return bool
+	 */
+	public static function validateStatic(IControl $control, $arg)
+	{
+		return $arg;
+	}
+
+
+	/**
 	 * Is control filled?
 	 * @return bool
 	 */
@@ -143,36 +153,47 @@ class Validator
 
 	/**
 	 * Is a control's value number in specified range?
+	 * @param  IControl
+	 * @param  array
 	 * @return bool
 	 */
 	public static function validateRange(IControl $control, $range)
 	{
+		$range = array_map(function ($v) {
+			return $v === '' ? NULL : $v;
+		}, $range);
 		return Validators::isInRange($control->getValue(), $range);
 	}
 
 
 	/**
 	 * Is a control's value number greater than or equal to the specified minimum?
+	 * @param  IControl
+	 * @param  float
 	 * @return bool
 	 */
 	public static function validateMin(IControl $control, $minimum)
 	{
-		return Validators::isInRange($control->getValue(), [$minimum, NULL]);
+		return Validators::isInRange($control->getValue(), [$minimum === '' ? NULL : $minimum, NULL]);
 	}
 
 
 	/**
 	 * Is a control's value number less than or equal to the specified maximum?
+	 * @param  IControl
+	 * @param  float
 	 * @return bool
 	 */
 	public static function validateMax(IControl $control, $maximum)
 	{
-		return Validators::isInRange($control->getValue(), [NULL, $maximum]);
+		return Validators::isInRange($control->getValue(), [NULL, $maximum === '' ? NULL : $maximum]);
 	}
 
 
 	/**
 	 * Count/length validator. Range is array, min and max length pair.
+	 * @param  IControl
+	 * @param  array|int
 	 * @return bool
 	 */
 	public static function validateLength(IControl $control, $range)
@@ -181,12 +202,14 @@ class Validator
 			$range = [$range, $range];
 		}
 		$value = $control->getValue();
-		return Validators::isInRange(is_array($value) ? count($value) : Strings::length($value), $range);
+		return Validators::isInRange(is_array($value) ? count($value) : Strings::length((string) $value), $range);
 	}
 
 
 	/**
 	 * Has control's value minimal count/length?
+	 * @param  IControl
+	 * @param  int
 	 * @return bool
 	 */
 	public static function validateMinLength(IControl $control, $length)
@@ -197,6 +220,8 @@ class Validator
 
 	/**
 	 * Is control's value count/length in limit?
+	 * @param  IControl
+	 * @param  int
 	 * @return bool
 	 */
 	public static function validateMaxLength(IControl $control, $length)
@@ -244,6 +269,7 @@ class Validator
 
 	/**
 	 * Matches control's value regular expression?
+	 * @param  string
 	 * @return bool
 	 */
 	public static function validatePattern(IControl $control, $pattern)
@@ -285,6 +311,7 @@ class Validator
 
 	/**
 	 * Is file size in limit?
+	 * @param  int
 	 * @return bool
 	 */
 	public static function validateFileSize(Controls\UploadControl $control, $limit)
@@ -300,6 +327,8 @@ class Validator
 
 	/**
 	 * Has file specified mime type?
+	 * @param  IControl
+	 * @param  string|string[]
 	 * @return bool
 	 */
 	public static function validateMimeType(Controls\UploadControl $control, $mimeType)

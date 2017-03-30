@@ -8,6 +8,7 @@
 namespace Nette\DI;
 
 use Nette;
+use Nette\PhpGenerator\PhpLiteral;
 use Nette\Utils\Reflection;
 
 
@@ -44,13 +45,14 @@ class Helpers
 		}
 
 		$parts = preg_split('#%([\w.-]*)%#i', $var, -1, PREG_SPLIT_DELIM_CAPTURE);
-		$res = '';
+		$res = [];
+		$php = FALSE;
 		foreach ($parts as $n => $part) {
 			if ($n % 2 === 0) {
-				$res .= $part;
+				$res[] = $part;
 
 			} elseif ($part === '') {
-				$res .= '%';
+				$res[] = '%';
 
 			} elseif (isset($recursive[$part])) {
 				throw new Nette\InvalidArgumentException(sprintf('Circular reference detected for variables: %s.', implode(', ', array_keys($recursive))));
@@ -67,13 +69,20 @@ class Helpers
 				if (strlen($part) + 2 === strlen($var)) {
 					return $val;
 				}
-				if (!is_scalar($val)) {
+				if ($val instanceof PhpLiteral) {
+					$php = TRUE;
+				} elseif (!is_scalar($val)) {
 					throw new Nette\InvalidArgumentException("Unable to concatenate non-scalar parameter '$part' into '$var'.");
 				}
-				$res .= $val;
+				$res[] = $val;
 			}
 		}
-		return $res;
+		if ($php) {
+			$res = array_filter($res, function ($val) { return $val !== ''; });
+			$res = array_map(function ($val) { return $val instanceof PhpLiteral ? "($val)" : var_export((string) $val, TRUE); }, $res);
+			return new PhpLiteral(implode(' . ', $res));
+		}
+		return implode('', $res);
 	}
 
 
@@ -216,9 +225,10 @@ class Helpers
 		if ($type = Reflection::getReturnType($func)) {
 			return $type;
 		} elseif ($type = preg_replace('#[|\s].*#', '', (string) self::parseAnnotation($func, 'return'))) {
-			if ($func instanceof \ReflectionMethod) {
-				$lower = strtolower($type);
-				return $lower === 'static' || $lower === '$this'
+			if ($type === 'object' || $type === 'mixed') {
+				return NULL;
+			} elseif ($func instanceof \ReflectionMethod) {
+				return $type === 'static' || $type === '$this'
 					? $func->getDeclaringClass()->getName()
 					: Reflection::expandClassName($type, $func->getDeclaringClass());
 			} else {

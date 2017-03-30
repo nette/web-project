@@ -177,7 +177,7 @@ class SmtpMailer implements IMailer
 	/**
 	 * Writes data to server and checks response against expected code if some provided.
 	 * @param  string
-	 * @param  int   response code
+	 * @param  int|int[] response code
 	 * @param  string  error message
 	 * @return void
 	 */
@@ -200,7 +200,7 @@ class SmtpMailer implements IMailer
 	protected function read()
 	{
 		$s = '';
-		while (($line = fgets($this->connection, 1e3)) != NULL) { // intentionally ==
+		while (($line = fgets($this->connection, 1000)) != NULL) { // intentionally ==
 			$s .= $line;
 			if (substr($line, 3, 1) === ' ') {
 				break;

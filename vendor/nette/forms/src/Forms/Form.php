@@ -8,6 +8,7 @@
 namespace Nette\Forms;
 
 use Nette;
+use Nette\Utils\Html;
 
 
 /**
@@ -15,7 +16,7 @@ use Nette;
  *
  * @property-read array $errors
  * @property-read array $ownErrors
- * @property-read Nette\Utils\Html $elementPrototype
+ * @property-read Html $elementPrototype
  * @property-read IFormRenderer $renderer
  * @property string $action
  * @property string $method
@@ -23,23 +24,21 @@ use Nette;
 class Form extends Container implements Nette\Utils\IHtmlString
 {
 	/** validator */
-	const EQUAL = ':equal',
+	const
+		EQUAL = ':equal',
 		IS_IN = self::EQUAL,
 		NOT_EQUAL = ':notEqual',
 		IS_NOT_IN = self::NOT_EQUAL,
 		FILLED = ':filled',
 		BLANK = ':blank',
 		REQUIRED = self::FILLED,
-		VALID = ':valid';
+		VALID = ':valid',
 
-	/** @deprecated CSRF protection */
-	const PROTECTION = Controls\CsrfProtection::PROTECTION;
+		// button
+		SUBMITTED = ':submitted',
 
-	// button
-	const SUBMITTED = ':submitted';
-
-	// text
-	const MIN_LENGTH = ':minLength',
+		// text
+		MIN_LENGTH = ':minLength',
 		MAX_LENGTH = ':maxLength',
 		LENGTH = ':length',
 		EMAIL = ':email',
@@ -50,26 +49,31 @@ class Form extends Container implements Nette\Utils\IHtmlString
 		FLOAT = ':float',
 		MIN = ':min',
 		MAX = ':max',
-		RANGE = ':range';
+		RANGE = ':range',
 
-	// multiselect
-	const COUNT = self::LENGTH;
+		// multiselect
+		COUNT = self::LENGTH,
 
-	// file upload
-	const MAX_FILE_SIZE = ':fileSize',
+		// file upload
+		MAX_FILE_SIZE = ':fileSize',
 		MIME_TYPE = ':mimeType',
 		IMAGE = ':image',
 		MAX_POST_SIZE = ':maxPostSize';
 
+	/** @deprecated CSRF protection */
+	const PROTECTION = Controls\CsrfProtection::PROTECTION;
+
 	/** method */
-	const GET = 'get',
+	const
+		GET = 'get',
 		POST = 'post';
 
 	/** submitted data types */
-	const DATA_TEXT = 1;
-	const DATA_LINE = 2;
-	const DATA_FILE = 3;
-	const DATA_KEYS = 8;
+	const
+		DATA_TEXT = 1,
+		DATA_LINE = 2,
+		DATA_FILE = 3,
+		DATA_KEYS = 8;
 
 	/** @internal tracker ID */
 	const TRACKER_ID = '_form_';
@@ -95,7 +99,7 @@ class Form extends Container implements Nette\Utils\IHtmlString
 	/** @var array */
 	private $httpData;
 
-	/** @var Nette\Utils\Html  <form> element */
+	/** @var Html  <form> element */
 	private $element;
 
 	/** @var IFormRenderer */
@@ -162,7 +166,7 @@ class Form extends Container implements Nette\Utils\IHtmlString
 	 * Returns self.
 	 * @return static
 	 */
-	public function getForm($need = TRUE)
+	public function getForm($throw = TRUE)
 	{
 		return $this;
 	}
@@ -170,7 +174,7 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 	/**
 	 * Sets form's action.
-	 * @param  mixed URI
+	 * @param  string|object
 	 * @return static
 	 */
 	public function setAction($url)
@@ -182,7 +186,7 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 	/**
 	 * Returns form's action.
-	 * @return mixed URI
+	 * @return mixed
 	 */
 	public function getAction()
 	{
@@ -191,8 +195,8 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 
 	/**
-	 * Sets form's method.
-	 * @param  string get | post
+	 * Sets form's method GET or POST.
+	 * @param  string
 	 * @return static
 	 */
 	public function setMethod($method)
@@ -207,7 +211,7 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 	/**
 	 * Returns form's method.
-	 * @return string get | post
+	 * @return string
 	 */
 	public function getMethod()
 	{
@@ -231,9 +235,9 @@ class Form extends Container implements Nette\Utils\IHtmlString
 	 * @param  string
 	 * @return Controls\CsrfProtection
 	 */
-	public function addProtection($message = NULL)
+	public function addProtection($errorMessage = NULL)
 	{
-		$control = new Controls\CsrfProtection($message);
+		$control = new Controls\CsrfProtection($errorMessage);
 		$this->addComponent($control, self::PROTECTOR_ID, key($this->getComponents()));
 		return $control;
 	}
@@ -241,8 +245,8 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 	/**
 	 * Adds fieldset group to the form.
-	 * @param  string  caption
-	 * @param  bool    set this group as current
+	 * @param  string
+	 * @param  bool
 	 * @return ControlGroup
 	 */
 	public function addGroup($caption = NULL, $setAsCurrent = TRUE)
@@ -265,7 +269,7 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 	/**
 	 * Removes fieldset group from form.
-	 * @param  string|ControlGroup
+	 * @param  string|int|ControlGroup
 	 * @return void
 	 */
 	public function removeGroup($name)
@@ -301,8 +305,8 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 	/**
 	 * Returns the specified group.
-	 * @param  string  name
-	 * @return ControlGroup
+	 * @param  string|int
+	 * @return ControlGroup|NULL
 	 */
 	public function getGroup($name)
 	{
@@ -384,6 +388,8 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 	/**
 	 * Returns submitted HTTP data.
+	 * @param  int
+	 * @param  string
 	 * @return mixed
 	 */
 	public function getHttpData($type = NULL, $htmlName = NULL)
@@ -479,6 +485,9 @@ class Form extends Container implements Nette\Utils\IHtmlString
 	/********************* validation ****************d*g**/
 
 
+	/**
+	 * @return void
+	 */
 	public function validate(array $controls = NULL)
 	{
 		$this->cleanErrors();
@@ -509,7 +518,7 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 	/**
 	 * Adds global error message.
-	 * @param  string  error message
+	 * @param  string|object
 	 * @return void
 	 */
 	public function addError($message)
@@ -561,12 +570,12 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 	/**
 	 * Returns form's HTML element template.
-	 * @return Nette\Utils\Html
+	 * @return Html
 	 */
 	public function getElementPrototype()
 	{
 		if (!$this->element) {
-			$this->element = Nette\Utils\Html::el('form');
+			$this->element = Html::el('form');
 			$this->element->action = ''; // RFC 1808 -> empty uri means 'this'
 			$this->element->method = self::POST;
 		}

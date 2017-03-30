@@ -67,7 +67,9 @@ class TemplateFactory implements UI\ITemplateFactory
 		}
 
 		array_unshift($latte->onCompile, function ($latte) use ($control, $template) {
-			$latte->getCompiler()->addMacro('cache', new Nette\Bridges\CacheLatte\CacheMacro($latte->getCompiler()));
+			if ($this->cacheStorage) {
+				$latte->getCompiler()->addMacro('cache', new Nette\Bridges\CacheLatte\CacheMacro($latte->getCompiler()));
+			}
 			UIMacros::install($latte->getCompiler());
 			if (class_exists(Nette\Bridges\FormsLatte\FormMacros::class)) {
 				Nette\Bridges\FormsLatte\FormMacros::install($latte->getCompiler());
@@ -78,7 +80,7 @@ class TemplateFactory implements UI\ITemplateFactory
 		});
 
 		$latte->addFilter('url', 'rawurlencode'); // back compatiblity
-		foreach (['normalize', 'toAscii', 'webalize', 'padLeft', 'padRight', 'reverse'] as $name) {
+		foreach (['normalize', 'toAscii', 'webalize', 'reverse'] as $name) {
 			$latte->addFilter($name, 'Nette\Utils\Strings::' . $name);
 		}
 		$latte->addFilter('null', function () {});
@@ -103,7 +105,7 @@ class TemplateFactory implements UI\ITemplateFactory
 			$latte->addProvider('uiControl', $control);
 			$latte->addProvider('uiPresenter', $presenter);
 			$latte->addProvider('snippetBridge', new Nette\Bridges\ApplicationLatte\SnippetBridge($control));
-			$nonce = preg_match('#\s\'nonce-([\w+/]+=*)\'#', $presenter->getHttpResponse()->getHeader('Content-Security-Policy'), $m) ? $m[1] : NULL;
+			$nonce = $presenter && preg_match('#\s\'nonce-([\w+/]+=*)\'#', $presenter->getHttpResponse()->getHeader('Content-Security-Policy'), $m) ? $m[1] : NULL;
 			$latte->addProvider('uiNonce', $nonce);
 		}
 		$latte->addProvider('cacheStorage', $this->cacheStorage);

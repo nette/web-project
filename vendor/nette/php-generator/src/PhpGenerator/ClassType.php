@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\PhpGenerator;
 
 use Nette;
@@ -17,14 +19,13 @@ use Nette\Utils\Strings;
  * @property Method[] $methods
  * @property Property[] $properties
  */
-class ClassType
+final class ClassType
 {
 	use Nette\SmartObject;
+	use Traits\CommentAware;
 
 	const TYPE_CLASS = 'class';
-
 	const TYPE_INTERFACE = 'interface';
-
 	const TYPE_TRAIT = 'trait';
 
 	/** @var PhpNamespace|NULL */
@@ -51,9 +52,6 @@ class ClassType
 	/** @var string[] */
 	private $traits = [];
 
-	/** @var string|NULL */
-	private $comment;
-
 	/** @var Constant[] name => Constant */
 	private $consts = [];
 
@@ -65,42 +63,48 @@ class ClassType
 
 
 	/**
-	 * @param  \ReflectionClass|string
+	 * @param  string|object
 	 * @return static
 	 */
-	public static function from($from)
+	public static function from($class): self
 	{
+		if ($class instanceof \ReflectionClass) {
+			trigger_error(__METHOD__ . '() accepts only class name or object.', E_USER_DEPRECATED);
+		}
 		return (new Factory)->fromClassReflection(
-			$from instanceof \ReflectionClass ? $from : new \ReflectionClass($from)
+			$class instanceof \ReflectionClass ? $class : new \ReflectionClass($class)
 		);
 	}
 
 
-	public function __construct($name = NULL, PhpNamespace $namespace = NULL)
+	public function __construct(string $name = NULL, PhpNamespace $namespace = NULL)
 	{
 		$this->setName($name);
 		$this->namespace = $namespace;
 	}
 
 
-	/**
-	 * @return string  PHP code
-	 */
-	public function __toString()
+	public function __toString(): string
 	{
+		$traits = [];
+		foreach ($this->traits as $trait => $resolutions) {
+			$traits[] = 'use ' . ($this->namespace ? $this->namespace->unresolveName($trait) : $trait)
+				. ($resolutions ? " {\n\t" . implode(";\n\t", $resolutions) . ";\n}" : ';');
+		}
+
 		$consts = [];
 		foreach ($this->consts as $const) {
-			$consts[] = Helpers::formatDocComment($const->getComment())
+			$consts[] = Helpers::formatDocComment((string) $const->getComment())
 				. ($const->getVisibility() ? $const->getVisibility() . ' ' : '')
-				. 'const ' . $const->getName() . ' = ' . Helpers::dump($const->getValue()) . ";\n";
+				. 'const ' . $const->getName() . ' = ' . Helpers::dump($const->getValue()) . ';';
 		}
 
 		$properties = [];
 		foreach ($this->properties as $property) {
-			$properties[] = Helpers::formatDocComment($property->getComment())
+			$properties[] = Helpers::formatDocComment((string) $property->getComment())
 				. ($property->getVisibility() ?: 'public') . ($property->isStatic() ? ' static' : '') . ' $' . $property->getName()
-				. ($property->value === NULL ? '' : ' = ' . Helpers::dump($property->value))
-				. ";\n";
+				. ($property->getValue() === NULL ? '' : ' = ' . Helpers::dump($property->getValue()))
+				. ';';
 		}
 
 		$mapper = function (array $arr) {
@@ -116,9 +120,9 @@ class ClassType
 			. ($this->implements ? 'implements ' . implode(', ', $mapper($this->implements)) . ' ' : '')
 			. ($this->name ? "\n" : '') . "{\n"
 			. Strings::indent(
-				($this->traits ? 'use ' . implode(";\nuse ", $mapper($this->traits)) . ";\n\n" : '')
-				. ($this->consts ? implode('', $consts) . "\n" : '')
-				. ($this->properties ? implode("\n", $properties) . "\n" : '')
+				($this->traits ? implode("\n", $traits) . "\n\n" : '')
+				. ($this->consts ? implode("\n", $consts) . "\n\n" : '')
+				. ($this->properties ? implode("\n\n", $properties) . "\n\n" : '')
 				. ($this->methods ? "\n" . implode("\n\n\n", $this->methods) . "\n\n" : ''), 1)
 			. '}'
 		) . ($this->name ? "\n" : '');
@@ -138,8 +142,11 @@ class ClassType
 	 * @param  string|NULL
 	 * @return static
 	 */
-	public function setName($name)
+	public function setName($name): self
 	{
+		if ($name !== NULL && !Helpers::isIdentifier($name)) {
+			throw new Nette\InvalidArgumentException("Value '$name' is not valid class name.");
+		}
 		$this->name = $name;
 		return $this;
 	}
@@ -155,10 +162,9 @@ class ClassType
 
 
 	/**
-	 * @param  string
 	 * @return static
 	 */
-	public function setType($type)
+	public function setType(string $type): self
 	{
 		if (!in_array($type, ['class', 'interface', 'trait'], TRUE)) {
 			throw new Nette\InvalidArgumentException('Argument must be class|interface|trait.');
@@ -168,50 +174,39 @@ class ClassType
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public function getType()
+	public function getType(): string
 	{
 		return $this->type;
 	}
 
 
 	/**
-	 * @param  bool
 	 * @return static
 	 */
-	public function setFinal($state = TRUE)
+	public function setFinal(bool $state = TRUE): self
 	{
-		$this->final = (bool) $state;
+		$this->final = $state;
 		return $this;
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public function isFinal()
+	public function isFinal(): bool
 	{
 		return $this->final;
 	}
 
 
 	/**
-	 * @param  bool
 	 * @return static
 	 */
-	public function setAbstract($state = TRUE)
+	public function setAbstract(bool $state = TRUE): self
 	{
-		$this->abstract = (bool) $state;
+		$this->abstract = $state;
 		return $this;
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public function isAbstract()
+	public function isAbstract(): bool
 	{
 		return $this->abstract;
 	}
@@ -221,12 +216,13 @@ class ClassType
 	 * @param  string|string[]
 	 * @return static
 	 */
-	public function setExtends($types)
+	public function setExtends($names): self
 	{
-		if (!is_string($types) && !(is_array($types) && array_filter($types, 'is_string') === $types)) {
+		if (!is_string($names) && !is_array($names)) {
 			throw new Nette\InvalidArgumentException('Argument must be string or string[].');
 		}
-		$this->extends = $types;
+		$this->validate((array) $names);
+		$this->extends = $names;
 		return $this;
 	}
 
@@ -241,13 +237,13 @@ class ClassType
 
 
 	/**
-	 * @param  string
 	 * @return static
 	 */
-	public function addExtend($type)
+	public function addExtend(string $name): self
 	{
+		$this->validate([$name]);
 		$this->extends = (array) $this->extends;
-		$this->extends[] = (string) $type;
+		$this->extends[] = $name;
 		return $this;
 	}
 
@@ -256,9 +252,10 @@ class ClassType
 	 * @param  string[]
 	 * @return static
 	 */
-	public function setImplements(array $types)
+	public function setImplements(array $names): self
 	{
-		$this->implements = $types;
+		$this->validate($names);
+		$this->implements = $names;
 		return $this;
 	}
 
@@ -266,19 +263,19 @@ class ClassType
 	/**
 	 * @return string[]
 	 */
-	public function getImplements()
+	public function getImplements(): array
 	{
 		return $this->implements;
 	}
 
 
 	/**
-	 * @param  string
 	 * @return static
 	 */
-	public function addImplement($type)
+	public function addImplement(string $name): self
 	{
-		$this->implements[] = (string) $type;
+		$this->validate([$name]);
+		$this->implements[] = $name;
 		return $this;
 	}
 
@@ -287,9 +284,10 @@ class ClassType
 	 * @param  string[]
 	 * @return static
 	 */
-	public function setTraits(array $traits)
+	public function setTraits(array $names): self
 	{
-		$this->traits = $traits;
+		$this->validate($names);
+		$this->traits = array_fill_keys($names, []);
 		return $this;
 	}
 
@@ -297,75 +295,20 @@ class ClassType
 	/**
 	 * @return string[]
 	 */
-	public function getTraits()
+	public function getTraits(): array
 	{
-		return $this->traits;
+		return array_keys($this->traits);
 	}
 
 
 	/**
-	 * @param  string
 	 * @return static
 	 */
-	public function addTrait($trait)
+	public function addTrait(string $name, array $resolutions = []): self
 	{
-		$this->traits[] = (string) $trait;
+		$this->validate([$name]);
+		$this->traits[$name] = $resolutions;
 		return $this;
-	}
-
-
-	/**
-	 * @param  string|NULL
-	 * @return static
-	 */
-	public function setComment($val)
-	{
-		$this->comment = $val ? (string) $val : NULL;
-		return $this;
-	}
-
-
-	/**
-	 * @return string|NULL
-	 */
-	public function getComment()
-	{
-		return $this->comment;
-	}
-
-
-	/**
-	 * @param  string
-	 * @return static
-	 */
-	public function addComment($val)
-	{
-		$this->comment .= $this->comment ? "\n$val" : $val;
-		return $this;
-	}
-
-
-	/** @deprecated */
-	public function setDocuments(array $s)
-	{
-		trigger_error(__METHOD__ . '() is deprecated, use similar setComment()', E_USER_DEPRECATED);
-		return $this->setComment(implode("\n", $s));
-	}
-
-
-	/** @deprecated */
-	public function getDocuments()
-	{
-		trigger_error(__METHOD__ . '() is deprecated, use similar getComment()', E_USER_DEPRECATED);
-		return $this->comment ? [$this->comment] : [];
-	}
-
-
-	/** @deprecated */
-	public function addDocument($s)
-	{
-		trigger_error(__METHOD__ . '() is deprecated, use addComment()', E_USER_DEPRECATED);
-		return $this->addComment($s);
 	}
 
 
@@ -373,39 +316,40 @@ class ClassType
 	 * @deprecated  use setConstants()
 	 * @return static
 	 */
-	public function setConsts(array $consts)
+	public function setConsts(array $consts): self
 	{
+		trigger_error(__METHOD__ . '() is deprecated, use setConstants()', E_USER_DEPRECATED);
 		return $this->setConstants($consts);
 	}
 
 
 	/**
 	 * @deprecated  use getConstants()
-	 * @return array
 	 */
-	public function getConsts()
+	public function getConsts(): array
 	{
+		trigger_error(__METHOD__ . '() is deprecated, use similar getConstants()', E_USER_DEPRECATED);
 		return array_map(function ($const) { return $const->getValue(); }, $this->consts);
 	}
 
 
 	/**
 	 * @deprecated  use addConstant()
-	 * @param  string
-	 * @param  mixed
 	 * @return static
 	 */
-	public function addConst($name, $value)
+	public function addConst(string $name, $value): self
 	{
+		trigger_error(__METHOD__ . '() is deprecated, use similar addConstant()', E_USER_DEPRECATED);
 		$this->addConstant($name, $value);
 		return $this;
 	}
 
 
 	/**
+	 * @param  Constant[]|mixed[]
 	 * @return static
 	 */
-	public function setConstants(array $consts)
+	public function setConstants(array $consts): self
 	{
 		$this->consts = [];
 		foreach ($consts as $k => $v) {
@@ -419,18 +363,13 @@ class ClassType
 	/**
 	 * @return Constant[]
 	 */
-	public function getConstants()
+	public function getConstants(): array
 	{
 		return $this->consts;
 	}
 
 
-	/**
-	 * @param  string
-	 * @param  mixed
-	 * @return Constant
-	 */
-	public function addConstant($name, $value)
+	public function addConstant(string $name, $value): Constant
 	{
 		return $this->consts[$name] = (new Constant($name))->setValue($value);
 	}
@@ -440,7 +379,7 @@ class ClassType
 	 * @param  Property[]
 	 * @return static
 	 */
-	public function setProperties(array $props)
+	public function setProperties(array $props): self
 	{
 		$this->properties = [];
 		foreach ($props as $v) {
@@ -456,16 +395,13 @@ class ClassType
 	/**
 	 * @return Property[]
 	 */
-	public function getProperties()
+	public function getProperties(): array
 	{
 		return $this->properties;
 	}
 
 
-	/**
-	 * @return Property
-	 */
-	public function getProperty($name)
+	public function getProperty($name): Property
 	{
 		if (!isset($this->properties[$name])) {
 			throw new Nette\InvalidArgumentException("Property '$name' not found.");
@@ -476,10 +412,8 @@ class ClassType
 
 	/**
 	 * @param  string  without $
-	 * @param  mixed
-	 * @return Property
 	 */
-	public function addProperty($name, $value = NULL)
+	public function addProperty(string $name, $value = NULL): Property
 	{
 		return $this->properties[$name] = (new Property($name))->setValue($value);
 	}
@@ -489,7 +423,7 @@ class ClassType
 	 * @param  Method[]
 	 * @return static
 	 */
-	public function setMethods(array $methods)
+	public function setMethods(array $methods): self
 	{
 		$this->methods = [];
 		foreach ($methods as $v) {
@@ -505,16 +439,13 @@ class ClassType
 	/**
 	 * @return Method[]
 	 */
-	public function getMethods()
+	public function getMethods(): array
 	{
 		return $this->methods;
 	}
 
 
-	/**
-	 * @return Method
-	 */
-	public function getMethod($name)
+	public function getMethod($name): Method
 	{
 		if (!isset($this->methods[$name])) {
 			throw new Nette\InvalidArgumentException("Method '$name' not found.");
@@ -523,19 +454,25 @@ class ClassType
 	}
 
 
-	/**
-	 * @param  string
-	 * @return Method
-	 */
-	public function addMethod($name)
+	public function addMethod(string $name): Method
 	{
 		$method = (new Method($name))->setNamespace($this->namespace);
 		if ($this->type === 'interface') {
-			$method->setVisibility(NULL)->setBody(FALSE);
+			$method->setBody(NULL);
 		} else {
 			$method->setVisibility('public');
 		}
 		return $this->methods[$name] = $method;
+	}
+
+
+	private function validate(array $names)
+	{
+		foreach ($names as $name) {
+			if (!Helpers::isNamespaceIdentifier($name, TRUE)) {
+				throw new Nette\InvalidArgumentException("Value '$name' is not valid class name.");
+			}
+		}
 	}
 
 }

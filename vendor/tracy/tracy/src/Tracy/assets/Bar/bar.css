@@ -42,7 +42,7 @@ body #tracy-debug {
 	clear: none;
 }
 
-#tracy-debug *:before
+#tracy-debug *:before,
 #tracy-debug *:after {
 	all: unset;
 }
@@ -101,11 +101,18 @@ body #tracy-debug {
 #tracy-debug pre,
 #tracy-debug code {
 	font: 9pt/1.5 Consolas, monospace;
+}
+
+#tracy-debug pre {
 	white-space: pre;
 }
 
 #tracy-debug table .tracy-right {
 	text-align: right;
+}
+
+#tracy-debug svg {
+	display: inline;
 }
 
 
@@ -335,6 +342,17 @@ body#tracy-debug .tracy-panel { /* in popup window */
 
 #tracy-debug .tracy-dump-indent {
 	display: none;
+}
+
+
+/* toggle */
+#tracy-debug .tracy-toggle:after {
+	content: "\A0\25BC";
+	opacity: .4;
+}
+
+#tracy-debug .tracy-toggle.tracy-collapsed:after {
+	content: "\A0\25BA";
 }
 
 

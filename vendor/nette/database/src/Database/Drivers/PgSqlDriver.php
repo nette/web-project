@@ -96,8 +96,8 @@ class PgSqlDriver implements Nette\Database\ISupplementalDriver
 	 */
 	public function formatLike($value, $pos)
 	{
-		$bs = substr($this->connection->quote('\\', \PDO::PARAM_STR), 1, -1); // standard_conforming_strings = on/off
-		$value = substr($this->connection->quote($value, \PDO::PARAM_STR), 1, -1);
+		$bs = substr($this->connection->quote('\\'), 1, -1); // standard_conforming_strings = on/off
+		$value = substr($this->connection->quote($value), 1, -1);
 		$value = strtr($value, ['%' => $bs . '%', '_' => $bs . '_', '\\' => '\\\\']);
 		return ($pos <= 0 ? "'%" : "'") . $value . ($pos >= 0 ? "%'" : "'");
 	}
@@ -106,7 +106,7 @@ class PgSqlDriver implements Nette\Database\ISupplementalDriver
 	/**
 	 * Injects LIMIT/OFFSET to the SQL query.
 	 */
-	public function applyLimit(& $sql, $limit, $offset)
+	public function applyLimit(&$sql, $limit, $offset)
 	{
 		if ($limit < 0 || $offset < 0) {
 			throw new Nette\InvalidArgumentException('Negative offset or limit.');

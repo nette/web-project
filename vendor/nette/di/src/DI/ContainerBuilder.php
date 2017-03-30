@@ -209,10 +209,11 @@ class ContainerBuilder
 	/**
 	 * Resolves service name by type.
 	 * @param  string  class or interface
+	 * @param  bool    throw exception if service doesn't exist?
 	 * @return string|NULL  service name or NULL
 	 * @throws ServiceCreationException
 	 */
-	public function getByType($class)
+	public function getByType($class, $throw = FALSE)
 	{
 		$class = ltrim($class, '\\');
 
@@ -225,6 +226,9 @@ class ContainerBuilder
 		$classes = $this->getClassList();
 		if (empty($classes[$class][TRUE])) {
 			self::checkCase($class);
+			if ($throw) {
+				throw new MissingServiceException("Service of type '$class' not found.");
+			}
 			return;
 
 		} elseif (count($classes[$class][TRUE]) === 1) {
@@ -247,12 +251,7 @@ class ContainerBuilder
 	 */
 	public function getDefinitionByType($class)
 	{
-		$definitionName = $this->getByType($class);
-		if (!$definitionName) {
-			throw new MissingServiceException("Service of type '$class' not found.");
-		}
-
-		return $this->getDefinition($definitionName);
+		return $this->getDefinition($this->getByType($class, TRUE));
 	}
 
 
@@ -308,7 +307,7 @@ class ContainerBuilder
 
 	/**
 	 * Generates $dependencies, $classes and normalizes class names.
-	 * @return array
+	 * @return void
 	 * @internal
 	 */
 	public function prepareClassList()
@@ -341,8 +340,9 @@ class ContainerBuilder
 			}
 
 			// auto-disable autowiring for aliases
-			if (($alias = $this->getServiceName($def->getFactory()->getEntity())) &&
-				(!$def->getImplement() || (!Strings::contains($alias, '\\') && $this->definitions[$alias]->getImplement()))
+			if ($def->getAutowired() === TRUE
+				&& ($alias = $this->getServiceName($def->getFactory()->getEntity()))
+				&& (!$def->getImplement() || (!Strings::contains($alias, '\\') && $this->definitions[$alias]->getImplement()))
 			) {
 				$def->setAutowired(FALSE);
 			}
@@ -606,13 +606,14 @@ class ContainerBuilder
 			foreach ($this->definitions[$service]->parameters as $k => $v) {
 				$params[] = preg_replace('#\w+\z#', '\$$0', (is_int($k) ? $v : $k)) . (is_int($k) ? '' : ' = ' . PhpHelpers::dump($v));
 			}
-			$rm = new \ReflectionFunction(create_function(implode(', ', $params), ''));
+			$rm = new \ReflectionFunction(eval('return function(' . implode(', ', $params) . ') {};'));
 			$arguments = Helpers::autowireArguments($rm, $arguments, $this);
 			$entity = '@' . $service;
 
 		} elseif ($entity === 'not') { // operator
 
 		} elseif (is_string($entity)) { // class name
+			$entity = ltrim($entity, '\\');
 			if (!class_exists($entity)) {
 				throw new ServiceCreationException("Class $entity not found.");
 			} elseif ((new ReflectionClass($entity))->isAbstract()) {
@@ -649,6 +650,8 @@ class ContainerBuilder
 				$entity[0] = $this->completeStatement($entity[0]);
 			} elseif ($service = $this->getServiceName($entity[0])) { // service method
 				$entity[0] = '@' . $service;
+			} elseif (is_string($entity[0])) {
+				$entity[0] = ltrim($entity[0], '\\');
 			}
 
 			if ($entity[1][0] === '$') { // property getter, setter or appender

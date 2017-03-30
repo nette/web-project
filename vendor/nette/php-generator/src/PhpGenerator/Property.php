@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\PhpGenerator;
 
 use Nette;
@@ -12,60 +14,50 @@ use Nette;
 
 /**
  * Class property description.
+ *
+ * @property mixed $value
  */
-class Property extends Member
+final class Property
 {
+	use Nette\SmartObject;
+	use Traits\NameAware;
+	use Traits\VisibilityAware;
+	use Traits\CommentAware;
+
 	/** @var mixed */
-	public $value;
+	private $value;
 
 	/** @var bool */
 	private $static = FALSE;
 
 
 	/**
-	 * @deprecated
 	 * @return static
 	 */
-	public static function from(\ReflectionProperty $from)
-	{
-		return (new Factory)->fromPropertyReflection($from);
-	}
-
-
-	/**
-	 * @return static
-	 */
-	public function setValue($val)
+	public function setValue($val): self
 	{
 		$this->value = $val;
 		return $this;
 	}
 
 
-	/**
-	 * @return mixed
-	 */
-	public function getValue()
+	public function &getValue()
 	{
 		return $this->value;
 	}
 
 
 	/**
-	 * @param  bool
 	 * @return static
 	 */
-	public function setStatic($state = TRUE)
+	public function setStatic(bool $state = TRUE): self
 	{
-		$this->static = (bool) $state;
+		$this->static = $state;
 		return $this;
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public function isStatic()
+	public function isStatic(): bool
 	{
 		return $this->static;
 	}

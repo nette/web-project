@@ -18,8 +18,8 @@ class TextInput extends TextBase
 {
 
 	/**
-	 * @param  string  label
-	 * @param  int  maximum number of characters the user may enter
+	 * @param  string|object
+	 * @param  int
 	 */
 	public function __construct($label = NULL, $maxLength = NULL)
 	{
@@ -75,7 +75,10 @@ class TextInput extends TextBase
 	}
 
 
-	public function addRule($validator, $message = NULL, $arg = NULL)
+	/**
+	 * @return static
+	 */
+	public function addRule($validator, $errorMessage = NULL, $arg = NULL)
 	{
 		if ($this->control->type === NULL && in_array($validator, [Form::EMAIL, Form::URL, Form::INTEGER], TRUE)) {
 			static $types = [Form::EMAIL => 'email', Form::URL => 'url', Form::INTEGER => 'number'];
@@ -104,7 +107,7 @@ class TextInput extends TextBase
 			$this->control->pattern = $arg;
 		}
 
-		return parent::addRule($validator, $message, $arg);
+		return parent::addRule($validator, $errorMessage, $arg);
 	}
 
 }

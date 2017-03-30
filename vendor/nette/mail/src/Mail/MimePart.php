@@ -14,7 +14,7 @@ use Nette\Utils\Strings;
 /**
  * MIME message part.
  *
- * @property   mixed $body
+ * @property   string $body
  */
 class MimePart
 {
@@ -37,7 +37,7 @@ class MimePart
 	private $parts = [];
 
 	/** @var string */
-	private $body;
+	private $body = '';
 
 
 	/**
@@ -45,7 +45,7 @@ class MimePart
 	 * @param  string
 	 * @param  string|array  value or pair email => name
 	 * @param  bool
-	 * @return self
+	 * @return static
 	 */
 	public function setHeader($name, $value, $append = FALSE)
 	{
@@ -59,16 +59,17 @@ class MimePart
 			}
 
 		} elseif (is_array($value)) { // email
-			$tmp = & $this->headers[$name];
+			$tmp = &$this->headers[$name];
 			if (!$append || !is_array($tmp)) {
 				$tmp = [];
 			}
 
 			foreach ($value as $email => $recipient) {
-				if ($recipient !== NULL && !Strings::checkEncoding($recipient)) {
+				if ($recipient === NULL) {
+					// continue
+				} elseif (!Strings::checkEncoding($recipient)) {
 					Nette\Utils\Validators::assert($recipient, 'unicode', "header '$name'");
-				}
-				if (preg_match('#[\r\n]#', $recipient)) {
+				} elseif (preg_match('#[\r\n]#', $recipient)) {
 					throw new Nette\InvalidArgumentException('Name must not contain line separator.');
 				}
 				Nette\Utils\Validators::assert($email, 'email', "header '$name'");
@@ -100,7 +101,7 @@ class MimePart
 	/**
 	 * Removes a header.
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function clearHeader($name)
 	{
@@ -112,8 +113,7 @@ class MimePart
 	/**
 	 * Returns an encoded header.
 	 * @param  string
-	 * @param  string
-	 * @return string
+	 * @return string|NULL
 	 */
 	public function getEncodedHeader($name)
 	{
@@ -157,7 +157,7 @@ class MimePart
 	 * Sets Content-Type header.
 	 * @param  string
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function setContentType($contentType, $charset = NULL)
 	{
@@ -169,7 +169,7 @@ class MimePart
 	/**
 	 * Sets Content-Transfer-Encoding header.
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function setEncoding($encoding)
 	{
@@ -190,7 +190,7 @@ class MimePart
 
 	/**
 	 * Adds or creates new multipart.
-	 * @return MimePart
+	 * @return self
 	 */
 	public function addPart(MimePart $part = NULL)
 	{
@@ -200,7 +200,8 @@ class MimePart
 
 	/**
 	 * Sets textual body.
-	 * @return self
+	 * @param  string
+	 * @return static
 	 */
 	public function setBody($body)
 	{
@@ -211,7 +212,7 @@ class MimePart
 
 	/**
 	 * Gets textual body.
-	 * @return mixed
+	 * @return string
 	 */
 	public function getBody()
 	{
@@ -240,7 +241,7 @@ class MimePart
 		}
 		$output .= self::EOL;
 
-		$body = (string) $this->body;
+		$body = $this->body;
 		if ($body !== '') {
 			switch ($this->getEncoding()) {
 				case self::ENCODING_QUOTED_PRINTABLE:
@@ -290,7 +291,7 @@ class MimePart
 	 * @param  bool
 	 * @return string
 	 */
-	private static function encodeHeader($s, & $offset = 0, $quotes = FALSE)
+	private static function encodeHeader($s, &$offset = 0, $quotes = FALSE)
 	{
 		if (strspn($s, "!\"#$%&\'()*+,-./0123456789:;<>@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^`abcdefghijklmnopqrstuvwxyz{|}~=? _\r\n\t") === strlen($s)) {
 			if ($quotes && preg_match('#[^ a-zA-Z0-9!\#$%&\'*+/?^_`{|}~-]#', $s)) { // RFC 2822 atext except =
@@ -317,7 +318,7 @@ class MimePart
 	}
 
 
-	private static function append($s, & $offset = 0)
+	private static function append($s, &$offset = 0)
 	{
 		if ($offset + strlen($s) > self::LINE_LENGTH) {
 			$offset = 1;

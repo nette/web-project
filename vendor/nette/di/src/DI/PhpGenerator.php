@@ -52,7 +52,10 @@ class PhpGenerator
 		$containerClass = $this->generatedClasses[] = new Nette\PhpGenerator\ClassType($this->className);
 		$containerClass->setExtends(Container::class);
 		$containerClass->addMethod('__construct')
-			->addBody('parent::__construct(?);', [$this->builder->parameters]);
+			->addBody('$this->parameters = $params;')
+			->addBody('$this->parameters += ?;', [$this->builder->parameters])
+			->addParameter('params', [])
+				->setTypeHint('array');
 
 		$definitions = $this->builder->getDefinitions();
 		ksort($definitions);
@@ -116,7 +119,7 @@ class PhpGenerator
 		$this->currentService = NULL;
 		$code = '$service = ' . $this->formatStatement($factory) . ";\n";
 
-		if (($class = $def->getClass()) && !$serviceRef && $class !== $entity
+		if ((PHP_VERSION_ID < 70000 || $def->getSetup()) && ($class = $def->getClass()) && !$serviceRef && $class !== $entity
 			&& !(is_string($entity) && preg_match('#^[\w\\\\]+\z#', $entity) && is_subclass_of($entity, $class))
 		) {
 			$code .= PhpHelpers::formatArgs("if (!\$service instanceof $class) {\n"
@@ -175,23 +178,23 @@ class PhpGenerator
 			return $this->formatPhp($entity, $arguments);
 
 		} elseif ($service = $this->builder->getServiceName($entity)) { // factory calling
-			return $this->formatPhp('$this->?(?*)', [Container::getMethodName($service), $arguments]);
+			return $this->formatPhp('$this->?(...?)', [Container::getMethodName($service), $arguments]);
 
 		} elseif ($entity === 'not') { // operator
 			return $this->formatPhp('!?', [$arguments[0]]);
 
 		} elseif (is_string($entity)) { // class name
-			return $this->formatPhp("new $entity" . ($arguments ? '(?*)' : ''), $arguments ? [$arguments] : []);
+			return $this->formatPhp("new $entity" . ($arguments ? '(...?)' : ''), $arguments ? [$arguments] : []);
 
 		} elseif ($entity[0] === '') { // globalFunc
-			return $this->formatPhp("$entity[1](?*)", [$arguments]);
+			return $this->formatPhp("$entity[1](...?)", [$arguments]);
 
 		} elseif ($entity[0] instanceof Statement) {
 			$inner = $this->formatPhp('?', [$entity[0]]);
 			if (substr($inner, 0, 4) === 'new ') {
 				$inner = "($inner)";
 			}
-			return $this->formatPhp("$inner->?(?*)", [$entity[1], $arguments]);
+			return $this->formatPhp("$inner->?(...?)", [$entity[1], $arguments]);
 
 		} elseif ($entity[1][0] === '$') { // property getter, setter or appender
 			$name = substr($entity[1], 1);
@@ -208,10 +211,10 @@ class PhpGenerator
 				: $prop;
 
 		} elseif ($service = $this->builder->getServiceName($entity[0])) { // service method
-			return $this->formatPhp('?->?(?*)', [$entity[0], $entity[1], $arguments]);
+			return $this->formatPhp('?->?(...?)', [$entity[0], $entity[1], $arguments]);
 
 		} else { // static method
-			return $this->formatPhp("$entity[0]::$entity[1](?*)", [$arguments]);
+			return $this->formatPhp("$entity[0]::$entity[1](...?)", [$arguments]);
 		}
 	}
 

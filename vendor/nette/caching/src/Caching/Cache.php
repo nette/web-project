@@ -70,7 +70,7 @@ class Cache
 	/**
 	 * Returns new nested cache object.
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	public function derive($namespace)
 	{
@@ -81,16 +81,16 @@ class Cache
 
 	/**
 	 * Reads the specified item from the cache or generate it.
-	 * @param  mixed key
+	 * @param  mixed
 	 * @param  callable
-	 * @return mixed|NULL
+	 * @return mixed
 	 */
 	public function load($key, $fallback = NULL)
 	{
 		$data = $this->storage->read($this->generateKey($key));
 		if ($data === NULL && $fallback) {
-			return $this->save($key, function (& $dependencies) use ($fallback) {
-				return call_user_func_array($fallback, [& $dependencies]);
+			return $this->save($key, function (&$dependencies) use ($fallback) {
+				return call_user_func_array($fallback, [&$dependencies]);
 			});
 		}
 		return $data;
@@ -119,8 +119,8 @@ class Cache
 			if ($fallback !== NULL) {
 				foreach ($result as $key => $value) {
 					if ($value === NULL) {
-						$result[$key] = $this->save($key, function (& $dependencies) use ($key, $fallback) {
-							return call_user_func_array($fallback, [$key, & $dependencies]);
+						$result[$key] = $this->save($key, function (&$dependencies) use ($key, $fallback) {
+							return call_user_func_array($fallback, [$key, &$dependencies]);
 						});
 					}
 				}
@@ -135,8 +135,8 @@ class Cache
 			if (isset($cacheData[$storageKey])) {
 				$result[$key] = $cacheData[$storageKey];
 			} elseif ($fallback) {
-				$result[$key] = $this->save($key, function (& $dependencies) use ($key, $fallback) {
-					return call_user_func_array($fallback, [$key, & $dependencies]);
+				$result[$key] = $this->save($key, function (&$dependencies) use ($key, $fallback) {
+					return call_user_func_array($fallback, [$key, &$dependencies]);
 				});
 			} else {
 				$result[$key] = NULL;
@@ -157,9 +157,8 @@ class Cache
 	 * - Cache::ITEMS => (array|string) cache items
 	 * - Cache::CONSTS => (array|string) cache items
 	 *
-	 * @param  mixed  key
-	 * @param  mixed  value
-	 * @param  array  dependencies
+	 * @param  mixed
+	 * @param  mixed
 	 * @return mixed  value itself
 	 * @throws Nette\InvalidArgumentException
 	 */
@@ -173,7 +172,7 @@ class Cache
 			}
 			$this->storage->lock($key);
 			try {
-				$data = call_user_func_array($data, [& $dependencies]);
+				$data = call_user_func_array($data, [&$dependencies]);
 			} catch (\Throwable $e) {
 				$this->storage->remove($key);
 				throw $e;
@@ -186,7 +185,12 @@ class Cache
 		if ($data === NULL) {
 			$this->storage->remove($key);
 		} else {
-			$this->storage->write($key, $data, $this->completeDependencies($dependencies));
+			$dependencies = $this->completeDependencies($dependencies);
+			if (isset($dependencies[Cache::EXPIRATION]) && $dependencies[Cache::EXPIRATION] <= 0) {
+				$this->storage->remove($key);
+			} else {
+				$this->storage->write($key, $data, $dependencies);
+			}
 			return $data;
 		}
 	}
@@ -207,7 +211,7 @@ class Cache
 		// convert FILES into CALLBACKS
 		if (isset($dp[self::FILES])) {
 			foreach (array_unique((array) $dp[self::FILES]) as $item) {
-				$dp[self::CALLBACKS][] = [[__CLASS__, 'checkFile'], $item, @filemtime($item)]; // @ - stat may fail
+				$dp[self::CALLBACKS][] = [[__CLASS__, 'checkFile'], $item, @filemtime($item) ?: NULL]; // @ - stat may fail
 			}
 			unset($dp[self::FILES]);
 		}
@@ -234,7 +238,7 @@ class Cache
 
 	/**
 	 * Removes item from the cache.
-	 * @param  mixed  key
+	 * @param  mixed
 	 * @return void
 	 */
 	public function remove($key)
@@ -281,7 +285,6 @@ class Cache
 	/**
 	 * Caches results of function/method calls.
 	 * @param  mixed
-	 * @param  array  dependencies
 	 * @return \Closure
 	 */
 	public function wrap($function, array $dependencies = NULL)
@@ -302,7 +305,7 @@ class Cache
 
 	/**
 	 * Starts the output cache.
-	 * @param  mixed  key
+	 * @param  mixed
 	 * @return OutputHelper|NULL
 	 */
 	public function start($key)
@@ -317,13 +320,12 @@ class Cache
 
 	/**
 	 * Generates internal cache key.
-	 *
-	 * @param  string
+	 * @param  mixed
 	 * @return string
 	 */
 	protected function generateKey($key)
 	{
-		return $this->namespace . md5(is_scalar($key) ? $key : serialize($key));
+		return $this->namespace . md5(is_scalar($key) ? (string) $key : serialize($key));
 	}
 
 
@@ -361,7 +363,7 @@ class Cache
 	/**
 	 * Checks FILES dependency.
 	 * @param  string
-	 * @param  int
+	 * @param  int|NULL
 	 * @return bool
 	 */
 	private static function checkFile($file, $time)
