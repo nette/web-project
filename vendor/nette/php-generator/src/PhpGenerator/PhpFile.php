@@ -5,8 +5,6 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
-declare(strict_types=1);
-
 namespace Nette\PhpGenerator;
 
 use Nette;
@@ -21,7 +19,7 @@ use Nette\Utils\Strings;
  * - doc comments
  * - one or more namespaces
  */
-final class PhpFile
+class PhpFile
 {
 	use Nette\SmartObject;
 	use Traits\CommentAware;
@@ -30,7 +28,11 @@ final class PhpFile
 	private $namespaces = [];
 
 
-	public function addClass(string $name): ClassType
+	/**
+	 * @param  string
+	 * @return ClassType
+	 */
+	public function addClass($name)
 	{
 		return $this
 			->addNamespace(Helpers::extractNamespace($name))
@@ -38,7 +40,11 @@ final class PhpFile
 	}
 
 
-	public function addInterface(string $name): ClassType
+	/**
+	 * @param  string
+	 * @return ClassType
+	 */
+	public function addInterface($name)
 	{
 		return $this
 			->addNamespace(Helpers::extractNamespace($name))
@@ -46,7 +52,11 @@ final class PhpFile
 	}
 
 
-	public function addTrait(string $name): ClassType
+	/**
+	 * @param  string
+	 * @return ClassType
+	 */
+	public function addTrait($name)
 	{
 		return $this
 			->addNamespace(Helpers::extractNamespace($name))
@@ -54,7 +64,11 @@ final class PhpFile
 	}
 
 
-	public function addNamespace(string $name): PhpNamespace
+	/**
+	 * @param  string NULL means global namespace
+	 * @return PhpNamespace
+	 */
+	public function addNamespace($name)
 	{
 		if (!isset($this->namespaces[$name])) {
 			$this->namespaces[$name] = new PhpNamespace($name);
@@ -63,10 +77,13 @@ final class PhpFile
 	}
 
 
-	public function __toString(): string
+	/**
+	 * @return string PHP code
+	 */
+	public function __toString()
 	{
 		foreach ($this->namespaces as $namespace) {
-			$namespace->setBracketedSyntax(count($this->namespaces) > 1 && isset($this->namespaces['']));
+			$namespace->setBracketedSyntax(count($this->namespaces) > 1 && isset($this->namespaces[NULL]));
 		}
 
 		return Strings::normalize(

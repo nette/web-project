@@ -5,27 +5,31 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
-declare(strict_types=1);
-
 namespace Nette\PhpGenerator;
 
 
 /**
  * PHP literal value.
  */
-final class PhpLiteral
+class PhpLiteral
 {
 	/** @var string */
 	private $value;
 
 
-	public function __construct(string $value)
+	/**
+	 * @param  string
+	 */
+	public function __construct($value)
 	{
-		$this->value = $value;
+		$this->value = (string) $value;
 	}
 
 
-	public function __toString(): string
+	/**
+	 * @return string
+	 */
+	public function __toString()
 	{
 		return $this->value;
 	}

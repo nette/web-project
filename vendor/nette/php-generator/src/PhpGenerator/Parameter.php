@@ -5,8 +5,6 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
-declare(strict_types=1);
-
 namespace Nette\PhpGenerator;
 
 use Nette;
@@ -14,10 +12,8 @@ use Nette;
 
 /**
  * Method parameter description.
- *
- * @property mixed $defaultValue
  */
-final class Parameter
+class Parameter
 {
 	use Nette\SmartObject;
 	use Traits\NameAware;
@@ -35,20 +31,35 @@ final class Parameter
 	private $hasDefaultValue = FALSE;
 
 	/** @var mixed */
-	private $defaultValue;
+	public $defaultValue;
 
 
 	/**
+	 * @deprecated
 	 * @return static
 	 */
-	public function setReference(bool $state = TRUE): self
+	public static function from(\ReflectionParameter $from)
 	{
-		$this->reference = $state;
+		trigger_error(__METHOD__ . '() is deprecated, use Nette\PhpGenerator\Factory.', E_USER_DEPRECATED);
+		return (new Factory)->fromParameterReflection($from);
+	}
+
+
+	/**
+	 * @param  bool
+	 * @return static
+	 */
+	public function setReference($state = TRUE)
+	{
+		$this->reference = (bool) $state;
 		return $this;
 	}
 
 
-	public function isReference(): bool
+	/**
+	 * @return bool
+	 */
+	public function isReference()
 	{
 		return $this->reference;
 	}
@@ -58,7 +69,7 @@ final class Parameter
 	 * @param  string|NULL
 	 * @return static
 	 */
-	public function setTypeHint($hint): self
+	public function setTypeHint($hint)
 	{
 		$this->typeHint = $hint ? (string) $hint : NULL;
 		return $this;
@@ -75,37 +86,41 @@ final class Parameter
 
 
 	/**
-	 * @deprecated  just use setDefaultValue()
+	 * @param  bool
 	 * @return static
 	 */
-	public function setOptional(bool $state = TRUE): self
+	public function setOptional($state = TRUE)
 	{
-		$this->hasDefaultValue = $state;
+		$this->hasDefaultValue = (bool) $state;
 		return $this;
 	}
 
 
 	/**
 	 * @deprecated  use hasDefaultValue()
+	 * @return bool
 	 */
-	public function isOptional(): bool
+	public function isOptional()
 	{
-		trigger_error(__METHOD__ . '() is deprecated, use hasDefaultValue()', E_USER_DEPRECATED);
 		return $this->hasDefaultValue;
 	}
 
 
 	/**
+	 * @param  bool
 	 * @return static
 	 */
-	public function setNullable(bool $state = TRUE): self
+	public function setNullable($state = TRUE)
 	{
-		$this->nullable = $state;
+		$this->nullable = (bool) $state;
 		return $this;
 	}
 
 
-	public function isNullable(): bool
+	/**
+	 * @return bool
+	 */
+	public function isNullable()
 	{
 		return $this->nullable;
 	}
@@ -114,21 +129,26 @@ final class Parameter
 	/**
 	 * @return static
 	 */
-	public function setDefaultValue($val): self
+	public function setDefaultValue($val)
 	{
 		$this->defaultValue = $val;
-		$this->hasDefaultValue = TRUE;
 		return $this;
 	}
 
 
+	/**
+	 * @return mixed
+	 */
 	public function getDefaultValue()
 	{
 		return $this->defaultValue;
 	}
 
 
-	public function hasDefaultValue(): bool
+	/**
+	 * @return bool
+	 */
+	public function hasDefaultValue()
 	{
 		return $this->hasDefaultValue;
 	}

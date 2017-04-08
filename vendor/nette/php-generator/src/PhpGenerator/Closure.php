@@ -5,8 +5,6 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
-declare(strict_types=1);
-
 namespace Nette\PhpGenerator;
 
 use Nette;
@@ -17,7 +15,7 @@ use Nette;
  *
  * @property string $body
  */
-final class Closure
+class Closure
 {
 	use Nette\SmartObject;
 	use Traits\FunctionLike;
@@ -29,13 +27,16 @@ final class Closure
 	/**
 	 * @return static
 	 */
-	public static function from(\Closure $closure): self
+	public static function from(\Closure $closure)
 	{
 		return (new Factory)->fromFunctionReflection(new \ReflectionFunction($closure));
 	}
 
 
-	public function __toString(): string
+	/**
+	 * @return string  PHP code
+	 */
+	public function __toString()
 	{
 		$uses = [];
 		foreach ($this->uses as $param) {
@@ -54,21 +55,31 @@ final class Closure
 	 * @param  Parameter[]
 	 * @return static
 	 */
-	public function setUses(array $uses): self
+	public function setUses(array $uses)
 	{
-		(function (Parameter ...$uses) {})(...$uses);
+		foreach ($uses as $use) {
+			if (!$use instanceof Parameter) {
+				throw new Nette\InvalidArgumentException('Argument must be Nette\PhpGenerator\Parameter[].');
+			}
+		}
 		$this->uses = $uses;
 		return $this;
 	}
 
 
-	public function getUses(): array
+	/**
+	 * @return array
+	 */
+	public function getUses()
 	{
 		return $this->uses;
 	}
 
 
-	public function addUse($name): Parameter
+	/**
+	 * @return Parameter
+	 */
+	public function addUse($name)
 	{
 		return $this->uses[] = new Parameter($name);
 	}
