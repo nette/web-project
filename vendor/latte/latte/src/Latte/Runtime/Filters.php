@@ -242,7 +242,7 @@ class Filters
 
 
 	/**
-	 * @return callable
+	 * @return callable|NULL
 	 */
 	public static function getConvertor($source, $dest)
 	{
@@ -401,7 +401,7 @@ class Filters
 	 * Date/time formatting.
 	 * @param  string|int|\DateTime|\DateTimeInterface|\DateInterval
 	 * @param  string
-	 * @return string plain text
+	 * @return string|NULL
 	 */
 	public static function date($time, $format = NULL)
 	{
@@ -431,7 +431,7 @@ class Filters
 
 	/**
 	 * Converts to human readable file size.
-	 * @param  int
+	 * @param  float
 	 * @param  int
 	 * @return string plain text
 	 */
@@ -459,7 +459,7 @@ class Filters
 	 */
 	public static function replace(FilterInfo $info, $subject, $search, $replacement = '')
 	{
-		return str_replace($search, $replacement, $subject);
+		return str_replace($search, $replacement, (string) $subject);
 	}
 
 
@@ -526,7 +526,7 @@ class Filters
 	{
 		$s = (string) $s;
 		if ($length === NULL) {
-			$length = strlen(utf8_decode($s));
+			$length = self::strLength($s);
 		}
 		if (function_exists('mb_substr')) {
 			return mb_substr($s, $start, $length, 'UTF-8'); // MB is much faster
@@ -545,8 +545,8 @@ class Filters
 	public static function truncate($s, $maxLen, $append = "\xE2\x80\xA6")
 	{
 		$s = (string) $s;
-		if (strlen(utf8_decode($s)) > $maxLen) {
-			$maxLen = $maxLen - strlen(utf8_decode($append));
+		if (self::strLength($s) > $maxLen) {
+			$maxLen = $maxLen - self::strLength($append);
 			if ($maxLen < 1) {
 				return $append;
 
@@ -618,18 +618,28 @@ class Filters
 		} elseif ($val instanceof \Traversable) {
 			return iterator_count($val);
 		} else {
-			return strlen(utf8_decode($val)); // fastest way
+			return self::strLength($val);
 		}
 	}
 
 
 	/**
-	 * Strips whitespace.
-	 * @param  string plain text
-	 * @param  string plain text
-	 * @return string plain text
+	 * @param  string
+	 * @return int
 	 */
-	public static function trim($s, $charlist = " \t\n\r\0\x0B\xC2\xA0")
+	private static function strLength($s)
+	{
+		return function_exists('mb_strlen') ? mb_strlen($s, 'UTF-8') : strlen(utf8_decode($s));
+	}
+
+
+	/**
+	 * Strips whitespace.
+	 * @param  string
+	 * @param  string
+	 * @return string
+	 */
+	public static function trim(FilterInfo $info, $s, $charlist = " \t\n\r\0\x0B\xC2\xA0")
 	{
 		$charlist = preg_quote($charlist, '#');
 		$s = preg_replace('#^['.$charlist.']+|['.$charlist.']+\z#u', '', (string) $s);
@@ -650,8 +660,8 @@ class Filters
 	public static function padLeft($s, $length, $pad = ' ')
 	{
 		$s = (string) $s;
-		$length = max(0, $length - strlen(utf8_decode($s)));
-		$padLen = strlen(utf8_decode($pad));
+		$length = max(0, $length - self::strLength($s));
+		$padLen = self::strLength($pad);
 		return str_repeat($pad, (int) ($length / $padLen)) . self::substring($pad, 0, $length % $padLen) . $s;
 	}
 
@@ -666,8 +676,8 @@ class Filters
 	public static function padRight($s, $length, $pad = ' ')
 	{
 		$s = (string) $s;
-		$length = max(0, $length - strlen(utf8_decode($s)));
-		$padLen = strlen(utf8_decode($pad));
+		$length = max(0, $length - self::strLength($s));
+		$padLen = self::strLength($pad);
 		return $s . str_repeat($pad, (int) ($length / $padLen)) . self::substring($pad, 0, $length % $padLen);
 	}
 

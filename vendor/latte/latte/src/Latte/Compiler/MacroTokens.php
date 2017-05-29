@@ -30,6 +30,9 @@ class MacroTokens extends TokenIterator
 	public $depth = 0;
 
 
+	/**
+	 * @param  string|array
+	 */
 	public function __construct($input = [])
 	{
 		parent::__construct(is_array($input) ? $input : $this->parse($input));
@@ -47,7 +50,7 @@ class MacroTokens extends TokenIterator
 			self::T_CAST => '\((?:expand|string|array|int|integer|float|bool|boolean|object)\)', // type casting
 			self::T_VARIABLE => '\$[\w\pL_]+',
 			self::T_NUMBER => '[+-]?[0-9]+(?:\.[0-9]+)?(?:e[0-9]+)?',
-			self::T_SYMBOL => '[\w\pL_]+(?:-[\w\pL_]+)*',
+			self::T_SYMBOL => '[\w\pL_]+(?:-+[\w\pL_]+)*',
 			self::T_CHAR => '::|=>|->|\+\+|--|<<|>>|<=>|<=|>=|===|!==|==|!=|<>|&&|\|\||\?\?|\?>|\*\*|\.\.\.|[^"\']', // =>, any char except quotes
 		], 'u');
 		return self::$tokenizer->tokenize($s);
@@ -87,7 +90,6 @@ class MacroTokens extends TokenIterator
 
 	/**
 	 * Reads single token (optionally delimited by comma) from string.
-	 * @param  string
 	 * @return string
 	 */
 	public function fetchWord()
@@ -99,7 +101,6 @@ class MacroTokens extends TokenIterator
 
 	/**
 	 * Reads single tokens delimited by colon from string.
-	 * @param  string
 	 * @return array
 	 */
 	public function fetchWords()

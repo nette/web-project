@@ -729,14 +729,20 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 	/**
 	 * Conditional redirect to canonicalized URI.
+	 * @param  string
 	 * @return void
 	 * @throws Nette\Application\AbortException
 	 */
-	public function canonicalize()
+	public function canonicalize($destination = NULL, array $args = [])
 	{
 		if (!$this->isAjax() && ($this->request->isMethod('get') || $this->request->isMethod('head'))) {
 			try {
-				$url = $this->createRequest($this, $this->action, $this->getGlobalState() + $this->request->getParameters(), 'redirectX');
+				$url = $this->createRequest(
+					$this,
+					$destination ?: $this->action,
+					$args + $this->getGlobalState() + $this->request->getParameters(),
+					'redirectX'
+				);
 			} catch (InvalidLinkException $e) {
 			}
 			if (isset($url) && !$this->httpRequest->getUrl()->isEqual($url)) {
@@ -848,7 +854,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 			try {
 				$presenterClass = $this->presenterFactory->getPresenterClass($presenter);
 			} catch (Application\InvalidPresenterException $e) {
-				throw new InvalidLinkException($e->getMessage(), NULL, $e);
+				throw new InvalidLinkException($e->getMessage(), 0, $e);
 			}
 		}
 
@@ -1156,12 +1162,15 @@ abstract class Presenter extends Control implements Application\IPresenter
 			}
 
 			$components = $this->getReflection()->getPersistentComponents();
-			$iterator = $this->getComponents(TRUE, IStatePersistent::class);
+			$iterator = $this->getComponents(TRUE);
 
 			foreach ($iterator as $name => $component) {
 				if ($iterator->getDepth() === 0) {
 					// counts with Nette\Application\RecursiveIteratorIterator::SELF_FIRST
 					$since = isset($components[$name]['since']) ? $components[$name]['since'] : FALSE; // FALSE = nonpersistent
+				}
+				if (!$component instanceof IStatePersistent) {
+					continue;
 				}
 				$prefix = $component->getUniqueId() . self::NAME_SEPARATOR;
 				$params = [];
