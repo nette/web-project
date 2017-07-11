@@ -35,5 +35,4 @@ class ErrorPresenter implements Nette\Application\IPresenter
 			require __DIR__ . '/templates/Error/500.phtml';
 		});
 	}
-
 }
