@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App;
 
 use Nette;
-use Nette\Application\Routers\RouteList;
 use Nette\Application\Routers\Route;
+use Nette\Application\Routers\RouteList;
 
 
 class RouterFactory
@@ -22,5 +22,4 @@ class RouterFactory
 		$router[] = new Route('<presenter>/<action>[/<id>]', 'Homepage:default');
 		return $router;
 	}
-
 }
