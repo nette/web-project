@@ -43,5 +43,4 @@ class Extension extends \ReflectionExtension
 		}
 		return $res;
 	}
-
 }

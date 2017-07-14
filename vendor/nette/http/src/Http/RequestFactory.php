@@ -28,7 +28,7 @@ class RequestFactory
 	];
 
 	/** @var bool */
-	private $binary = FALSE;
+	private $binary = false;
 
 	/** @var array */
 	private $proxies = [];
@@ -38,7 +38,7 @@ class RequestFactory
 	 * @param  bool
 	 * @return static
 	 */
-	public function setBinary($binary = TRUE)
+	public function setBinary($binary = true)
 	{
 		$this->binary = (bool) $binary;
 		return $this;
@@ -101,7 +101,7 @@ class RequestFactory
 		$url->setScriptPath($path);
 
 		// GET, POST, COOKIE
-		$useFilter = (!in_array(ini_get('filter.default'), ['', 'unsafe_raw']) || ini_get('filter.default_flags'));
+		$useFilter = (!in_array(ini_get('filter.default'), ['', 'unsafe_raw'], true) || ini_get('filter.default_flags'));
 
 		$query = $url->getQueryParameters();
 		$post = $useFilter ? filter_input_array(INPUT_POST, FILTER_UNSAFE_RAW) : (empty($_POST) ? [] : $_POST);
@@ -186,12 +186,12 @@ class RequestFactory
 				} elseif (strncmp($k, 'CONTENT_', 8)) {
 					continue;
 				}
-				$headers[ strtr($k, '_', '-') ] = $v;
+				$headers[strtr($k, '_', '-')] = $v;
 			}
 		}
 
-		$remoteAddr = !empty($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : NULL;
-		$remoteHost = !empty($_SERVER['REMOTE_HOST']) ? $_SERVER['REMOTE_HOST'] : NULL;
+		$remoteAddr = !empty($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : null;
+		$remoteHost = !empty($_SERVER['REMOTE_HOST']) ? $_SERVER['REMOTE_HOST'] : null;
 
 		// use real client address and host if trusted proxy is used
 		$usingTrustedProxy = $remoteAddr && array_filter($this->proxies, function ($proxy) use ($remoteAddr) {
@@ -201,13 +201,13 @@ class RequestFactory
 			if (!empty($_SERVER['HTTP_FORWARDED'])) {
 				$forwardParams = preg_split('/[,;]/', $_SERVER['HTTP_FORWARDED']);
 				foreach ($forwardParams as $forwardParam) {
-					list($key, $value) = explode('=', $forwardParam, 2) + [1 => NULL];
+					list($key, $value) = explode('=', $forwardParam, 2) + [1 => null];
 					$proxyParams[strtolower(trim($key))][] = trim($value, " \t\"");
 				}
 
 				if (isset($proxyParams['for'])) {
 					$address = $proxyParams['for'][0];
-					if (strpos($address, '[') === FALSE) { //IPv4
+					if (strpos($address, '[') === false) { //IPv4
 						$remoteAddr = explode(':', $address)[0];
 					} else { //IPv6
 						$remoteAddr = substr($address, 1, strpos($address, ']') - 1);
@@ -217,7 +217,7 @@ class RequestFactory
 				if (isset($proxyParams['host']) && count($proxyParams['host']) === 1) {
 					$host = $proxyParams['host'][0];
 					$startingDelimiterPosition = strpos($host, '[');
-					if ($startingDelimiterPosition === FALSE) { //IPv4
+					if ($startingDelimiterPosition === false) { //IPv4
 						$remoteHostArr = explode(':', $host);
 						$remoteHost = $remoteHostArr[0];
 						if (isset($remoteHostArr[1])) {
@@ -238,6 +238,7 @@ class RequestFactory
 			} else {
 				if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
 					$url->setScheme(strcasecmp($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') === 0 ? 'https' : 'http');
+					$url->setPort($url->getScheme() === 'https' ? 443 : 80);
 				}
 
 				if (!empty($_SERVER['HTTP_X_FORWARDED_PORT'])) {
@@ -247,7 +248,7 @@ class RequestFactory
 				if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
 					$xForwardedForWithoutProxies = array_filter(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']), function ($ip) {
 						return !array_filter($this->proxies, function ($proxy) use ($ip) {
-							return Helpers::ipMatch(trim($ip), $proxy);
+							return filter_var(trim($ip), FILTER_VALIDATE_IP) !== false && Helpers::ipMatch(trim($ip), $proxy);
 						});
 					});
 					$remoteAddr = trim(end($xForwardedForWithoutProxies));
@@ -264,7 +265,7 @@ class RequestFactory
 		}
 
 		// method, eg. GET, PUT, ...
-		$method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : NULL;
+		$method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : null;
 		if ($method === 'POST' && isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])
 			&& preg_match('#^[A-Z]+\z#', $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])
 		) {
@@ -276,7 +277,6 @@ class RequestFactory
 			return file_get_contents('php://input');
 		};
 
-		return new Request($url, NULL, $post, $files, $cookies, $headers, $method, $remoteAddr, $remoteHost, $rawBodyCallback);
+		return new Request($url, null, $post, $files, $cookies, $headers, $method, $remoteAddr, $remoteHost, $rawBodyCallback);
 	}
-
 }

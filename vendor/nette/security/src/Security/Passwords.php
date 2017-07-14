@@ -34,7 +34,7 @@ class Passwords
 		}
 
 		$hash = password_hash($password, PASSWORD_BCRYPT, $options);
-		if ($hash === FALSE || strlen($hash) < 60) {
+		if ($hash === false || strlen($hash) < 60) {
 			throw new Nette\InvalidStateException('Hash computed by password_hash is invalid.');
 		}
 		return $hash;
@@ -61,5 +61,4 @@ class Passwords
 	{
 		return password_needs_rehash($hash, PASSWORD_BCRYPT, $options);
 	}
-
 }

@@ -28,5 +28,4 @@ class Helpers
 		}
 		return $prop->getDeclaringClass();
 	}
-
 }

@@ -33,5 +33,4 @@ class Annotation implements IAnnotation
 	{
 		return $this->value;
 	}
-
 }

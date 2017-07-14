@@ -25,11 +25,11 @@ class Container
 	/** @var array  user parameters */
 	/*private*/public $parameters = [];
 
-	/** @var object[]  storage for shared objects */
-	private $registry = [];
-
 	/** @var array[] */
 	protected $meta = [];
+
+	/** @var object[]  storage for shared objects */
+	private $registry = [];
 
 	/** @var array circular reference detector */
 	private $creating;
@@ -60,7 +60,6 @@ class Container
 	{
 		if (!is_string($name) || !$name) {
 			throw new Nette\InvalidArgumentException(sprintf('Service name must be a non-empty string, %s given.', gettype($name)));
-
 		}
 		$name = isset($this->meta[self::ALIASES][$name]) ? $this->meta[self::ALIASES][$name] : $name;
 		if (isset($this->registry[$name])) {
@@ -175,7 +174,7 @@ class Container
 		}
 
 		try {
-			$this->creating[$name] = TRUE;
+			$this->creating[$name] = true;
 			$service = $this->$method(...$args);
 
 		} finally {
@@ -194,14 +193,14 @@ class Container
 	 * Resolves service by type.
 	 * @param  string  class or interface
 	 * @param  bool    throw exception if service doesn't exist?
-	 * @return object  service or NULL
+	 * @return object  service or null
 	 * @throws MissingServiceException
 	 */
-	public function getByType($class, $throw = TRUE)
+	public function getByType($class, $throw = true)
 	{
-		$class = ltrim($class, '\\');
-		if (!empty($this->meta[self::TYPES][$class][TRUE])) {
-			if (count($names = $this->meta[self::TYPES][$class][TRUE]) === 1) {
+		$class = Helpers::normalizeClass($class);
+		if (!empty($this->meta[self::TYPES][$class][true])) {
+			if (count($names = $this->meta[self::TYPES][$class][true]) === 1) {
 				return $this->getService($names[0]);
 			}
 			throw new MissingServiceException("Multiple services of type $class found: " . implode(', ', $names) . '.');
@@ -219,7 +218,7 @@ class Container
 	 */
 	public function findByType($class)
 	{
-		$class = ltrim($class, '\\');
+		$class = Helpers::normalizeClass($class);
 		return empty($this->meta[self::TYPES][$class])
 			? []
 			: array_merge(...array_values($this->meta[self::TYPES][$class]));
@@ -337,5 +336,4 @@ class Container
 		$uname = ucfirst($name);
 		return 'createService' . ((string) $name === $uname ? '__' : '') . str_replace('.', '__', $uname);
 	}
-
 }

@@ -18,13 +18,14 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 	/** @var callable[]  function (self $sender); Occurs when form is attached to presenter */
 	public $onAnchor;
 
+
 	/**
 	 * Application form constructor.
 	 */
-	public function __construct(Nette\ComponentModel\IContainer $parent = NULL, $name = NULL)
+	public function __construct(Nette\ComponentModel\IContainer $parent = null, $name = null)
 	{
 		parent::__construct();
-		if ($parent !== NULL) {
+		if ($parent !== null) {
 			$parent->addComponent($this, $name);
 		}
 	}
@@ -43,9 +44,9 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 	/**
 	 * Returns the presenter where this component belongs to.
 	 * @param  bool   throw exception if presenter doesn't exist?
-	 * @return Presenter|NULL
+	 * @return Presenter|null
 	 */
-	public function getPresenter($throw = TRUE)
+	public function getPresenter($throw = true)
 	{
 		return $this->lookup(Presenter::class, $throw);
 	}
@@ -88,13 +89,13 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 	 */
 	public function isAnchored()
 	{
-		return (bool) $this->getPresenter(FALSE);
+		return (bool) $this->getPresenter(false);
 	}
 
 
 	/**
-	 * Internal: returns submitted HTTP data or NULL when form was not submitted.
-	 * @return array|NULL
+	 * Internal: returns submitted HTTP data or null when form was not submitted.
+	 * @return array|null
 	 */
 	protected function receiveHttpData()
 	{
@@ -122,7 +123,7 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 		$key = ($this->isMethod('post') ? '_' : '') . Presenter::SIGNAL_KEY;
 		if (!isset($this[$key])) {
 			$do = $this->lookupPath(Presenter::class) . self::NAME_SEPARATOR . 'submit';
-			$this[$key] = (new Nette\Forms\Controls\HiddenField($do))->setOmitted()->setHtmlId(FALSE);
+			$this[$key] = (new Nette\Forms\Controls\HiddenField($do))->setOmitted()->setHtmlId(false);
 		}
 	}
 
@@ -146,5 +147,4 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 			throw new BadSignalException("Missing handler for signal '$signal' in $class.");
 		}
 	}
-
 }

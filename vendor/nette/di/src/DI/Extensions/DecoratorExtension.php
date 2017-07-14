@@ -18,7 +18,7 @@ class DecoratorExtension extends Nette\DI\CompilerExtension
 	public $defaults = [
 		'setup' => [],
 		'tags' => [],
-		'inject' => NULL,
+		'inject' => null,
 	];
 
 
@@ -26,7 +26,7 @@ class DecoratorExtension extends Nette\DI\CompilerExtension
 	{
 		foreach ($this->getConfig() as $class => $info) {
 			$info = $this->validateConfig($this->defaults, $info, $this->prefix($class));
-			if ($info['inject'] !== NULL) {
+			if ($info['inject'] !== null) {
 				$info['tags'][InjectExtension::TAG_INJECT] = $info['inject'];
 			}
 			$info = Nette\DI\Helpers::filterArguments($info);
@@ -40,6 +40,9 @@ class DecoratorExtension extends Nette\DI\CompilerExtension
 	{
 		foreach ($this->findByType($type) as $def) {
 			foreach ($setups as $setup) {
+				if (is_array($setup)) {
+					$setup = new Nette\DI\Statement(key($setup), array_values($setup));
+				}
 				$def->addSetup($setup);
 			}
 		}
@@ -48,7 +51,7 @@ class DecoratorExtension extends Nette\DI\CompilerExtension
 
 	public function addTags($type, array $tags)
 	{
-		$tags = Nette\Utils\Arrays::normalize($tags, TRUE);
+		$tags = Nette\Utils\Arrays::normalize($tags, true);
 		foreach ($this->findByType($type) as $def) {
 			$def->setTags($def->getTags() + $tags);
 		}
@@ -57,10 +60,8 @@ class DecoratorExtension extends Nette\DI\CompilerExtension
 
 	private function findByType($type)
 	{
-		$type = ltrim($type, '\\');
 		return array_filter($this->getContainerBuilder()->getDefinitions(), function ($def) use ($type) {
-			return is_a($def->getClass(), $type, TRUE) || is_a($def->getImplement(), $type, TRUE);
+			return is_a($def->getClass(), $type, true) || is_a($def->getImplement(), $type, true);
 		});
 	}
-
 }

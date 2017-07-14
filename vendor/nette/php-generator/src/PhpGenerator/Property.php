@@ -24,7 +24,7 @@ class Property
 	public $value;
 
 	/** @var bool */
-	private $static = FALSE;
+	private $static = false;
 
 
 	/**
@@ -61,7 +61,7 @@ class Property
 	 * @param  bool
 	 * @return static
 	 */
-	public function setStatic($state = TRUE)
+	public function setStatic($state = true)
 	{
 		$this->static = (bool) $state;
 		return $this;
@@ -75,5 +75,4 @@ class Property
 	{
 		return $this->static;
 	}
-
 }

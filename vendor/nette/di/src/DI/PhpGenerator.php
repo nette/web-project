@@ -8,11 +8,10 @@
 namespace Nette\DI;
 
 use Nette;
-use Nette\Utils\Validators;
-use Nette\Utils\Strings;
 use Nette\PhpGenerator\Helpers as PhpHelpers;
 use Nette\PhpGenerator\PhpLiteral;
-use ReflectionClass;
+use Nette\Utils\Reflection;
+use Nette\Utils\Strings;
 
 
 /**
@@ -65,7 +64,7 @@ class PhpGenerator
 			->setValue([Container::TYPES => $this->builder->getClassList()]);
 
 		foreach ($definitions as $name => $def) {
-			$meta->value[Container::SERVICES][$name] = $def->getClass() ?: NULL;
+			$meta->value[Container::SERVICES][$name] = $def->getClass() ?: null;
 			foreach ($def->getTags() as $tag => $value) {
 				$meta->value[Container::TAGS][$tag][$name] = $value;
 			}
@@ -80,7 +79,7 @@ class PhpGenerator
 				}
 				$containerClass->addMethod($methodName)
 					->addComment(PHP_VERSION_ID < 70000 ? '@return ' . ($def->getImplement() ?: $def->getClass()) : '')
-					->setReturnType(PHP_VERSION_ID >= 70000 ? ($def->getImplement() ?: $def->getClass()) : NULL)
+					->setReturnType(PHP_VERSION_ID >= 70000 ? ($def->getImplement() ?: $def->getClass()) : null)
 					->setBody($name === ContainerBuilder::THIS_CONTAINER ? 'return $this;' : $this->generateService($name))
 					->setParameters($def->getImplement() ? [] : $this->convertParameters($def->parameters));
 			} catch (\Exception $e) {
@@ -116,7 +115,7 @@ class PhpGenerator
 			? new Statement(['@' . ContainerBuilder::THIS_CONTAINER, 'getService'], [$serviceRef])
 			: $def->getFactory();
 
-		$this->currentService = NULL;
+		$this->currentService = null;
 		$code = '$service = ' . $this->formatStatement($factory) . ";\n";
 
 		if ((PHP_VERSION_ID < 70000 || $def->getSetup()) && ($class = $def->getClass()) && !$serviceRef && $class !== $entity
@@ -150,10 +149,12 @@ class PhpGenerator
 			->addParameter('container')
 				->setTypeHint($this->className);
 
+		$rm = new \ReflectionMethod($def->getImplement(), $def->getImplementMode());
+
 		$factoryClass->addMethod($def->getImplementMode())
 			->setParameters($this->convertParameters($def->parameters))
 			->setBody(str_replace('$this', '$this->container', $code))
-			->setReturnType(PHP_VERSION_ID >= 70000 ? $def->getClass() : NULL);
+			->setReturnType(PHP_VERSION_ID >= 70000 ? (Reflection::getReturnType($rm) ?: $def->getClass()) : null);
 
 		if (PHP_VERSION_ID < 70000) {
 			$this->generatedClasses[] = $factoryClass;
@@ -259,7 +260,7 @@ class PhpGenerator
 			$tmp = explode(' ', is_int($k) ? $v : $k);
 			$param = $res[] = new Nette\PhpGenerator\Parameter(end($tmp));
 			if (!is_int($k)) {
-				$param->setOptional(TRUE)->setDefaultValue($v);
+				$param->setOptional(true)->setDefaultValue($v);
 			}
 			if (isset($tmp[1])) {
 				$param->setTypeHint($tmp[0]);
@@ -267,5 +268,4 @@ class PhpGenerator
 		}
 		return $res;
 	}
-
 }

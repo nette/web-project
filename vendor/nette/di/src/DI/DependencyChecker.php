@@ -8,9 +8,9 @@
 namespace Nette\DI;
 
 use Nette;
+use Nette\Utils\Reflection;
 use ReflectionClass;
 use ReflectionMethod;
-use Nette\Utils\Reflection;
 
 
 /**
@@ -18,9 +18,9 @@ use Nette\Utils\Reflection;
  */
 class DependencyChecker
 {
-	const VERSION = 1;
-
 	use Nette\SmartObject;
+
+	const VERSION = 1;
 
 	/** @var array of ReflectionClass|\ReflectionFunctionAbstract|string */
 	private $dependencies = [];
@@ -51,10 +51,10 @@ class DependencyChecker
 			} elseif ($dep instanceof ReflectionClass) {
 				if (empty($classes[$name = $dep->getName()])) {
 					$all = [$name] + class_parents($name) + class_implements($name);
-					foreach ($all as & $item) {
+					foreach ($all as &$item) {
 						$all += class_uses($item);
 						$phpFiles[] = (new ReflectionClass($item))->getFileName();
-						$classes[$item] = TRUE;
+						$classes[$item] = true;
 					}
 				}
 
@@ -100,7 +100,15 @@ class DependencyChecker
 			} catch (\ReflectionException $e) {
 				return;
 			}
-			$hash[] = [$name, Reflection::getUseStatements($class), $class->isAbstract()];
+			$hash[] = [
+				$name,
+				Reflection::getUseStatements($class),
+				$class->isAbstract(),
+				get_parent_class($name),
+				class_implements($name),
+				class_uses($name),
+			];
+
 			foreach ($class->getProperties(\ReflectionProperty::IS_PUBLIC) as $prop) {
 				if ($prop->getDeclaringClass() == $class) { // intentionally ==
 					$hash[] = [$name, $prop->getName(), $prop->getDocComment()];
@@ -115,7 +123,7 @@ class DependencyChecker
 						self::hashParameters($method),
 						PHP_VERSION_ID >= 70000 && $method->hasReturnType()
 							? [(string) $method->getReturnType(), $method->getReturnType()->allowsNull()]
-							: NULL
+							: null,
 					];
 				}
 			}
@@ -128,18 +136,18 @@ class DependencyChecker
 			} catch (\ReflectionException $e) {
 				return;
 			}
-			$class = $method instanceof ReflectionMethod ? $method->getDeclaringClass() : NULL;
+			$class = $method instanceof ReflectionMethod ? $method->getDeclaringClass() : null;
 			if ($class && isset($flip[$class->getName()])) {
 				continue;
 			}
 			$hash[] = [
 				$name,
-				$class ? Reflection::getUseStatements($method->getDeclaringClass()) : NULL,
+				$class ? Reflection::getUseStatements($method->getDeclaringClass()) : null,
 				$method->getDocComment(),
 				self::hashParameters($method),
 				PHP_VERSION_ID >= 70000 && $method->hasReturnType()
 					? [(string) $method->getReturnType(), $method->getReturnType()->allowsNull()]
-					: NULL
+					: null,
 			];
 		}
 
@@ -156,14 +164,13 @@ class DependencyChecker
 		foreach ($method->getParameters() as $param) {
 			$res[] = [
 				$param->getName(),
-				PHP_VERSION_ID >= 70000 ? [Reflection::getParameterType($param), $param->allowsNull()] : NULL,
+				PHP_VERSION_ID >= 70000 ? [Reflection::getParameterType($param), $param->allowsNull()] : null,
 				$param->isVariadic(),
 				$param->isDefaultValueAvailable()
 					? [Reflection::getParameterDefaultValue($param)]
-					: NULL
+					: null,
 			];
 		}
 		return $res;
 	}
-
 }

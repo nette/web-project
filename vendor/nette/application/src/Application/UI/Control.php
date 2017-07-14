@@ -17,6 +17,9 @@ use Nette;
  */
 abstract class Control extends Component implements IRenderable
 {
+	/** @var bool */
+	public $snippetMode;
+
 	/** @var ITemplateFactory */
 	private $templateFactory;
 
@@ -25,9 +28,6 @@ abstract class Control extends Component implements IRenderable
 
 	/** @var array */
 	private $invalidSnippets = [];
-
-	/** @var bool */
-	public $snippetMode;
 
 
 	/********************* template factory ****************d*g**/
@@ -44,10 +44,11 @@ abstract class Control extends Component implements IRenderable
 	 */
 	public function getTemplate()
 	{
-		if ($this->template === NULL) {
+		if ($this->template === null) {
 			$value = $this->createTemplate();
-			if (!$value instanceof ITemplate && $value !== NULL) {
-				$class2 = get_class($value); $class = get_class($this);
+			if (!$value instanceof ITemplate && $value !== null) {
+				$class2 = get_class($value);
+				$class = get_class($this);
 				throw new Nette\UnexpectedValueException("Object returned by $class::createTemplate() must be instance of Nette\\Application\\UI\\ITemplate, '$class2' given.");
 			}
 			$this->template = $value;
@@ -103,32 +104,33 @@ abstract class Control extends Component implements IRenderable
 	 * Forces control or its snippet to repaint.
 	 * @return void
 	 */
-	public function redrawControl($snippet = NULL, $redraw = TRUE)
+	public function redrawControl($snippet = null, $redraw = true)
 	{
 		if ($redraw) {
-			$this->invalidSnippets[$snippet === NULL ? "\0" : $snippet] = TRUE;
+			$this->invalidSnippets[$snippet === null ? "\0" : $snippet] = true;
 
-		} elseif ($snippet === NULL) {
+		} elseif ($snippet === null) {
 			$this->invalidSnippets = [];
 
 		} else {
-			$this->invalidSnippets[$snippet] = FALSE;
+			$this->invalidSnippets[$snippet] = false;
 		}
 	}
 
 
 	/** @deprecated */
-	function invalidateControl($snippet = NULL)
+	public function invalidateControl($snippet = null)
 	{
 		trigger_error(__METHOD__ . '() is deprecated; use $this->redrawControl($snippet) instead.', E_USER_DEPRECATED);
 		$this->redrawControl($snippet);
 	}
 
+
 	/** @deprecated */
-	function validateControl($snippet = NULL)
+	public function validateControl($snippet = null)
 	{
-		trigger_error(__METHOD__ . '() is deprecated; use $this->redrawControl($snippet, FALSE) instead.', E_USER_DEPRECATED);
-		$this->redrawControl($snippet, FALSE);
+		trigger_error(__METHOD__ . '() is deprecated; use $this->redrawControl($snippet, false) instead.', E_USER_DEPRECATED);
+		$this->redrawControl($snippet, false);
 	}
 
 
@@ -137,11 +139,11 @@ abstract class Control extends Component implements IRenderable
 	 * @param  string  snippet name
 	 * @return bool
 	 */
-	public function isControlInvalid($snippet = NULL)
+	public function isControlInvalid($snippet = null)
 	{
-		if ($snippet === NULL) {
+		if ($snippet === null) {
 			if (count($this->invalidSnippets) > 0) {
-				return TRUE;
+				return true;
 
 			} else {
 				$queue = [$this];
@@ -149,8 +151,8 @@ abstract class Control extends Component implements IRenderable
 					foreach (array_shift($queue)->getComponents() as $component) {
 						if ($component instanceof IRenderable) {
 							if ($component->isControlInvalid()) {
-								// $this->invalidSnippets['__child'] = TRUE; // as cache
-								return TRUE;
+								// $this->invalidSnippets['__child'] = true; // as cache
+								return true;
 							}
 
 						} elseif ($component instanceof Nette\ComponentModel\IContainer) {
@@ -159,7 +161,7 @@ abstract class Control extends Component implements IRenderable
 					}
 				} while ($queue);
 
-				return FALSE;
+				return false;
 			}
 
 		} elseif (isset($this->invalidSnippets[$snippet])) {
@@ -175,10 +177,9 @@ abstract class Control extends Component implements IRenderable
 	 * @param  string  snippet name
 	 * @return string
 	 */
-	public function getSnippetId($name = NULL)
+	public function getSnippetId($name = null)
 	{
 		// HTML 4 ID & NAME: [A-Za-z][A-Za-z0-9:_.-]*
 		return 'snippet-' . $this->getUniqueId() . '-' . $name;
 	}
-
 }

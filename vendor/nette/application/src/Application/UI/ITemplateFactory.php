@@ -17,6 +17,5 @@ interface ITemplateFactory
 	/**
 	 * @return ITemplate
 	 */
-	function createTemplate(Control $control = NULL);
-
+	function createTemplate(Control $control = null);
 }

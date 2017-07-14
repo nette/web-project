@@ -47,16 +47,16 @@ class Tokenizer
 	{
 		preg_match_all($this->re, $input, $tokens, PREG_SET_ORDER);
 		if (preg_last_error()) {
-			throw new RegexpException(NULL, preg_last_error());
+			throw new RegexpException(null, preg_last_error());
 		}
 		$len = 0;
 		$count = count($this->types);
 		foreach ($tokens as &$match) {
-			$type = NULL;
+			$type = null;
 			for ($i = 1; $i <= $count; $i++) {
 				if (!isset($match[$i])) {
 					break;
-				} elseif ($match[$i] != NULL) {
+				} elseif ($match[$i] != null) {
 					$type = $this->types[$i - 1];
 					break;
 				}
@@ -84,5 +84,4 @@ class Tokenizer
 		$text = substr($text, 0, $offset);
 		return [substr_count($text, "\n") + 1, $offset - strrpos("\n" . $text, "\n") + 1];
 	}
-
 }

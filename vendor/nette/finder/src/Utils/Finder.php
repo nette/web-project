@@ -30,7 +30,7 @@ class Finder implements \IteratorAggregate, \Countable
 	private $paths = [];
 
 	/** @var array of filters */
-	private $groups;
+	private $groups = [];
 
 	/** @var array filter for recursive traversing */
 	private $exclude = [];
@@ -48,11 +48,11 @@ class Finder implements \IteratorAggregate, \Countable
 	/**
 	 * Begins search for files matching mask and all directories.
 	 * @param  mixed
-	 * @return self
+	 * @return static
 	 */
 	public static function find(...$masks)
 	{
-		$masks = is_array($masks[0]) ? $masks[0] : $masks;
+		$masks = $masks && is_array($masks[0]) ? $masks[0] : $masks;
 		return (new static)->select($masks, 'isDir')->select($masks, 'isFile');
 	}
 
@@ -60,22 +60,24 @@ class Finder implements \IteratorAggregate, \Countable
 	/**
 	 * Begins search for files matching mask.
 	 * @param  mixed
-	 * @return self
+	 * @return static
 	 */
 	public static function findFiles(...$masks)
 	{
-		return (new static)->select(is_array($masks[0]) ? $masks[0] : $masks, 'isFile');
+		$masks = $masks && is_array($masks[0]) ? $masks[0] : $masks;
+		return (new static)->select($masks, 'isFile');
 	}
 
 
 	/**
 	 * Begins search for directories matching mask.
 	 * @param  mixed
-	 * @return self
+	 * @return static
 	 */
 	public static function findDirectories(...$masks)
 	{
-		return (new static)->select(is_array($masks[0]) ? $masks[0] : $masks, 'isDir');
+		$masks = $masks && is_array($masks[0]) ? $masks[0] : $masks;
+		return (new static)->select($masks, 'isDir');
 	}
 
 
@@ -83,11 +85,11 @@ class Finder implements \IteratorAggregate, \Countable
 	 * Creates filtering group by mask & type selector.
 	 * @param  array
 	 * @param  string
-	 * @return self
+	 * @return static
 	 */
 	private function select($masks, $type)
 	{
-		$this->cursor = & $this->groups[];
+		$this->cursor = &$this->groups[];
 		$pattern = self::buildPattern($masks);
 		if ($type || $pattern) {
 			$this->filter(function (RecursiveDirectoryIterator $file) use ($type, $pattern) {
@@ -103,7 +105,7 @@ class Finder implements \IteratorAggregate, \Countable
 	/**
 	 * Searchs in the given folder(s).
 	 * @param  string|array
-	 * @return self
+	 * @return static
 	 */
 	public function in(...$paths)
 	{
@@ -115,7 +117,7 @@ class Finder implements \IteratorAggregate, \Countable
 	/**
 	 * Searchs recursively from the given folder(s).
 	 * @param  string|array
-	 * @return self
+	 * @return static
 	 */
 	public function from(...$paths)
 	{
@@ -123,14 +125,14 @@ class Finder implements \IteratorAggregate, \Countable
 			throw new Nette\InvalidStateException('Directory to search has already been specified.');
 		}
 		$this->paths = is_array($paths[0]) ? $paths[0] : $paths;
-		$this->cursor = & $this->exclude;
+		$this->cursor = &$this->exclude;
 		return $this;
 	}
 
 
 	/**
 	 * Shows folder content prior to the folder.
-	 * @return self
+	 * @return static
 	 */
 	public function childFirst()
 	{
@@ -142,7 +144,7 @@ class Finder implements \IteratorAggregate, \Countable
 	/**
 	 * Converts Finder pattern to regular expression.
 	 * @param  array
-	 * @return string
+	 * @return string|null
 	 */
 	private static function buildPattern($masks)
 	{
@@ -154,7 +156,7 @@ class Finder implements \IteratorAggregate, \Countable
 				continue;
 
 			} elseif ($mask === '*') {
-				return NULL;
+				return null;
 
 			} elseif ($mask[0] === '/') { // absolute fixing
 				$mask = ltrim($mask, '/');
@@ -163,7 +165,7 @@ class Finder implements \IteratorAggregate, \Countable
 			$pattern[] = $prefix . strtr(preg_quote($mask, '#'),
 				['\*\*' => '.*', '\*' => '[^/]*', '\?' => '[^/]', '\[\!' => '[^', '\[' => '[', '\]' => ']', '\-' => '-']);
 		}
-		return $pattern ? '#/(' . implode('|', $pattern) . ')\z#i' : NULL;
+		return $pattern ? '#/(' . implode('|', $pattern) . ')\z#i' : null;
 	}
 
 
@@ -218,11 +220,11 @@ class Finder implements \IteratorAggregate, \Countable
 				if (!$file->isDot() && !$file->isFile()) {
 					foreach ($this->exclude as $filter) {
 						if (!call_user_func($filter, $file)) {
-							return FALSE;
+							return false;
 						}
 					}
 				}
-				return TRUE;
+				return true;
 			});
 		}
 
@@ -242,9 +244,9 @@ class Finder implements \IteratorAggregate, \Countable
 						continue 2;
 					}
 				}
-				return TRUE;
+				return true;
 			}
-			return FALSE;
+			return false;
 		});
 
 		return $iterator;
@@ -258,11 +260,12 @@ class Finder implements \IteratorAggregate, \Countable
 	 * Restricts the search using mask.
 	 * Excludes directories from recursive traversing.
 	 * @param  mixed
-	 * @return self
+	 * @return static
 	 */
 	public function exclude(...$masks)
 	{
-		$pattern = self::buildPattern(is_array($masks[0]) ? $masks[0] : $masks);
+		$masks = $masks && is_array($masks[0]) ? $masks[0] : $masks;
+		$pattern = self::buildPattern($masks);
 		if ($pattern) {
 			$this->filter(function (RecursiveDirectoryIterator $file) use ($pattern) {
 				return !preg_match($pattern, '/' . strtr($file->getSubPathName(), '\\', '/'));
@@ -275,7 +278,7 @@ class Finder implements \IteratorAggregate, \Countable
 	/**
 	 * Restricts the search using callback.
 	 * @param  callable  function (RecursiveDirectoryIterator $file)
-	 * @return self
+	 * @return static
 	 */
 	public function filter($callback)
 	{
@@ -287,7 +290,7 @@ class Finder implements \IteratorAggregate, \Countable
 	/**
 	 * Limits recursion level.
 	 * @param  int
-	 * @return self
+	 * @return static
 	 */
 	public function limitDepth($depth)
 	{
@@ -300,9 +303,9 @@ class Finder implements \IteratorAggregate, \Countable
 	 * Restricts the search by size.
 	 * @param  string  "[operator] [size] [unit]" example: >=10kB
 	 * @param  int
-	 * @return self
+	 * @return static
 	 */
-	public function size($operator, $size = NULL)
+	public function size($operator, $size = null)
 	{
 		if (func_num_args() === 1) { // in $operator is predicate
 			if (!preg_match('#^(?:([=<>!]=?|<>)\s*)?((?:\d*\.)?\d+)\s*(K|M|G|)B?\z#i', $operator, $matches)) {
@@ -323,9 +326,9 @@ class Finder implements \IteratorAggregate, \Countable
 	 * Restricts the search by modified time.
 	 * @param  string  "[operator] [date]" example: >1978-01-23
 	 * @param  mixed
-	 * @return self
+	 * @return static
 	 */
-	public function date($operator, $date = NULL)
+	public function date($operator, $date = null)
 	{
 		if (func_num_args() === 1) { // in $operator is predicate
 			if (!preg_match('#^(?:([=<>!]=?|<>)\s*)?(.+)\z#i', $operator, $matches)) {
@@ -387,5 +390,4 @@ class Finder implements \IteratorAggregate, \Countable
 	{
 		Nette\Utils\ObjectMixin::setExtensionMethod(__CLASS__, $name, $callback);
 	}
-
 }

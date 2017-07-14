@@ -17,17 +17,17 @@ use Tracy;
 class RoutingExtension extends Nette\DI\CompilerExtension
 {
 	public $defaults = [
-		'debugger' => NULL,
+		'debugger' => null,
 		'routes' => [], // of [mask => action]
-		'routeClass' => NULL,
-		'cache' => FALSE,
+		'routeClass' => null,
+		'cache' => false,
 	];
 
 	/** @var bool */
 	private $debugMode;
 
 
-	public function __construct($debugMode = FALSE)
+	public function __construct($debugMode = false)
 	{
 		$this->defaults['debugger'] = interface_exists(Tracy\IBarPanel::class);
 		$this->debugMode = $debugMode;
@@ -76,13 +76,12 @@ class RoutingExtension extends Nette\DI\CompilerExtension
 					$router->warmupCache();
 				}
 				$s = serialize($router);
-			} catch (\Throwable $e) {
-				throw new Nette\DI\ServiceCreationException('Unable to cache router due to error: ' . $e->getMessage(), 0, $e);
 			} catch (\Exception $e) {
+				throw new Nette\DI\ServiceCreationException('Unable to cache router due to error: ' . $e->getMessage(), 0, $e);
+			} catch (\Throwable $e) {
 				throw new Nette\DI\ServiceCreationException('Unable to cache router due to error: ' . $e->getMessage(), 0, $e);
 			}
 			$method->setBody('return unserialize(?);', [$s]);
 		}
 	}
-
 }

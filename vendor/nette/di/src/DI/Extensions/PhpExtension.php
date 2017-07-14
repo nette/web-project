@@ -15,12 +15,11 @@ use Nette;
  */
 class PhpExtension extends Nette\DI\CompilerExtension
 {
-
 	public function afterCompile(Nette\PhpGenerator\ClassType $class)
 	{
 		$initialize = $class->getMethod('initialize');
 		foreach ($this->getConfig() as $name => $value) {
-			if ($value === NULL) {
+			if ($value === null) {
 				continue;
 
 			} elseif (!is_scalar($value)) {
@@ -46,5 +45,4 @@ class PhpExtension extends Nette\DI\CompilerExtension
 			}
 		}
 	}
-
 }

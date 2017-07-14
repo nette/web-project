@@ -16,9 +16,6 @@ class BlueScreen
 	/** @var string[] */
 	public $info = [];
 
-	/** @var callable[] */
-	private $panels = [];
-
 	/** @var string[] paths to be collapsed in stack trace (e.g. core libraries) */
 	public $collapsePaths = [];
 
@@ -27,6 +24,9 @@ class BlueScreen
 
 	/** @var int  */
 	public $maxLength = 150;
+
+	/** @var callable[] */
+	private $panels = [];
 
 
 	public function __construct()
@@ -44,7 +44,7 @@ class BlueScreen
 	 */
 	public function addPanel($panel)
 	{
-		if (!in_array($panel, $this->panels, TRUE)) {
+		if (!in_array($panel, $this->panels, true)) {
 			$this->panels[] = $panel;
 		}
 		return $this;
@@ -99,13 +99,13 @@ class BlueScreen
 			: Helpers::getClass($exception);
 		$skipError = $sourceIsUrl && $exception instanceof \ErrorException && !empty($exception->skippable)
 			? $source . (strpos($source, '?') ? '&' : '?') . '_tracy_skip_error'
-			: NULL;
-		$lastError = $exception instanceof \ErrorException || $exception instanceof \Error ? NULL : error_get_last();
-		$dump = function($v) {
+			: null;
+		$lastError = $exception instanceof \ErrorException || $exception instanceof \Error ? null : error_get_last();
+		$dump = function ($v) {
 			return Dumper::toHtml($v, [
 				Dumper::DEPTH => $this->maxDepth,
 				Dumper::TRUNCATE => $this->maxLength,
-				Dumper::LIVE => TRUE,
+				Dumper::LIVE => true,
 				Dumper::LOCATION => Dumper::LOCATION_CLASS,
 			]);
 		};
@@ -130,13 +130,13 @@ class BlueScreen
 				}
 				$res[] = (object) $panel;
 				continue;
-			} catch (\Throwable $e) {
 			} catch (\Exception $e) {
+			} catch (\Throwable $e) {
 			}
 			while (ob_get_level() > $obLevel) { // restore ob-level if broken
 				ob_end_clean();
 			}
-			is_callable($callback, TRUE, $name);
+			is_callable($callback, true, $name);
 			$res[] = (object) [
 				'tab' => "Error in panel $name",
 				'panel' => nl2br(Helpers::escapeHtml($e)),
@@ -151,9 +151,9 @@ class BlueScreen
 	 * @param  string
 	 * @param  int
 	 * @param  int
-	 * @return string|NULL
+	 * @return string|null
 	 */
-	public static function highlightFile($file, $line, $lines = 15, array $vars = NULL)
+	public static function highlightFile($file, $line, $lines = 15, array $vars = null)
 	{
 		$source = @file_get_contents($file); // @ file may not exist
 		if ($source) {
@@ -173,7 +173,7 @@ class BlueScreen
 	 * @param  int
 	 * @return string
 	 */
-	public static function highlightPhp($source, $line, $lines = 15, array $vars = NULL)
+	public static function highlightPhp($source, $line, $lines = 15, array $vars = null)
 	{
 		if (function_exists('ini_set')) {
 			ini_set('highlight.comment', '#998; font-style: italic');
@@ -184,7 +184,7 @@ class BlueScreen
 		}
 
 		$source = str_replace(["\r\n", "\r"], "\n", $source);
-		$source = explode("\n", highlight_string($source, TRUE));
+		$source = explode("\n", highlight_string($source, true));
 		$out = $source[0]; // <code><span color=highlight.html>
 		$source = str_replace('<br />', "\n", $source[1]);
 		$out .= static::highlightLine($source, $line, $lines);
@@ -202,7 +202,6 @@ class BlueScreen
 		$out = str_replace('&nbsp;', ' ', $out);
 		return "<pre class='code'><div>$out</div></pre>";
 	}
-
 
 
 	/**
@@ -225,7 +224,7 @@ class BlueScreen
 			}
 		}
 
-		$source = array_slice($source, $start, $lines, TRUE);
+		$source = array_slice($source, $start, $lines, true);
 		end($source);
 		$numWidth = strlen((string) key($source));
 
@@ -260,10 +259,9 @@ class BlueScreen
 		foreach ($this->collapsePaths as $path) {
 			$path = strtr($path, '\\', '/') . '/';
 			if (strncmp($file, $path, strlen($path)) === 0) {
-				return TRUE;
+				return true;
 			}
 		}
-		return FALSE;
+		return false;
 	}
-
 }

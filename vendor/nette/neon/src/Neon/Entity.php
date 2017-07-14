@@ -20,15 +20,15 @@ class Entity extends \stdClass
 	public $attributes;
 
 
-	public function __construct($value = NULL, array $attrs = NULL)
+	public function __construct($value = null, array $attrs = null)
 	{
 		$this->value = $value;
 		$this->attributes = (array) $attrs;
 	}
 
+
 	public static function __set_state(array $properties)
 	{
 		return new self($properties['value'], $properties['attributes']);
 	}
-
 }

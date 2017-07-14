@@ -16,8 +16,8 @@ class Helpers
 {
 	/** @var array  empty (void) HTML elements */
 	public static $emptyElements = [
-		'img' => 1,'hr' => 1,'br' => 1,'input' => 1,'meta' => 1,'area' => 1,'embed' => 1,'keygen' => 1,'source' => 1,'base' => 1,
-		'col' => 1,'link' => 1,'param' => 1,'basefont' => 1,'frame' => 1,'isindex' => 1,'wbr' => 1,'command' => 1,'track' => 1,
+		'img' => 1, 'hr' => 1, 'br' => 1, 'input' => 1, 'meta' => 1, 'area' => 1, 'embed' => 1, 'keygen' => 1, 'source' => 1, 'base' => 1,
+		'col' => 1, 'link' => 1, 'param' => 1, 'basefont' => 1, 'frame' => 1, 'isindex' => 1, 'wbr' => 1, 'command' => 1, 'track' => 1,
 	];
 
 
@@ -27,7 +27,7 @@ class Helpers
 	 */
 	public static function checkCallback($callable)
 	{
-		if (!is_callable($callable, FALSE, $text)) {
+		if (!is_callable($callable, false, $text)) {
 			throw new \InvalidArgumentException("Callback '$text' is not callable.");
 		}
 		return $callable;
@@ -36,11 +36,11 @@ class Helpers
 
 	/**
 	 * Finds the best suggestion.
-	 * @return string|NULL
+	 * @return string|null
 	 */
 	public static function getSuggestion(array $items, $value)
 	{
-		$best = NULL;
+		$best = null;
 		$min = (strlen($value) / 4 + 1) * 10 + .1;
 		foreach (array_unique($items, SORT_REGULAR) as $item) {
 			$item = is_object($item) ? $item->getName() : $item;
@@ -71,5 +71,4 @@ class Helpers
 	{
 		return strncmp($haystack, $needle, strlen($needle)) === 0;
 	}
-
 }

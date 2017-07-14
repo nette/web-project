@@ -29,7 +29,7 @@ class AnnotationsParser
 	public static $useReflection;
 
 	/** @var bool */
-	public static $autoRefresh = TRUE;
+	public static $autoRefresh = true;
 
 	/** @var array */
 	public static $inherited = ['description', 'param', 'return'];
@@ -62,7 +62,7 @@ class AnnotationsParser
 			$file = $r->getFileName();
 
 		} elseif ($r instanceof \ReflectionFunction) {
-			$type = NULL;
+			$type = null;
 			$member = $r->getName();
 			$file = $r->getFileName();
 
@@ -72,7 +72,7 @@ class AnnotationsParser
 			$file = $r->getDeclaringClass()->getFileName();
 		}
 
-		if (self::$useReflection === NULL) { // detects whether is reflection available
+		if (self::$useReflection === null) { // detects whether is reflection available
 			self::$useReflection = (bool) ClassType::from(__CLASS__)->getDocComment();
 		}
 
@@ -93,7 +93,7 @@ class AnnotationsParser
 		} else {
 			$outerCache = self::getCache();
 
-			if (self::$cache === NULL) {
+			if (self::$cache === null) {
 				self::$cache = (array) $outerCache->load('list');
 				self::$timestamps = isset(self::$cache['*']) ? self::$cache['*'] : [];
 			}
@@ -184,11 +184,11 @@ class AnnotationsParser
 	 */
 	private static function parseComment($comment)
 	{
-		static $tokens = ['true' => TRUE, 'false' => FALSE, 'null' => NULL, '' => TRUE];
+		static $tokens = ['true' => true, 'false' => false, 'null' => null, '' => true];
 
 		$res = [];
 		$comment = preg_replace('#^\s*\*\s?#ms', '', trim($comment, '/*'));
-		$parts = preg_split('#^\s*(?=@'.self::RE_IDENTIFIER.')#m', $comment, 2);
+		$parts = preg_split('#^\s*(?=@' . self::RE_IDENTIFIER . ')#m', $comment, 2);
 
 		$description = trim($parts[0]);
 		if ($description !== '') {
@@ -198,9 +198,9 @@ class AnnotationsParser
 		$matches = Strings::matchAll(
 			isset($parts[1]) ? $parts[1] : '',
 			'~
-				(?<=\s|^)@('.self::RE_IDENTIFIER.')[ \t]*      ##  annotation
+				(?<=\s|^)@(' . self::RE_IDENTIFIER . ')[ \t]*      ##  annotation
 				(
-					\((?>'.self::RE_STRING.'|[^\'")@]+)+\)|  ##  (value)
+					\((?>' . self::RE_STRING . '|[^\'")@]+)+\)|  ##  (value)
 					[^(@\r\n][^@\r\n]*|)                     ##  value
 			~xi'
 		);
@@ -211,7 +211,7 @@ class AnnotationsParser
 			if (substr($value, 0, 1) === '(') {
 				$items = [];
 				$key = '';
-				$val = TRUE;
+				$val = true;
 				$value[0] = ',';
 				while ($m = Strings::match(
 					$value,
@@ -267,15 +267,16 @@ class AnnotationsParser
 	 */
 	public static function parsePhp($code)
 	{
-		if (Strings::match($code, '#//nette'.'loader=(\S*)#')) {
+		if (Strings::match($code, '#//nette' . 'loader=(\S*)#')) {
 			return;
 		}
 
 		$tokens = @token_get_all($code);
-		$namespace = $class = $classLevel = $level = $docComment = NULL;
+		$namespace = $class = $classLevel = $level = $docComment = null;
 		$res = $uses = [];
 
-		while (list(, $token) = each($tokens)) {
+		while ($token = current($tokens)) {
+			next($tokens);
 			switch (is_array($token) ? $token[0] : $token) {
 				case T_DOC_COMMENT:
 					$docComment = $token[1];
@@ -355,12 +356,12 @@ class AnnotationsParser
 
 				case '}':
 					if ($level === $classLevel) {
-						$class = $classLevel = NULL;
+						$class = $classLevel = null;
 					}
 					$level--;
 					// break omitted
 				case ';':
-					$docComment = NULL;
+					$docComment = null;
 			}
 		}
 
@@ -370,12 +371,12 @@ class AnnotationsParser
 
 	private static function fetch(&$tokens, $take)
 	{
-		$res = NULL;
+		$res = null;
 		while ($token = current($tokens)) {
 			list($token, $s) = is_array($token) ? $token : [$token, $token];
-			if (in_array($token, (array) $take, TRUE)) {
+			if (in_array($token, (array) $take, true)) {
 				$res .= $s;
-			} elseif (!in_array($token, [T_DOC_COMMENT, T_WHITESPACE, T_COMMENT], TRUE)) {
+			} elseif (!in_array($token, [T_DOC_COMMENT, T_WHITESPACE, T_COMMENT], true)) {
 				break;
 			}
 			next($tokens);
@@ -415,5 +416,4 @@ class AnnotationsParser
 	{
 		return new Nette\Caching\Cache(static::getCacheStorage(), 'Nette.Reflection.Annotations');
 	}
-
 }

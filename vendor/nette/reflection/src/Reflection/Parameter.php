@@ -43,7 +43,7 @@ class Parameter extends \ReflectionParameter
 	 */
 	public function getClass()
 	{
-		return ($ref = parent::getClass()) ? new ClassType($ref->getName()) : NULL;
+		return ($ref = parent::getClass()) ? new ClassType($ref->getName()) : null;
 	}
 
 
@@ -53,7 +53,7 @@ class Parameter extends \ReflectionParameter
 	public function getClassName()
 	{
 		try {
-			return ($ref = parent::getClass()) ? $ref->getName() : NULL;
+			return ($ref = parent::getClass()) ? $ref->getName() : null;
 		} catch (\ReflectionException $e) {
 			if (preg_match('#Class (.+) does not exist#', $e->getMessage(), $m)) {
 				return $m[1];
@@ -68,7 +68,7 @@ class Parameter extends \ReflectionParameter
 	 */
 	public function getDeclaringClass()
 	{
-		return ($ref = parent::getDeclaringClass()) ? new ClassType($ref->getName()) : NULL;
+		return ($ref = parent::getDeclaringClass()) ? new ClassType($ref->getName()) : null;
 	}
 
 
@@ -87,5 +87,4 @@ class Parameter extends \ReflectionParameter
 	{
 		return '$' . parent::getName() . ' in ' . $this->getDeclaringFunction();
 	}
-
 }

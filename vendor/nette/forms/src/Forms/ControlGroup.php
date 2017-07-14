@@ -56,6 +56,28 @@ class ControlGroup
 
 
 	/**
+	 * @return void
+	 */
+	public function remove(IControl $control)
+	{
+		$this->controls->detach($control);
+	}
+
+
+	/**
+	 * @return void
+	 */
+	public function removeOrphans()
+	{
+		foreach ($this->controls as $control) {
+			if (!$control->getForm(false)) {
+				$this->controls->detach($control);
+			}
+		}
+	}
+
+
+	/**
 	 * @return IControl[]
 	 */
 	public function getControls()
@@ -79,7 +101,7 @@ class ControlGroup
 	 */
 	public function setOption($key, $value)
 	{
-		if ($value === NULL) {
+		if ($value === null) {
 			unset($this->options[$key]);
 
 		} else {
@@ -95,7 +117,7 @@ class ControlGroup
 	 * @param  mixed
 	 * @return mixed
 	 */
-	public function getOption($key, $default = NULL)
+	public function getOption($key, $default = null)
 	{
 		return isset($this->options[$key]) ? $this->options[$key] : $default;
 	}
@@ -109,5 +131,4 @@ class ControlGroup
 	{
 		return $this->options;
 	}
-
 }

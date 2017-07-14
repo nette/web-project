@@ -7,8 +7,8 @@
 
 namespace Nette\Bridges\ApplicationLatte;
 
-use Nette;
 use Latte;
+use Nette;
 
 
 /**
@@ -47,7 +47,7 @@ class Template implements Nette\Application\UI\ITemplate
 	 * Renders template to output.
 	 * @return void
 	 */
-	public function render($file = NULL, array $params = [])
+	public function render($file = null, array $params = [])
 	{
 		$this->latte->render($file ?: $this->file, $params + $this->params);
 	}
@@ -62,14 +62,14 @@ class Template implements Nette\Application\UI\ITemplate
 	{
 		try {
 			return $this->latte->renderToString($this->file, $this->params);
-		} catch (\Throwable $e) {
 		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 		}
 		if (isset($e)) {
 			if (func_num_args()) {
 				throw $e;
 			}
-			trigger_error("Exception in " . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
+			trigger_error('Exception in ' . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
 		}
 	}
 
@@ -79,7 +79,7 @@ class Template implements Nette\Application\UI\ITemplate
 
 	/**
 	 * Registers run-time filter.
-	 * @param  string|NULL
+	 * @param  string|null
 	 * @param  callable
 	 * @return static
 	 */
@@ -105,9 +105,9 @@ class Template implements Nette\Application\UI\ITemplate
 	 * Sets translate adapter.
 	 * @return static
 	 */
-	public function setTranslator(Nette\Localization\ITranslator $translator = NULL)
+	public function setTranslator(Nette\Localization\ITranslator $translator = null)
 	{
-		$this->latte->addFilter('translate', $translator === NULL ? NULL : function (Latte\Runtime\FilterInfo $fi, ...$args) use ($translator) {
+		$this->latte->addFilter('translate', $translator === null ? null : function (Latte\Runtime\FilterInfo $fi, ...$args) use ($translator) {
 			return $translator->translate(...$args);
 		});
 		return $this;
@@ -130,7 +130,7 @@ class Template implements Nette\Application\UI\ITemplate
 
 
 	/**
-	 * @return string|NULL
+	 * @return string|null
 	 */
 	public function getFile()
 	{
@@ -227,5 +227,4 @@ class Template implements Nette\Application\UI\ITemplate
 	{
 		unset($this->params[$name]);
 	}
-
 }

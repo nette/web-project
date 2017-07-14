@@ -43,10 +43,10 @@ class RoutingPanel implements Tracy\IBarPanel
 	public static function initializePanel(Nette\Application\Application $application)
 	{
 		Tracy\Debugger::getBlueScreen()->addPanel(function ($e) use ($application) {
-			return $e ? NULL : [
+			return $e ? null : [
 				'tab' => 'Nette Application',
-				'panel' => '<h3>Requests</h3>' . Dumper::toHtml($application->getRequests(), [Dumper::LIVE => TRUE])
-					. '<h3>Presenter</h3>' . Dumper::toHtml($application->getPresenter(), [Dumper::LIVE => TRUE]),
+				'panel' => '<h3>Requests</h3>' . Dumper::toHtml($application->getRequests(), [Dumper::LIVE => true])
+					. '<h3>Presenter</h3>' . Dumper::toHtml($application->getPresenter(), [Dumper::LIVE => true]),
 			];
 		});
 	}
@@ -84,7 +84,7 @@ class RoutingPanel implements Tracy\IBarPanel
 		$request = $this->request;
 		$routers = $this->routers;
 		$source = $this->source;
-		$hasModule = (bool) array_filter($routers, function($rq) { return $rq['module']; });
+		$hasModule = (bool) array_filter($routers, function ($rq) { return $rq['module']; });
 		$url = $this->httpRequest->getUrl();
 		$method = $this->httpRequest->getMethod();
 		require __DIR__ . '/templates/RoutingPanel.panel.phtml';
@@ -122,7 +122,7 @@ class RoutingPanel implements Tracy\IBarPanel
 			'matched' => $matched,
 			'class' => get_class($router),
 			'defaults' => $router instanceof Routers\Route || $router instanceof Routers\SimpleRouter ? $router->getDefaults() : [],
-			'mask' => $router instanceof Routers\Route ? $router->getMask() : NULL,
+			'mask' => $router instanceof Routers\Route ? $router->getMask() : null,
 			'request' => $request,
 			'module' => rtrim($module, ':'),
 		];
@@ -155,5 +155,4 @@ class RoutingPanel implements Tracy\IBarPanel
 
 		$this->source = isset($method) && $rc->hasMethod($method) ? $rc->getMethod($method) : $rc;
 	}
-
 }

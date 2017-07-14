@@ -69,7 +69,7 @@ class GlobalFunction extends \ReflectionFunction
 	 */
 	public function getExtension()
 	{
-		return ($name = $this->getExtensionName()) ? new Extension($name) : NULL;
+		return ($name = $this->getExtensionName()) ? new Extension($name) : null;
 	}
 
 
@@ -108,7 +108,7 @@ class GlobalFunction extends \ReflectionFunction
 	public function getAnnotation($name)
 	{
 		$res = AnnotationsParser::getAll($this);
-		return isset($res[$name]) ? end($res[$name]) : NULL;
+		return isset($res[$name]) ? end($res[$name]) : null;
 	}
 
 
@@ -130,5 +130,4 @@ class GlobalFunction extends \ReflectionFunction
 	{
 		return $this->getAnnotation('description');
 	}
-
 }

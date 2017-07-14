@@ -27,12 +27,11 @@ class Rule
 	public $arg;
 
 	/** @var bool */
-	public $isNegative = FALSE;
+	public $isNegative = false;
 
 	/** @var string */
 	public $message;
 
 	/** @var Rules  for conditions */
 	public $branch;
-
 }

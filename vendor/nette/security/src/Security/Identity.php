@@ -36,11 +36,11 @@ class Identity implements IIdentity
 
 
 	/**
-	 * @param  mixed   identity ID
-	 * @param  mixed   roles
-	 * @param  array   user data
+	 * @param  mixed
+	 * @param  mixed
+	 * @param  iterable
 	 */
-	public function __construct($id, $roles = NULL, $data = NULL)
+	public function __construct($id, $roles = null, $data = null)
 	{
 		$this->setId($id);
 		$this->setRoles((array) $roles);
@@ -72,7 +72,6 @@ class Identity implements IIdentity
 
 	/**
 	 * Sets a list of roles that the user is a member of.
-	 * @param  array
 	 * @return static
 	 */
 	public function setRoles(array $roles)
@@ -104,8 +103,8 @@ class Identity implements IIdentity
 
 	/**
 	 * Sets user data value.
-	 * @param  string  property name
-	 * @param  mixed   property value
+	 * @param  string
+	 * @param  mixed
 	 * @return void
 	 */
 	public function __set($key, $value)
@@ -121,7 +120,7 @@ class Identity implements IIdentity
 
 	/**
 	 * Returns user data value.
-	 * @param  string  property name
+	 * @param  string
 	 * @return mixed
 	 */
 	public function &__get($key)
@@ -136,13 +135,11 @@ class Identity implements IIdentity
 
 
 	/**
-	 * Is property defined?
-	 * @param  string  property name
+	 * @param  string
 	 * @return bool
 	 */
 	public function __isset($key)
 	{
 		return isset($this->data[$key]) || $this->parentIsSet($key);
 	}
-
 }

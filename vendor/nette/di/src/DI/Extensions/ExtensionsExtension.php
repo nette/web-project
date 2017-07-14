@@ -15,12 +15,11 @@ use Nette;
  */
 class ExtensionsExtension extends Nette\DI\CompilerExtension
 {
-
 	public function loadConfiguration()
 	{
 		foreach ($this->getConfig() as $name => $class) {
 			if (is_int($name)) {
-				$name = NULL;
+				$name = null;
 			}
 			if ($class instanceof Nette\DI\Statement) {
 				$rc = new \ReflectionClass($class->getEntity());
@@ -30,5 +29,4 @@ class ExtensionsExtension extends Nette\DI\CompilerExtension
 			}
 		}
 	}
-
 }

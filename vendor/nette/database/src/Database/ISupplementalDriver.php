@@ -62,8 +62,8 @@ interface ISupplementalDriver
 	/**
 	 * Injects LIMIT/OFFSET to the SQL query.
 	 * @param  string  SQL query that will be modified.
-	 * @param  int|NULL
-	 * @param  int|NULL
+	 * @param  int|null
+	 * @param  int|null
 	 * @return void
 	 */
 	function applyLimit(&$sql, $limit, $offset);
@@ -75,9 +75,7 @@ interface ISupplementalDriver
 	 */
 	function normalizeRow($row);
 
-
 	/********************* reflection ****************d*g**/
-
 
 	/**
 	 * Returns list of tables.
@@ -119,5 +117,4 @@ interface ISupplementalDriver
 	 * @return bool
 	 */
 	function isSupported($item);
-
 }

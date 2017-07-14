@@ -14,9 +14,8 @@ namespace Tracy;
  */
 class DefaultBarPanel implements IBarPanel
 {
-	private $id;
-
 	public $data;
+	private $id;
 
 
 	public function __construct($id)
@@ -51,5 +50,4 @@ class DefaultBarPanel implements IBarPanel
 		}
 		return ob_get_clean();
 	}
-
 }

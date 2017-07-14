@@ -22,7 +22,7 @@ class PresenterFactoryCallback
 	/** @var int */
 	private $invalidLinkMode;
 
-	/** @var string|NULL */
+	/** @var string|null */
 	private $touchToRefresh;
 
 
@@ -39,7 +39,7 @@ class PresenterFactoryCallback
 	 */
 	public function __invoke($class)
 	{
-		$services = array_keys($this->container->findByTag('nette.presenter'), $class);
+		$services = array_keys($this->container->findByTag('nette.presenter'), $class, true);
 		if (count($services) > 1) {
 			throw new Nette\Application\InvalidPresenterException("Multiple services of type $class found: " . implode(', ', $services) . '.');
 
@@ -50,7 +50,7 @@ class PresenterFactoryCallback
 
 			$presenter = $this->container->createInstance($class);
 			$this->container->callInjects($presenter);
-			if ($presenter instanceof Nette\Application\UI\Presenter && $presenter->invalidLinkMode === NULL) {
+			if ($presenter instanceof Nette\Application\UI\Presenter && $presenter->invalidLinkMode === null) {
 				$presenter->invalidLinkMode = $this->invalidLinkMode;
 			}
 			return $presenter;
@@ -58,5 +58,4 @@ class PresenterFactoryCallback
 
 		return $this->container->createService($services[0]);
 	}
-
 }

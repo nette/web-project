@@ -19,7 +19,8 @@ class Helpers
 
 	const
 		EXTENDS_KEY = '_extends',
-		OVERWRITE = TRUE;
+		OVERWRITE = true;
+
 
 	/**
 	 * Merges configurations. Left has higher priority than right one.
@@ -44,7 +45,7 @@ class Helpers
 			}
 			return $right;
 
-		} elseif ($left === NULL && is_array($right)) {
+		} elseif ($left === null && is_array($right)) {
 			return $right;
 
 		} else {
@@ -83,5 +84,4 @@ class Helpers
 	{
 		return is_array($data) && isset($data[self::EXTENDS_KEY]) && $data[self::EXTENDS_KEY] !== self::OVERWRITE;
 	}
-
 }

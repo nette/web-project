@@ -19,11 +19,11 @@ class ErrorPresenter implements Application\IPresenter
 {
 	use Nette\SmartObject;
 
-	/** @var ILogger|NULL */
+	/** @var ILogger|null */
 	private $logger;
 
 
-	public function __construct(ILogger $logger = NULL)
+	public function __construct(ILogger $logger = null)
 	{
 		$this->logger = $logger;
 	}
@@ -47,5 +47,4 @@ class ErrorPresenter implements Application\IPresenter
 			require __DIR__ . '/templates/error.phtml';
 		});
 	}
-
 }

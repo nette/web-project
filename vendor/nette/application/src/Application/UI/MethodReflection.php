@@ -37,7 +37,7 @@ class MethodReflection extends \ReflectionMethod
 	public function getAnnotation($name)
 	{
 		$res = ComponentReflection::parseAnnotation($this, $name);
-		return $res ? end($res) : NULL;
+		return $res ? end($res) : null;
 	}
 
 
@@ -60,5 +60,4 @@ class MethodReflection extends \ReflectionMethod
 		trigger_error("getMethod('{$this->getName()}')->$name() is deprecated, use Nette\\Reflection\\Method::from(\$presenter, '{$this->getName()}')->$name()", E_USER_DEPRECATED);
 		return call_user_func_array([new Method(parent::getDeclaringClass()->getName(), $this->getName()), $name], $args);
 	}
-
 }

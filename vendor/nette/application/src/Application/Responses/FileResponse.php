@@ -17,6 +17,9 @@ class FileResponse implements Nette\Application\IResponse
 {
 	use Nette\SmartObject;
 
+	/** @var bool */
+	public $resuming = true;
+
 	/** @var string */
 	private $file;
 
@@ -27,9 +30,6 @@ class FileResponse implements Nette\Application\IResponse
 	private $name;
 
 	/** @var bool */
-	public $resuming = TRUE;
-
-	/** @var bool */
 	private $forceDownload;
 
 
@@ -38,7 +38,7 @@ class FileResponse implements Nette\Application\IResponse
 	 * @param  string  imposed file name
 	 * @param  string  MIME content type
 	 */
-	public function __construct($file, $name = NULL, $contentType = NULL, $forceDownload = TRUE)
+	public function __construct($file, $name = null, $contentType = null, $forceDownload = true)
 	{
 		if (!is_file($file)) {
 			throw new Nette\Application\BadRequestException("File '$file' doesn't exist.");
@@ -129,5 +129,4 @@ class FileResponse implements Nette\Application\IResponse
 		}
 		fclose($handle);
 	}
-
 }

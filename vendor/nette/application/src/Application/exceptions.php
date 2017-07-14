@@ -44,7 +44,7 @@ class BadRequestException extends \Exception
 	protected $code = Http\IResponse::S404_NOT_FOUND;
 
 
-	public function __construct($message = '', $httpCode = 0, \Exception $previous = NULL)
+	public function __construct($message = '', $httpCode = 0, \Exception $previous = null)
 	{
 		parent::__construct($message, $httpCode ?: $this->code, $previous);
 	}
@@ -57,7 +57,6 @@ class BadRequestException extends \Exception
 	{
 		return $this->code;
 	}
-
 }
 
 
@@ -68,5 +67,4 @@ class ForbiddenRequestException extends BadRequestException
 {
 	/** @var int */
 	protected $code = Http\IResponse::S403_FORBIDDEN;
-
 }
