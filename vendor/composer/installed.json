@@ -58,54 +58,6 @@
         ]
     },
     {
-        "name": "dg/composer-cleaner",
-        "version": "v1.1",
-        "version_normalized": "1.1.0.0",
-        "source": {
-            "type": "git",
-            "url": "https://github.com/dg/composer-cleaner.git",
-            "reference": "417979b0169b2fc28fd05e48ceb20f87a3113d4e"
-        },
-        "dist": {
-            "type": "zip",
-            "url": "https://api.github.com/repos/dg/composer-cleaner/zipball/417979b0169b2fc28fd05e48ceb20f87a3113d4e",
-            "reference": "417979b0169b2fc28fd05e48ceb20f87a3113d4e",
-            "shasum": ""
-        },
-        "require": {
-            "composer-plugin-api": "^1.0",
-            "php": ">=5.4.0"
-        },
-        "require-dev": {
-            "nette/tester": "^1.7"
-        },
-        "time": "2017-05-02T12:58:25+00:00",
-        "type": "composer-plugin",
-        "extra": {
-            "class": "DG\\ComposerCleaner\\Plugin"
-        },
-        "installation-source": "dist",
-        "autoload": {
-            "classmap": [
-                "src/"
-            ]
-        },
-        "notification-url": "https://packagist.org/downloads/",
-        "license": [
-            "BSD-3-Clause"
-        ],
-        "authors": [
-            {
-                "name": "David Grudl",
-                "homepage": "https://davidgrudl.com"
-            }
-        ],
-        "description": "Victor The Cleaner: removes unnecessary files from vendor directory.",
-        "keywords": [
-            "composer"
-        ]
-    },
-    {
         "name": "nette/utils",
         "version": "v2.4.7",
         "version_normalized": "2.4.7.0",
