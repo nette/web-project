@@ -13,7 +13,6 @@ namespace Tester;
  */
 class Helpers
 {
-
 	/**
 	 * Purges directory.
 	 * @param  string
@@ -41,19 +40,19 @@ class Helpers
 	 */
 	public static function parseDocComment($s)
 	{
-		$options = array();
+		$options = [];
 		if (!preg_match('#^/\*\*(.*?)\*/#ms', $s, $content)) {
-			return array();
+			return [];
 		}
 		if (preg_match('#^[ \t\*]*+([^\s@].*)#mi', $content[1], $matches)) {
 			$options[0] = trim($matches[1]);
 		}
 		preg_match_all('#^[ \t\*]*@(\w+)([^\w\r\n].*)?#mi', $content[1], $matches, PREG_SET_ORDER);
 		foreach ($matches as $match) {
-			$ref = & $options[strtolower($match[1])];
+			$ref = &$options[strtolower($match[1])];
 			if (isset($ref)) {
 				$ref = (array) $ref;
-				$ref = & $ref[];
+				$ref = &$ref[];
 			}
 			$ref = isset($match[2]) ? trim($match[2]) : '';
 		}
@@ -66,7 +65,7 @@ class Helpers
 	 */
 	public static function errorTypeToString($type)
 	{
-		$consts = get_defined_constants(TRUE);
+		$consts = get_defined_constants(true);
 		foreach ($consts['Core'] as $name => $val) {
 			if ($type === $val && substr($name, 0, 2) === 'E_') {
 				return $name;
@@ -81,7 +80,7 @@ class Helpers
 	 */
 	public static function escapeArg($s)
 	{
-		if (preg_match('#^[a-z0-9._-]+\z#i', $s)) {
+		if (preg_match('#^[a-z0-9._=/:-]+\z#i', $s)) {
 			return $s;
 		}
 
@@ -89,5 +88,4 @@ class Helpers
 			? '"' . str_replace('"', '""', $s) . '"'
 			: escapeshellarg($s);
 	}
-
 }

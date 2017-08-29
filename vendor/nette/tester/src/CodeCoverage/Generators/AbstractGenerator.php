@@ -19,7 +19,7 @@ abstract class AbstractGenerator
 		CODE_TESTED = 1;
 
 	/** @var array */
-	public $acceptFiles = array('php', 'phpc', 'phpt', 'phtml');
+	public $acceptFiles = ['php', 'phpt', 'phtml'];
 
 	/** @var array */
 	protected $data;
@@ -27,12 +27,18 @@ abstract class AbstractGenerator
 	/** @var string */
 	protected $source;
 
+	/** @var int */
+	protected $totalSum = 0;
+
+	/** @var int */
+	protected $coveredSum = 0;
+
 
 	/**
 	 * @param  string  path to coverage.dat file
 	 * @param  string  path to covered source file or directory
 	 */
-	public function __construct($file, $source = NULL)
+	public function __construct($file, $source = null)
 	{
 		if (!is_file($file)) {
 			throw new \Exception("File '$file' is missing.");
@@ -63,7 +69,7 @@ abstract class AbstractGenerator
 	}
 
 
-	public function render($file = NULL)
+	public function render($file = null)
 	{
 		$handle = $file ? @fopen($file, 'w') : STDOUT; // @ is escalated to exception
 		if (!$handle) {
@@ -88,39 +94,29 @@ abstract class AbstractGenerator
 
 
 	/**
-	 * @return AcceptIterator
+	 * @return float
+	 */
+	public function getCoveredPercent()
+	{
+		return $this->totalSum ? $this->coveredSum * 100 / $this->totalSum : 0;
+	}
+
+
+	/**
+	 * @return \Iterator
 	 */
 	protected function getSourceIterator()
 	{
 		$iterator = is_dir($this->source)
 			? new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->source))
-			: new \ArrayIterator(array(new \SplFileInfo($this->source)));
+			: new \ArrayIterator([new \SplFileInfo($this->source)]);
 
-		return new AcceptIterator($iterator, $this->acceptFiles);
+		return new \CallbackFilterIterator($iterator, function (\SplFileInfo $file) {
+			return $file->getBasename()[0] !== '.'  // . or .. or .gitignore
+				&& in_array($file->getExtension(), $this->acceptFiles, true);
+		});
 	}
 
 
 	abstract protected function renderSelf();
-
-}
-
-
-/** @internal */
-class AcceptIterator extends \FilterIterator
-{
-	private $acceptFiles;
-
-	public function __construct(\Iterator $iterator, array $acceptFiles)
-	{
-		parent::__construct($iterator);
-		$this->acceptFiles = $acceptFiles;
-	}
-
-
-	public function accept()
-	{
-		return substr($this->current()->getBasename(), 0, 1) !== '.'  // . or .. or .gitignore
-			&& in_array(pathinfo($this->current(), PATHINFO_EXTENSION), $this->acceptFiles, TRUE);
-	}
-
 }

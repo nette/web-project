@@ -44,7 +44,7 @@ class FileUpload
 
 	public function __construct($value)
 	{
-		foreach (['name', 'type', 'size', 'tmp_name', 'error'] as $key) {
+		foreach (['name', 'size', 'tmp_name', 'error'] as $key) {
 			if (!isset($value[$key]) || !is_scalar($value[$key])) {
 				$this->error = UPLOAD_ERR_NO_FILE;
 				return; // or throw exception?
@@ -157,10 +157,7 @@ class FileUpload
 	public function move($dest)
 	{
 		$dir = dirname($dest);
-		@mkdir($dir, 0777, true); // @ - dir may already exist
-		if (!is_dir($dir)) {
-			throw new Nette\InvalidStateException("Directory '$dir' cannot be created. " . error_get_last()['message']);
-		}
+		Nette\Utils\FileSystem::createDir($dir);
 		@unlink($dest); // @ - file may not exists
 		Nette\Utils\Callback::invokeSafe(
 			is_uploaded_file($this->tmpName) ? 'move_uploaded_file' : 'rename',

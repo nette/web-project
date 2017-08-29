@@ -5,49 +5,87 @@
 	<meta name="robots" content="noindex,noarchive">
 	<meta name="generator" content="Nette Tester">
 
-	<title><?php echo $title ? htmlSpecialChars("$title - ") : ''; ?>Code coverage</title>
+	<title><?= $title ? htmlspecialchars("$title - ") : ''; ?>Code coverage</title>
 
 	<style type="text/css">
 	html {
-		font: 16px/1.5 sans-serif;
-		border-top: 4.7em solid #F4EBDB;
+		font: 14px/1.5 Verdana,"Geneva CE",lucida,sans-serif;
+		border-top: 4.7em solid #f4ebdb;
 	}
 
 	body {
 		max-width: 990px;
 		margin: -4.7em auto 0;
-		background: white;
+		background: #fcfaf5;
 		color: #333;
 	}
 
+	footer {
+		margin-left: .5em;
+	}
+
 	h1 {
+		font-family: "Trebuchet MS","Geneva CE",lucida,sans-serif;
 		font-size: 1.9em;
-		margin: .5em 0 1.5em;
-		color: #7A7772;
+		margin: .5em .5em 1.5em;
+		color: #7a7772;
 		text-shadow: 1px 1px 0 white;
 	}
 
 	div.code {
-		font: 14px/1.2 Consolas, monospace;
-		background: #FDF5CE;
-		padding: .4em .7em;
+		background: white;
 		border: 1px dotted silver;
-		overflow-x: auto;
+		padding: .4em 0;
 		display: none;
+		color: #333;
+		overflow: auto;
 	}
 
-	span.line {
-		color: #9F9C7F;
-		font-weight: normal;
-		font-style: normal;
+	code,
+	div.code {
+		font: 13px/1.3 monospace;
 	}
 
-	.t {
-		background: #99f999;
+	div.code > div {
+		float: left;
+		min-width: 100%;
+		position: relative;
 	}
 
-	.u {
-		background: #f9ac9e;
+	aside {
+		min-width: 100%;
+		position: absolute;
+	}
+
+	aside div {
+		white-space: pre;
+		padding-left: .7em;
+	}
+
+	aside a {
+		color: #c0c0c0;
+	}
+
+	aside a:hover {
+		color: inherit;
+		font-weight: bold;
+		text-decoration: none;
+	}
+
+	code {
+		display: block;
+		white-space: nowrap;
+		position: relative;
+	}
+
+	a {
+		color: #006aeb;
+		text-decoration: none;
+	}
+
+	a:active,
+	a:hover {
+		text-decoration: underline;
 	}
 
 	td {
@@ -64,14 +102,14 @@
 	}
 
 	.bar {
-		border: 1px solid #ACACAC;
+		border: 1px solid #acacac;
 		background: #e50400;
 		width: 35px;
 		height: 1em;
 	}
 
 	.bar div {
-		background: #1A7E1E;
+		background: #1a7e1e;
 		height: 1em;
 	}
 
@@ -86,78 +124,89 @@
 	.not-loaded td * {
 		color: red;
 	}
+
+	.t { background-color: #e0ffe0; }
+	.u { background-color: #ffe0e0; }
+
+	code .hc { color: #929292; }
+	code .hd { color: #333; }
+	code .hh { color: #06B; }
+	code .hk { color: #e71818; }
+	code .hs { color: #008000; }
 	</style>
 </head>
 
 <body>
-	<h1><?php echo $title ? htmlSpecialChars("$title - ") : ''; ?>Code coverage <?php echo $totalSum ? round($coveredSum * 100 / $totalSum) : 0 ?>&nbsp;%</h1>
+	<h1><?= $title ? htmlspecialchars("$title - ") : ''; ?>Code coverage <?= round($coveredPercent) ?>&nbsp;%</h1>
 
 	<?php foreach ($files as $id => $info): ?>
 	<div>
 		<table>
-		<tr<?php echo $info->class ? " class='$info->class'" : '' ?>>
-			<td class="number"><small><?php echo $info->coverage ?> %</small></td>
-			<td><div class="bar"><div style="width: <?php echo $info->coverage ?>%"></div></div></td>
-			<td><a href="#fragment<?php echo $id ?>" onclick="toggle(this); return false"><span><?php echo $info->name ?></span></a></td>
+		<tr<?= $info->class ? " class='$info->class'" : '' ?>>
+			<td class="number"><small><?= $info->coverage ?> %</small></td>
+			<td><div class="bar"><div style="width: <?= $info->coverage ?>%"></div></div></td>
+			<td><a href="#F<?= $id ?>" class="toggle"><?= $info->name ?></a></td>
 		</tr>
 		</table>
 
-		<div class="code" id="fragment<?php echo $id ?>">
-		<?php
-			$source = explode('<br />', highlight_file($info->file, TRUE));
+		<div class="code" id="F<?= $id ?>">
+		<div>
+			<aside>
+			<?php
+			$code = file_get_contents($info->file);
+			$lineCount = substr_count($code, "\n") + 1;
+			$digits = ceil(log10($lineCount)) + 1;
 
-			end($source);
-			$numWidth = strlen((string) key($source));
+			$prevClass = null;
+			$closeTag = $buffer = '';
+			for ($i = 1; $i < $lineCount; $i++) {
+				$class = isset($info->lines[$i]) && isset($classes[$info->lines[$i]])
+					? $classes[$info->lines[$i]]
+					: '';
 
-			unset($prevColor);
-			$tags = '';
-			foreach ($source as $n => $line) {
-				if (isset($info->lines[$n + 1]) && isset($classes[$info->lines[$n + 1]])) {
-					$color = $classes[$info->lines[$n + 1]];
-				} else {
-					$color = '';  // not executable
+				if ($class !== $prevClass) {
+					echo rtrim($buffer) . $closeTag;
+					$buffer = '';
+					$closeTag = '</div>';
+					echo '<div' . ($class ? " class='$class'" : '') . '>';
 				}
-				if (!isset($prevColor)) {
-					$prevColor = $color;
-				}
-				$line = sprintf("<span class='line'>%{$numWidth}s:    </span>", $n + 1) . $line;
-				if ($prevColor !== $color || $n === count($source) - 1) {
-					echo '<div' . ($prevColor ? " class='$prevColor'" : '') . '>', str_replace(' />', '>', $tags);
-					$openTags = array();
-					preg_match_all('#<([^>]+)#', $tags, $matches);
-					foreach ($matches[1] as $m) {
-						if ($m[0] === '/') {
-							array_pop($openTags);
-						} elseif (substr($m, -1) !== '/') {
-							$openTags[] = $m;
-						}
-					}
-					foreach (array_reverse($openTags) as $tag) {
-						echo '</' . preg_replace('# .*#', '', $tag) . '>';
-					}
-					echo "</div>\n";
-					$tags = ($openTags ? '<' . implode('><', $openTags) . '>' : '');
-					$prevColor = $color;
-				}
-				$tags .= "$line<br />\n";
+
+				$buffer .= "<a href='#F{$id}L{$i}' id='F{$id}L{$i}'>" . sprintf("%{$digits}s", $i) . "</a>\n";
+				$prevClass = $class;
 			}
-		?></div>
+			echo $buffer . $closeTag;
+
+			$code = strtr(highlight_string($code, true), [
+				'<code>' => "<code style='margin-left: {$digits}em'>",
+				'<span style="color: ' => '<span class="',
+			]);
+			?>
+			</aside>
+			<?= $code ?>
+		</div>
+		</div>
 	</div>
 	<?php endforeach ?>
 
 	<footer>
-		<p>Generated by <a href="https://tester.nette.org">Nette Tester</a> at <?php echo @date('Y/m/d H:i:s') // @ timezone may not be set ?></p>
+		<p>Generated by <a href="https://tester.nette.org">Nette Tester</a> at <?= @date('Y/m/d H:i:s') // @ timezone may not be set ?></p>
 	</footer>
 
 	<script>
-	function toggle(link) {
-		var el = document.getElementById(link.href.split('#')[1]);
-		if (el.style.display === 'block') {
-			el.style.display = 'none';
-			return false;
-		} else {
-			el.style.display = 'block';
+	document.body.addEventListener('click', function (e) {
+		if (e.target.className === 'toggle') {
+			var el = document.getElementById(e.target.href.split('#')[1]);
+			if (el.style.display === 'block') {
+				el.style.display = 'none';
+			} else {
+				el.style.display = 'block';
+			}
+			e.preventDefault();
 		}
+	});
+
+	if (el = document.getElementById(window.location.hash.replace(/^#|L\d+$/g, ''))) {
+		el.style.display = 'block';
 	}
 	</script>
 </body>

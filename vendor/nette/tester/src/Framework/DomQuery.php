@@ -13,20 +13,25 @@ namespace Tester;
  */
 class DomQuery extends \SimpleXMLElement
 {
-
 	/**
 	 * @return DomQuery
 	 */
 	public static function fromHtml($html)
 	{
-		if (strpos($html, '<') === FALSE) {
+		if (strpos($html, '<') === false) {
 			$html = '<body>' . $html;
 		}
 
-		$html = preg_replace('#<(keygen|source|track|wbr)(?=\s|>)("[^"]*"|\'[^\']*\'|[^"\'>]+)*+(?<!/)>#', '<$1$2 />', $html);
+		// parse these elements as void
+		$html = preg_replace('#<(keygen|source|track|wbr)(?=\s|>)((?:"[^"]*"|\'[^\']*\'|[^"\'>])*+)(?<!/)>#', '<$1$2 />', $html);
+
+		// fix parsing of </ inside scripts
+		$html = preg_replace_callback('#(<script(?=\s|>)(?:"[^"]*"|\'[^\']*\'|[^"\'>])*+>)(.*?)(</script>)#s', function ($m) {
+			return $m[1] . str_replace('</', '<\/', $m[2]) . $m[3];
+		}, $html);
 
 		$dom = new \DOMDocument();
-		$old = libxml_use_internal_errors(TRUE);
+		$old = libxml_use_internal_errors(true);
 		libxml_clear_errors();
 		$dom->loadHTML($html);
 		$errors = libxml_get_errors();
@@ -136,5 +141,4 @@ class DomQuery extends \SimpleXMLElement
 		}
 		return $xpath;
 	}
-
 }

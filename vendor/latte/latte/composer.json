@@ -20,12 +20,13 @@
 		"ext-tokenizer": "*"
 	},
 	"require-dev": {
-		"nette/tester": "~2.0",
+		"nette/tester": "~1.7",
 		"tracy/tracy": "^2.3"
 	},
 	"suggest": {
 		"ext-mbstring": "to use filters like lower, upper, capitalize, ...",
-		"ext-fileinfo": "to use filter |datastream"
+		"ext-fileinfo": "to use filter |datastream",
+		"nette/utils": "to use filter |webalize"
 	},
 	"conflict": {
 		"nette/application": "<2.4.1"

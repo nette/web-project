@@ -20,9 +20,9 @@ class AssertException extends \Exception
 	public $expected;
 
 
-	public function __construct($message, $expected, $actual)
+	public function __construct($message, $expected, $actual, $previous = null)
 	{
-		parent::__construct();
+		parent::__construct('', 0, $previous);
 		$this->expected = $expected;
 		$this->actual = $actual;
 		$this->setMessage($message);
@@ -32,11 +32,10 @@ class AssertException extends \Exception
 	public function setMessage($message)
 	{
 		$this->origMessage = $message;
-		$this->message = strtr($message, array(
+		$this->message = strtr($message, [
 			'%1' => Dumper::toLine($this->actual),
 			'%2' => Dumper::toLine($this->expected),
-		));
+		]);
 		return $this;
 	}
-
 }

@@ -13,14 +13,13 @@ namespace Tester;
  */
 class DataProvider
 {
-
 	/**
 	 * @param  string  path to data provider file
 	 * @param  string  filtering condition
 	 * @return array
 	 * @throws \Exception
 	 */
-	public static function load($file, $query = NULL)
+	public static function load($file, $query = '')
 	{
 		if (!is_file($file)) {
 			throw new \Exception("Missing data-provider file '$file'.");
@@ -38,8 +37,8 @@ class DataProvider
 			}
 
 		} else {
-			$data = @parse_ini_file($file, TRUE); // @ is escalated to exception
-			if ($data === FALSE) {
+			$data = @parse_ini_file($file, true); // @ is escalated to exception
+			if ($data === false) {
 				throw new \Exception("Cannot parse data-provider file '$file'.");
 			}
 		}
@@ -64,21 +63,20 @@ class DataProvider
 	 */
 	public static function testQuery($input, $query)
 	{
-		static $replaces = array('' => '=', '=>' => '>=', '=<' => '<=');
+		static $replaces = ['' => '=', '=>' => '>=', '=<' => '<='];
 		$tokens = preg_split('#\s+#', $input);
 		preg_match_all('#\s*,?\s*(<=|=<|<|==|=|!=|<>|>=|=>|>)?\s*([^\s,]+)#A', $query, $queryParts, PREG_SET_ORDER);
-		foreach ($queryParts as $queryPart) {
-			list(, $operator, $operand) = $queryPart;
+		foreach ($queryParts as list(, $operator, $operand)) {
 			$operator = isset($replaces[$operator]) ? $replaces[$operator] : $operator;
-			$token = array_shift($tokens);
+			$token = (string) array_shift($tokens);
 			$res = preg_match('#^[0-9.]+\z#', $token)
 				? version_compare($token, $operand, $operator)
 				: self::compare($token, $operator, $operand);
 			if (!$res) {
-				return FALSE;
+				return false;
 			}
 		}
-		return TRUE;
+		return true;
 	}
 
 
@@ -119,7 +117,6 @@ class DataProvider
 		if (!preg_match('#^(\??)\s*([^,\s]+)\s*,?\s*(\S.*)?()#', $annotation, $m)) {
 			throw new \Exception("Invalid @dataProvider value '$annotation'.");
 		}
-		return array(dirname($file) . DIRECTORY_SEPARATOR . $m[2], $m[3], (bool) $m[1]);
+		return [dirname($file) . DIRECTORY_SEPARATOR . $m[2], $m[3], (bool) $m[1]];
 	}
-
 }

@@ -47,6 +47,7 @@ class FilterExecutor
 		'repeat' => ['Latte\Runtime\Filters::repeat', true],
 		'replace' => ['Latte\Runtime\Filters::replace', true],
 		'replacere' => ['Latte\Runtime\Filters::replaceRe', false],
+		'reverse' => ['Latte\Runtime\Filters::reverse', false],
 		'safeurl' => ['Latte\Runtime\Filters::safeUrl', false],
 		'strip' => ['Latte\Runtime\Filters::strip', true],
 		'striphtml' => ['Latte\Runtime\Filters::stripHtml', true],
@@ -55,6 +56,7 @@ class FilterExecutor
 		'trim' => ['Latte\Runtime\Filters::trim', true],
 		'truncate' => ['Latte\Runtime\Filters::truncate', false],
 		'upper' => ['Latte\Runtime\Filters::upper', false],
+		'webalize' => ['Nette\Utils\Strings::webalize', false],
 	];
 
 

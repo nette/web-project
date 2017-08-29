@@ -8,12 +8,19 @@
 namespace Nette\Loaders;
 
 use Nette;
-use Nette\Caching\Cache;
 use SplFileInfo;
 
 
 /**
  * Nette auto loader is responsible for loading classes and interfaces.
+ *
+ * <code>
+ * $loader = new Nette\Loaders\RobotLoader;
+ * $loader->addDirectory('app');
+ * $loader->excludeDirectory('app/exclude');
+ * $loader->setTempDirectory('temp');
+ * $loader->register();
+ * </code>
  */
 class RobotLoader
 {
@@ -21,29 +28,32 @@ class RobotLoader
 
 	const RETRY_LIMIT = 3;
 
-	/** @var string|array  comma separated wildcards */
-	public $ignoreDirs = '.*, *.old, *.bak, *.tmp, temp';
+	/** @var array  comma separated wildcards */
+	public $ignoreDirs = ['.*', '*.old', '*.bak', '*.tmp', 'temp'];
 
-	/** @var string|array  comma separated wildcards */
-	public $acceptFiles = '*.php, *.php5';
+	/** @var array  comma separated wildcards */
+	public $acceptFiles = ['*.php'];
 
-	/** @var bool @deprecated */
-	public $autoRebuild = true;
+	/** @var bool */
+	private $autoRebuild = true;
 
 	/** @var array */
 	private $scanPaths = [];
 
-	/** @var array of lowered-class => [file, time, orig] or num-of-retry */
+	/** @var array */
+	private $excludeDirs = [];
+
+	/** @var array of class => [file, time] */
 	private $classes = [];
 
 	/** @var bool */
 	private $refreshed = false;
 
-	/** @var array of missing classes in this request */
+	/** @var array of missing classes */
 	private $missing = [];
 
-	/** @var Nette\Caching\IStorage */
-	private $cacheStorage;
+	/** @var string|null */
+	private $tempDirectory;
 
 
 	public function __construct()
@@ -61,7 +71,7 @@ class RobotLoader
 	 */
 	public function register($prepend = false)
 	{
-		$this->classes = $this->getCache()->load($this->getKey(), [$this, 'rebuildCallback']);
+		$this->loadCache();
 		spl_autoload_register([$this, 'tryLoad'], true, (bool) $prepend);
 		return $this;
 	}
@@ -74,38 +84,33 @@ class RobotLoader
 	 */
 	public function tryLoad($type)
 	{
-		$type = $orig = ltrim($type, '\\'); // PHP namespace bug #49143
-		$type = strtolower($type);
-
-		$info = &$this->classes[$type];
-		if (isset($this->missing[$type]) || (is_int($info) && $info >= self::RETRY_LIMIT)) {
-			return;
-		}
+		$type = ltrim($type, '\\'); // PHP namespace bug #49143
+		$info = isset($this->classes[$type]) ? $this->classes[$type] : null;
 
 		if ($this->autoRebuild) {
-			if (!is_array($info) || !is_file($info['file'])) {
-				$info = is_int($info) ? $info + 1 : 0;
-				if ($this->refreshed) {
-					$this->getCache()->save($this->getKey(), $this->classes);
-				} else {
-					$this->rebuild();
+			if (!$info || !is_file($info['file'])) {
+				$missing = &$this->missing[$type];
+				$missing++;
+				if (!$this->refreshed && $missing <= self::RETRY_LIMIT) {
+					$this->refresh();
+					$this->saveCache();
+				} elseif ($info) {
+					unset($this->classes[$type]);
+					$this->saveCache();
 				}
+
 			} elseif (!$this->refreshed && filemtime($info['file']) !== $info['time']) {
 				$this->updateFile($info['file']);
-				if (!isset($this->classes[$type])) {
-					$this->classes[$type] = 0;
+				if (empty($this->classes[$type])) {
+					$this->missing[$type] = 0;
 				}
-				$this->getCache()->save($this->getKey(), $this->classes);
+				$this->saveCache();
 			}
+			$info = isset($this->classes[$type]) ? $this->classes[$type] : null;
 		}
 
-		if (isset($this->classes[$type]['file'])) {
-			if ($this->classes[$type]['orig'] !== $orig) {
-				trigger_error("Case mismatch on class name '$orig', correct name is '{$this->classes[$type]['orig']}'.", E_USER_WARNING);
-			}
-			call_user_func(function ($file) { require $file; }, $this->classes[$type]['file']);
-		} else {
-			$this->missing[$type] = true;
+		if ($info) {
+			call_user_func(function ($file) { require $file; }, $info['file']);
 		}
 	}
 
@@ -123,15 +128,25 @@ class RobotLoader
 
 
 	/**
+	 * Excludes path or paths from list.
+	 * @param  string|string[]  absolute path
+	 * @return static
+	 */
+	public function excludeDirectory($path)
+	{
+		$this->excludeDirs = array_merge($this->excludeDirs, (array) $path);
+		return $this;
+	}
+
+
+	/**
 	 * @return array of class => filename
 	 */
 	public function getIndexedClasses()
 	{
 		$res = [];
-		foreach ($this->classes as $info) {
-			if (is_array($info)) {
-				$res[$info['orig']] = $info['file'];
-			}
+		foreach ($this->classes as $class => $info) {
+			$res[$class] = $info['file'];
 		}
 		return $res;
 	}
@@ -143,28 +158,24 @@ class RobotLoader
 	 */
 	public function rebuild()
 	{
-		if ($this->cacheStorage) {
-			$this->getCache()->save($this->getKey(), Nette\Utils\Callback::closure($this, 'rebuildCallback'));
-		} else {
-			$this->rebuildCallback();
+		$this->refresh();
+		if ($this->tempDirectory) {
+			$this->saveCache();
 		}
 	}
 
 
 	/**
-	 * @internal
+	 * Refreshes class list.
+	 * @return void
 	 */
-	public function rebuildCallback()
+	private function refresh()
 	{
-		$this->refreshed = true; // prevents calling rebuild() or updateFile() in tryLoad()
-		$files = $missing = [];
+		$this->refreshed = true; // prevents calling refresh() or updateFile() in tryLoad()
+		$files = [];
 		foreach ($this->classes as $class => $info) {
-			if (is_array($info)) {
-				$files[$info['file']]['time'] = $info['time'];
-				$files[$info['file']]['classes'][] = $info['orig'];
-			} else {
-				$missing[$class] = $info;
-			}
+			$files[$info['file']]['time'] = $info['time'];
+			$files[$info['file']]['classes'][] = $class;
 		}
 
 		$this->classes = [];
@@ -179,16 +190,15 @@ class RobotLoader
 				$files[$file] = ['classes' => [], 'time' => filemtime($file)];
 
 				foreach ($classes as $class) {
-					$info = &$this->classes[strtolower($class)];
+					$info = &$this->classes[$class];
 					if (isset($info['file'])) {
 						throw new Nette\InvalidStateException("Ambiguous class $class resolution; defined in {$info['file']} and in $file.");
 					}
-					$info = ['file' => $file, 'time' => filemtime($file), 'orig' => $class];
+					$info = ['file' => $file, 'time' => filemtime($file)];
+					unset($this->missing[$class]);
 				}
 			}
 		}
-		$this->classes += $missing;
-		return $this->classes;
 	}
 
 
@@ -205,24 +215,24 @@ class RobotLoader
 
 		$ignoreDirs = is_array($this->ignoreDirs) ? $this->ignoreDirs : preg_split('#[,\s]+#', $this->ignoreDirs);
 		$disallow = [];
-		foreach ($ignoreDirs as $item) {
+		foreach (array_merge($ignoreDirs, $this->excludeDirs) as $item) {
 			if ($item = realpath($item)) {
-				$disallow[$item] = true;
+				$disallow[str_replace('\\', '/', $item)] = true;
 			}
 		}
 
 		$iterator = Nette\Utils\Finder::findFiles(is_array($this->acceptFiles) ? $this->acceptFiles : preg_split('#[,\s]+#', $this->acceptFiles))
 			->filter(function (SplFileInfo $file) use (&$disallow) {
-				return !isset($disallow[$file->getPathname()]);
+				return !isset($disallow[str_replace('\\', '/', $file->getPathname())]);
 			})
 			->from($dir)
 			->exclude($ignoreDirs)
 			->filter($filter = function (SplFileInfo $dir) use (&$disallow) {
-				$path = $dir->getPathname();
+				$path = str_replace('\\', '/', $dir->getPathname());
 				if (is_file("$path/netterobots.txt")) {
 					foreach (file("$path/netterobots.txt") as $s) {
 						if (preg_match('#^(?:disallow\\s*:)?\\s*(\\S+)#i', $s, $matches)) {
-							$disallow[$path . str_replace('/', DIRECTORY_SEPARATOR, rtrim('/' . ltrim($matches[1], '/'), '/'))] = true;
+							$disallow[$path . rtrim('/' . ltrim($matches[1], '/'), '/')] = true;
 						}
 					}
 				}
@@ -245,18 +255,17 @@ class RobotLoader
 			}
 		}
 
-		if (is_file($file)) {
-			foreach ($this->scanPhp(file_get_contents($file)) as $class) {
-				$info = &$this->classes[strtolower($class)];
-				if (isset($info['file']) && @filemtime($info['file']) !== $info['time']) { // @ file may not exists
-					$this->updateFile($info['file']);
-					$info = &$this->classes[strtolower($class)];
-				}
-				if (isset($info['file'])) {
-					throw new Nette\InvalidStateException("Ambiguous class $class resolution; defined in {$info['file']} and in $file.");
-				}
-				$info = ['file' => $file, 'time' => filemtime($file), 'orig' => $class];
+		$classes = is_file($file) ? $this->scanPhp(file_get_contents($file)) : [];
+		foreach ($classes as $class) {
+			$info = &$this->classes[$class];
+			if (isset($info['file']) && @filemtime($info['file']) !== $info['time']) { // @ file may not exists
+				$this->updateFile($info['file']);
+				$info = &$this->classes[$class];
 			}
+			if (isset($info['file'])) {
+				throw new Nette\InvalidStateException("Ambiguous class $class resolution; defined in {$info['file']} and in $file.");
+			}
+			$info = ['file' => $file, 'time' => filemtime($file)];
 		}
 	}
 
@@ -264,7 +273,7 @@ class RobotLoader
 	/**
 	 * Searches classes, interfaces and traits in PHP file.
 	 * @param  string
-	 * @return array
+	 * @return string[]
 	 */
 	private function scanPhp($code)
 	{
@@ -356,55 +365,80 @@ class RobotLoader
 	 */
 	public function setTempDirectory($dir)
 	{
-		if ($dir) {
-			if (!is_dir($dir)) {
-				@mkdir($dir); // @ - directory may already exist
-			}
-			$this->cacheStorage = new Nette\Caching\Storages\FileStorage($dir);
-		} else {
-			$this->cacheStorage = new Nette\Caching\Storages\DevNullStorage;
+		if (!is_dir($dir)) {
+			@mkdir($dir); // @ - directory may already exist
 		}
+		$this->tempDirectory = $dir;
 		return $this;
 	}
 
 
 	/**
-	 * @return static
+	 * Loads class list from cache.
+	 * @return void
 	 */
-	public function setCacheStorage(Nette\Caching\IStorage $storage)
+	private function loadCache()
 	{
-		$this->cacheStorage = $storage;
-		return $this;
-	}
-
-
-	/**
-	 * @return Nette\Caching\IStorage
-	 */
-	public function getCacheStorage()
-	{
-		return $this->cacheStorage;
-	}
-
-
-	/**
-	 * @return Nette\Caching\Cache
-	 */
-	protected function getCache()
-	{
-		if (!$this->cacheStorage) {
-			trigger_error('Set path to temporary directory using setTempDirectory().', E_USER_WARNING);
-			$this->cacheStorage = new Nette\Caching\Storages\DevNullStorage;
+		$file = $this->getCacheFile();
+		list($this->classes, $this->missing) = @include $file; // @ file may not exist
+		if (is_array($this->classes)) {
+			return;
 		}
-		return new Cache($this->cacheStorage, 'Nette.RobotLoader');
+
+		$handle = fopen("$file.lock", 'c+');
+		if (!$handle || !flock($handle, LOCK_EX)) {
+			throw new \RuntimeException("Unable to create or acquire exclusive lock on file '$file.lock'.");
+		}
+
+		list($this->classes, $this->missing) = @include $file; // @ file may not exist
+		if (!is_array($this->classes)) {
+			$this->classes = [];
+			$this->refresh();
+			$this->saveCache();
+		}
+
+		flock($handle, LOCK_UN);
+		fclose($handle);
+		@unlink("$file.lock"); // @ file may become locked on Windows
+	}
+
+
+	/**
+	 * Writes class list to cache.
+	 * @return void
+	 */
+	private function saveCache()
+	{
+		$file = $this->getCacheFile();
+		$tempFile = $file . uniqid('', true) . '.tmp';
+		$code = "<?php\nreturn " . var_export([$this->classes, $this->missing], true) . ";\n";
+		if (file_put_contents($tempFile, $code) !== strlen($code) || !rename($tempFile, $file)) {
+			@unlink($tempFile); // @ - file may not exist
+			throw new \RuntimeException("Unable to create '$file'.");
+		}
+		if (function_exists('opcache_invalidate')) {
+			@opcache_invalidate($file, true); // @ can be restricted
+		}
+	}
+
+
+	/**
+	 * @return string
+	 */
+	private function getCacheFile()
+	{
+		if (!$this->tempDirectory) {
+			throw new \LogicException('Set path to temporary directory using setTempDirectory().');
+		}
+		return $this->tempDirectory . '/' . md5(serialize($this->getCacheKey())) . '.php';
 	}
 
 
 	/**
 	 * @return array
 	 */
-	protected function getKey()
+	protected function getCacheKey()
 	{
-		return [$this->ignoreDirs, $this->acceptFiles, $this->scanPaths];
+		return [$this->ignoreDirs, $this->acceptFiles, $this->scanPaths, $this->excludeDirs];
 	}
 }

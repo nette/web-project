@@ -304,7 +304,7 @@ class Html implements \ArrayAccess, \Countable, \IteratorAggregate, IHtmlString
 
 	/**
 	 * Sets element's HTML content.
-	 * @param  string raw HTML string
+	 * @param  IHtmlString|string
 	 * @return static
 	 * @throws Nette\InvalidArgumentException
 	 */
@@ -325,27 +325,19 @@ class Html implements \ArrayAccess, \Countable, \IteratorAggregate, IHtmlString
 	 */
 	public function getHtml()
 	{
-		$s = '';
-		foreach ($this->children as $child) {
-			if (is_object($child)) {
-				$s .= $child->render();
-			} else {
-				$s .= $child;
-			}
-		}
-		return $s;
+		return implode('', $this->children);
 	}
 
 
 	/**
 	 * Sets element's textual content.
-	 * @param  string
+	 * @param  IHtmlString|string
 	 * @return static
 	 * @throws Nette\InvalidArgumentException
 	 */
 	public function setText($text)
 	{
-		if (!is_array($text) && !$text instanceof self) {
+		if (!$text instanceof IHtmlString) {
 			$text = htmlspecialchars((string) $text, ENT_NOQUOTES, 'UTF-8');
 		}
 		return $this->setHtml($text);
@@ -374,7 +366,7 @@ class Html implements \ArrayAccess, \Countable, \IteratorAggregate, IHtmlString
 
 	/**
 	 * Adds new element's child.
-	 * @param  Html|string Html node or raw HTML string
+	 * @param  IHtmlString|string  Html node or raw HTML string
 	 * @return static
 	 */
 	public function addHtml($child)
@@ -385,12 +377,14 @@ class Html implements \ArrayAccess, \Countable, \IteratorAggregate, IHtmlString
 
 	/**
 	 * Appends plain-text string to element content.
-	 * @param  string plain-text string
+	 * @param  IHtmlString|string
 	 * @return static
 	 */
 	public function addText($text)
 	{
-		$text = htmlspecialchars($text, ENT_NOQUOTES, 'UTF-8');
+		if (!$text instanceof IHtmlString) {
+			$text = htmlspecialchars((string) $text, ENT_NOQUOTES, 'UTF-8');
+		}
 		return $this->insert(null, $text);
 	}
 
@@ -411,14 +405,15 @@ class Html implements \ArrayAccess, \Countable, \IteratorAggregate, IHtmlString
 	/**
 	 * Inserts child node.
 	 * @param  int|null position or null for appending
-	 * @param  Html|string Html node or raw HTML string
+	 * @param  IHtmlString|string Html node or raw HTML string
 	 * @param  bool
 	 * @return static
 	 * @throws Nette\InvalidArgumentException
 	 */
 	public function insert($index, $child, $replace = false)
 	{
-		if ($child instanceof self || is_scalar($child)) {
+		if ($child instanceof IHtmlString || is_scalar($child)) {
+			$child = $child instanceof self ? $child : (string) $child;
 			if ($index === null) { // append
 				$this->children[] = $child;
 

@@ -7,7 +7,7 @@
 
 namespace Tester\Runner;
 
-use Tester\Environment;
+use Tester\Helpers;
 
 
 /**
@@ -29,23 +29,14 @@ class Job
 		RUN_ASYNC = 1,
 		RUN_COLLECT_ERRORS = 2;
 
-	/** @var string  test file */
-	private $file;
-
-	/** @var string[]  test arguments */
-	private $args;
-
-	/** @var string  test output */
-	private $output;
-
-	/** @var string|NULL  test error output */
-	private $errorOutput;
-
-	/** @var string[]  output headers */
-	private $headers;
+	/** @var Test */
+	private $test;
 
 	/** @var PhpInterpreter */
 	private $interpreter;
+
+	/** @var string[]  environment variables for test */
+	private $envVars;
 
 	/** @var resource */
 	private $proc;
@@ -59,41 +50,83 @@ class Job
 	/** @var int */
 	private $exitCode = self::CODE_NONE;
 
+	/** @var string[]  output headers */
+	private $headers;
+
+
+	public function __construct(Test $test, PhpInterpreter $interpreter, array $envVars = null)
+	{
+		if ($test->getResult() !== Test::PREPARED) {
+			throw new \LogicException("Test '{$test->getSignature()}' already has result '{$test->getResult()}'.");
+		}
+
+		$test->stdout = '';
+		$test->stderr = '';
+
+		$this->test = $test;
+		$this->interpreter = $interpreter;
+		$this->envVars = (array) $envVars;
+	}
+
 
 	/**
-	 * @param  string  test file name
+	 * @param  string
+	 * @param  string
 	 * @return void
 	 */
-	public function __construct($testFile, PhpInterpreter $interpreter, array $args = NULL)
+	public function setEnvironmentVariable($name, $value)
 	{
-		$this->file = (string) $testFile;
-		$this->interpreter = $interpreter;
-		$this->args = (array) $args;
+		$this->envVars[$name] = $value;
+	}
+
+
+	/**
+	 * @param  string
+	 * @return string
+	 */
+	public function getEnvironmentVariable($name)
+	{
+		return $this->envVars[$name];
 	}
 
 
 	/**
 	 * Runs single test.
-	 * @param  int RUN_ASYNC | RUN_COLLECT_ERRORS
+	 * @param  int self::RUN_ASYNC | self::RUN_COLLECT_ERRORS
 	 * @return void
 	 */
-	public function run($flags = NULL)
+	public function run($flags = 0)
 	{
-		putenv(Environment::RUNNER . '=1');
-		putenv(Environment::COLORS . '=' . (int) Environment::$useColors);
+		foreach ($this->envVars as $name => $value) {
+			putenv("$name=$value");
+		}
+
+		$args = [];
+		foreach ($this->test->getArguments() as $value) {
+			if (is_array($value)) {
+				$args[] = Helpers::escapeArg("--$value[0]=$value[1]");
+			} else {
+				$args[] = Helpers::escapeArg($value);
+			}
+		}
+
 		$this->proc = proc_open(
 			$this->interpreter->getCommandLine()
-			. ' -n -d register_argc_argv=on ' . \Tester\Helpers::escapeArg($this->file) . ' ' . implode(' ', $this->args),
-			array(
-				array('pipe', 'r'),
-				array('pipe', 'w'),
-				array('pipe', 'w'),
-			),
+			. ' -d register_argc_argv=on ' . Helpers::escapeArg($this->test->getFile()) . ' ' . implode(' ', $args),
+			[
+				['pipe', 'r'],
+				['pipe', 'w'],
+				['pipe', 'w'],
+			],
 			$pipes,
-			dirname($this->file),
-			NULL,
-			array('bypass_shell' => TRUE)
+			dirname($this->test->getFile()),
+			null,
+			['bypass_shell' => true]
 		);
+
+		foreach (array_keys($this->envVars) as $name) {
+			putenv($name);
+		}
 
 		list($stdin, $this->stdout, $stderr) = $pipes;
 		fclose($stdin);
@@ -104,9 +137,9 @@ class Job
 		}
 
 		if ($flags & self::RUN_ASYNC) {
-			stream_set_blocking($this->stdout, 0); // on Windows does not work with proc_open()
+			stream_set_blocking($this->stdout, false); // on Windows does not work with proc_open()
 			if ($this->stderr) {
-				stream_set_blocking($this->stderr, 0);
+				stream_set_blocking($this->stderr, false);
 			}
 		} else {
 			while ($this->isRunning()) {
@@ -123,16 +156,16 @@ class Job
 	public function isRunning()
 	{
 		if (!is_resource($this->stdout)) {
-			return FALSE;
+			return false;
 		}
-		$this->output .= stream_get_contents($this->stdout);
+		$this->test->stdout .= stream_get_contents($this->stdout);
 		if ($this->stderr) {
-			$this->errorOutput .= stream_get_contents($this->stderr);
+			$this->test->stderr .= stream_get_contents($this->stderr);
 		}
 
 		$status = proc_get_status($this->proc);
 		if ($status['running']) {
-			return TRUE;
+			return true;
 		}
 
 		fclose($this->stdout);
@@ -142,36 +175,25 @@ class Job
 		$code = proc_close($this->proc);
 		$this->exitCode = $code === self::CODE_NONE ? $status['exitcode'] : $code;
 
-		if ($this->interpreter->isCgi() && count($tmp = explode("\r\n\r\n", $this->output, 2)) >= 2) {
-			list($headers, $this->output) = $tmp;
+		if ($this->interpreter->isCgi() && count($tmp = explode("\r\n\r\n", $this->test->stdout, 2)) >= 2) {
+			list($headers, $this->test->stdout) = $tmp;
 			foreach (explode("\r\n", $headers) as $header) {
-				$a = strpos($header, ':');
-				if ($a !== FALSE) {
-					$this->headers[trim(substr($header, 0, $a))] = (string) trim(substr($header, $a + 1));
+				$pos = strpos($header, ':');
+				if ($pos !== false) {
+					$this->headers[trim(substr($header, 0, $pos))] = (string) trim(substr($header, $pos + 1));
 				}
 			}
 		}
-		return FALSE;
+		return false;
 	}
 
 
 	/**
-	 * Returns test file path.
-	 * @return string
+	 * @return Test
 	 */
-	public function getFile()
+	public function getTest()
 	{
-		return $this->file;
-	}
-
-
-	/**
-	 * Returns script arguments.
-	 * @return string[]
-	 */
-	public function getArguments()
-	{
-		return $this->args;
+		return $this->test;
 	}
 
 
@@ -186,26 +208,6 @@ class Job
 
 
 	/**
-	 * Returns test output.
-	 * @return string
-	 */
-	public function getOutput()
-	{
-		return $this->output;
-	}
-
-
-	/**
-	 * Returns test error output.
-	 * @return string|NULL
-	 */
-	public function getErrorOutput()
-	{
-		return $this->errorOutput;
-	}
-
-
-	/**
 	 * Returns output headers.
 	 * @return string[]
 	 */
@@ -213,5 +215,4 @@ class Job
 	{
 		return $this->headers;
 	}
-
 }

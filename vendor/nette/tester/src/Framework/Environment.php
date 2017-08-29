@@ -16,17 +16,20 @@ class Environment
 	/** Should Tester use console colors? */
 	const COLORS = 'NETTE_TESTER_COLORS';
 
-	/** Test is runned by Runner */
+	/** Test is run by Runner */
 	const RUNNER = 'NETTE_TESTER_RUNNER';
 
 	/** Code coverage file */
 	const COVERAGE = 'NETTE_TESTER_COVERAGE';
 
+	/** Thread number when run tests in multi threads */
+	const THREAD = 'NETTE_TESTER_THREAD';
+
 	/** @var bool  used for debugging Tester itself */
-	public static $debugMode = TRUE;
+	public static $debugMode = true;
 
 	/** @var bool */
-	public static $checkAssertions = FALSE;
+	public static $checkAssertions = false;
 
 	/** @var bool */
 	public static $useColors;
@@ -64,16 +67,15 @@ class Environment
 	 */
 	public static function setupColors()
 	{
-		self::$useColors = getenv(self::COLORS) !== FALSE
+		self::$useColors = getenv(self::COLORS) !== false
 			? (bool) getenv(self::COLORS)
 			: ((PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg')
 				&& ((function_exists('posix_isatty') && posix_isatty(STDOUT))
-					|| getenv('ConEmuANSI') === 'ON' || getenv('ANSICON') !== FALSE) || getenv('term') === 'xterm-256color');
+					|| getenv('ConEmuANSI') === 'ON' || getenv('ANSICON') !== false) || getenv('TERM') === 'xterm-256color');
 
-		$colors = & self::$useColors;
-		ob_start(function ($s) use (& $colors) {
-			return $colors ? $s : Dumper::removeColors($s);
-		}, PHP_VERSION_ID < 50400 ? 2 : 1, FALSE);
+		ob_start(function ($s) {
+			return self::$useColors ? $s : Dumper::removeColors($s);
+		}, 1, PHP_OUTPUT_HANDLER_FLUSHABLE);
 	}
 
 
@@ -83,32 +85,32 @@ class Environment
 	 */
 	public static function setupErrors()
 	{
-		error_reporting(E_ALL | E_STRICT);
-		ini_set('display_errors', TRUE);
-		ini_set('html_errors', FALSE);
-		ini_set('log_errors', FALSE);
+		error_reporting(E_ALL);
+		ini_set('display_errors', '1');
+		ini_set('html_errors', '0');
+		ini_set('log_errors', '0');
 
-		set_exception_handler(array(__CLASS__, 'handleException'));
+		set_exception_handler([__CLASS__, 'handleException']);
 
 		set_error_handler(function ($severity, $message, $file, $line) {
-			if (in_array($severity, array(E_RECOVERABLE_ERROR, E_USER_ERROR), TRUE) || ($severity & error_reporting()) === $severity) {
-				Environment::handleException(new \ErrorException($message, 0, $severity, $file, $line));
+			if (in_array($severity, [E_RECOVERABLE_ERROR, E_USER_ERROR], true) || ($severity & error_reporting()) === $severity) {
+				self::handleException(new \ErrorException($message, 0, $severity, $file, $line));
 			}
-			return FALSE;
+			return false;
 		});
 
 		register_shutdown_function(function () {
-			Assert::$onFailure = array(__CLASS__, 'handleException'); // note that Runner is unable to catch this errors in CLI & PHP 5.4.0 - 5.4.6 due PHP bug #62725
+			Assert::$onFailure = [__CLASS__, 'handleException'];
 
 			$error = error_get_last();
 			register_shutdown_function(function () use ($error) {
-				if (in_array($error['type'], array(E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE), TRUE)) {
+				if (in_array($error['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE], true)) {
 					if (($error['type'] & error_reporting()) !== $error['type']) { // show fatal errors hidden by @shutup
-						Environment::removeOutputBuffers();
+						self::removeOutputBuffers();
 						echo "\nFatal error: $error[message] in $error[file] on line $error[line]\n";
 					}
-				} elseif (Environment::$checkAssertions && !Assert::$counter) {
-					Environment::removeOutputBuffers();
+				} elseif (self::$checkAssertions && !Assert::$counter) {
+					self::removeOutputBuffers();
 					echo "\nError: This test forgets to execute an assertion.\n";
 					exit(Runner\Job::CODE_FAIL);
 				}
@@ -124,7 +126,7 @@ class Environment
 	public static function handleException($e)
 	{
 		self::removeOutputBuffers();
-		self::$checkAssertions = FALSE;
+		self::$checkAssertions = false;
 		echo self::$debugMode ? Dumper::dumpException($e) : "\nError: {$e->getMessage()}\n";
 		exit($e instanceof AssertException ? Runner\Job::CODE_FAIL : Runner\Job::CODE_ERROR);
 	}
@@ -136,7 +138,7 @@ class Environment
 	 */
 	public static function skip($message = '')
 	{
-		self::$checkAssertions = FALSE;
+		self::$checkAssertions = false;
 		echo "\nSkipped:\n$message\n";
 		die(Runner\Job::CODE_SKIP);
 	}
@@ -166,7 +168,28 @@ class Environment
 	{
 		$trace = debug_backtrace();
 		$file = $trace[count($trace) - 1]['file'];
-		return Helpers::parseDocComment(file_get_contents($file)) + array('file' => $file);
+		return Helpers::parseDocComment(file_get_contents($file)) + ['file' => $file];
+	}
+
+
+	/**
+	 * Removes keyword final from source codes.
+	 * @return void
+	 */
+	public static function bypassFinals()
+	{
+		FileMutator::addMutator(function ($code) {
+			if (strpos($code, 'final') !== false) {
+				$tokens = token_get_all($code);
+				$code = '';
+				foreach ($tokens as $token) {
+					$code .= is_array($token)
+						? ($token[0] === T_FINAL ? '' : $token[1])
+						: $token;
+				}
+			}
+			return $code;
+		});
 	}
 
 
@@ -192,12 +215,8 @@ class Environment
 	}
 
 
-	/**
-	 * @internal
-	 */
-	public static function removeOutputBuffers()
+	private static function removeOutputBuffers()
 	{
 		while (ob_get_level() > self::$obLevel && @ob_end_flush()); // @ may be not removable
 	}
-
 }

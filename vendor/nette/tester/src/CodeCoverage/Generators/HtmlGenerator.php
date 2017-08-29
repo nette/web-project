@@ -13,24 +13,18 @@ namespace Tester\CodeCoverage\Generators;
  */
 class HtmlGenerator extends AbstractGenerator
 {
+	/** @var array */
+	public static $classes = [
+		self::CODE_TESTED => 't', // tested
+		self::CODE_UNTESTED => 'u', // untested
+		self::CODE_DEAD => 'dead', // dead code
+	];
+
 	/** @var string */
 	private $title;
 
 	/** @var array */
-	private $files = array();
-
-	/** @var int */
-	private $totalSum = 0;
-
-	/** @var int */
-	private $coveredSum = 0;
-
-	/** @var array */
-	public static $classes = array(
-		self::CODE_TESTED => 't', // tested
-		self::CODE_UNTESTED => 'u', // untested
-		self::CODE_DEAD => 'dead', // dead code
-	);
+	private $files = [];
 
 
 	/**
@@ -38,7 +32,7 @@ class HtmlGenerator extends AbstractGenerator
 	 * @param  string  path to source file/directory
 	 * @param  string
 	 */
-	public function __construct($file, $source = NULL, $title = NULL)
+	public function __construct($file, $source = null, $title = null)
 	{
 		parent::__construct($file, $source);
 		$this->title = $title;
@@ -53,8 +47,7 @@ class HtmlGenerator extends AbstractGenerator
 		$title = $this->title;
 		$classes = self::$classes;
 		$files = $this->files;
-		$totalSum = $this->totalSum;
-		$coveredSum = $this->coveredSum;
+		$coveredPercent = $this->getCoveredPercent();
 
 		include __DIR__ . '/template.phtml';
 	}
@@ -62,11 +55,11 @@ class HtmlGenerator extends AbstractGenerator
 
 	private function setupHighlight()
 	{
-		ini_set('highlight.comment', '#999; font-style: italic');
-		ini_set('highlight.default', '#000');
-		ini_set('highlight.html', '#06B');
-		ini_set('highlight.keyword', '#D24; font-weight: bold');
-		ini_set('highlight.string', '#080');
+		ini_set('highlight.comment', 'hc');
+		ini_set('highlight.default', 'hd');
+		ini_set('highlight.html', 'hh');
+		ini_set('highlight.keyword', 'hk');
+		ini_set('highlight.string', 'hs');
 	}
 
 
@@ -76,13 +69,13 @@ class HtmlGenerator extends AbstractGenerator
 			return;
 		}
 
-		$this->files = array();
+		$this->files = [];
 		foreach ($this->getSourceIterator() as $entry) {
 			$entry = (string) $entry;
 
 			$coverage = $covered = $total = 0;
-			$loaded = isset($this->data[$entry]);
-			$lines = array();
+			$loaded = !empty($this->data[$entry]);
+			$lines = [];
 			if ($loaded) {
 				$lines = $this->data[$entry];
 				foreach ($lines as $flag) {
@@ -101,15 +94,14 @@ class HtmlGenerator extends AbstractGenerator
 			}
 
 			$light = $total ? $total < 5 : count(file($entry)) < 50;
-			$this->files[] = (object) array(
+			$this->files[] = (object) [
 				'name' => str_replace((is_dir($this->source) ? $this->source : dirname($this->source)) . DIRECTORY_SEPARATOR, '', $entry),
 				'file' => $entry,
 				'lines' => $lines,
 				'coverage' => $coverage,
 				'total' => $total,
-				'class' => $light ? 'light' : ($loaded ? NULL : 'not-loaded'),
-			);
+				'class' => $light ? 'light' : ($loaded ? null : 'not-loaded'),
+			];
 		}
 	}
-
 }

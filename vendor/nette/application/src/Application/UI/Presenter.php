@@ -634,7 +634,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	 */
 	public function terminate()
 	{
-		throw new Application\AbortException();
+		throw new Application\AbortException;
 	}
 
 
@@ -1207,6 +1207,16 @@ abstract class Presenter extends Control implements Application\IPresenter
 		}
 
 		return $state;
+	}
+
+
+	/**
+	 * Saves state informations for next request.
+	 */
+	public function saveState(array &$params, ComponentReflection $reflection = null)
+	{
+		$reflection = $reflection ?: $this->getReflection();
+		$reflection->saveState($this, $params);
 	}
 
 

@@ -326,9 +326,7 @@ class Configurator
 			throw new Nette\InvalidStateException('Set path to temporary directory using setTempDirectory().');
 		}
 		$dir = $this->parameters['tempDir'] . '/cache';
-		if (!is_dir($dir)) {
-			@mkdir($dir); // @ - directory may already exist
-		}
+		Nette\Utils\FileSystem::createDir($dir);
 		return $dir;
 	}
 
@@ -388,7 +386,7 @@ class Configurator
 		$list = is_string($list)
 			? preg_split('#[,\s]+#', $list)
 			: (array) $list;
-		if (!isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+		if (!isset($_SERVER['HTTP_X_FORWARDED_FOR']) && !isset($_SERVER['HTTP_FORWARDED'])) {
 			$list[] = '127.0.0.1';
 			$list[] = '::1';
 		}

@@ -22,19 +22,19 @@ class CommandLine
 		VALUE = 'default';
 
 	/** @var array[] */
-	private $options = array();
+	private $options = [];
 
 	/** @var string[] */
-	private $aliases = array();
+	private $aliases = [];
 
 	/** @var bool[] */
-	private $positional = array();
+	private $positional = [];
 
 	/** @var string */
 	private $help;
 
 
-	public function __construct($help, array $defaults = array())
+	public function __construct($help, array $defaults = [])
 	{
 		$this->help = $help;
 		$this->options = $defaults;
@@ -47,14 +47,14 @@ class CommandLine
 			}
 
 			$name = end($m[1]);
-			$opts = isset($this->options[$name]) ? $this->options[$name] : array();
-			$this->options[$name] = $opts + array(
+			$opts = isset($this->options[$name]) ? $this->options[$name] : [];
+			$this->options[$name] = $opts + [
 				self::ARGUMENT => (bool) end($m[2]),
 				self::OPTIONAL => isset($line[2]) || (substr(end($m[2]), 0, 1) === '[') || isset($opts[self::VALUE]),
 				self::REPEATABLE => (bool) end($m[3]),
-				self::ENUM => count($enums = explode('|', trim(end($m[2]), '<[]>'))) > 1 ? $enums : NULL,
-				self::VALUE => isset($line[2]) ? $line[2] : NULL,
-			);
+				self::ENUM => count($enums = explode('|', trim(end($m[2]), '<[]>'))) > 1 ? $enums : null,
+				self::VALUE => isset($line[2]) ? $line[2] : null,
+			];
 			if ($name !== $m[1][0]) {
 				$this->aliases[$m[1][0]] = $name;
 			}
@@ -68,12 +68,12 @@ class CommandLine
 	}
 
 
-	public function parse(array $args = NULL)
+	public function parse(array $args = null)
 	{
-		if ($args === NULL) {
-			$args = isset($_SERVER['argv']) ? array_slice($_SERVER['argv'], 1) : array();
+		if ($args === null) {
+			$args = isset($_SERVER['argv']) ? array_slice($_SERVER['argv'], 1) : [];
 		}
-		$params = array();
+		$params = [];
 		reset($this->positional);
 		$i = 0;
 		while ($i < count($args)) {
@@ -93,7 +93,7 @@ class CommandLine
 				continue;
 			}
 
-			list($name, $arg) = strpos($arg, '=') ? explode('=', $arg, 2) : array($arg, TRUE);
+			list($name, $arg) = strpos($arg, '=') ? explode('=', $arg, 2) : [$arg, true];
 
 			if (isset($this->aliases[$name])) {
 				$name = $this->aliases[$name];
@@ -104,10 +104,10 @@ class CommandLine
 
 			$opt = $this->options[$name];
 
-			if ($arg !== TRUE && empty($opt[self::ARGUMENT])) {
+			if ($arg !== true && empty($opt[self::ARGUMENT])) {
 				throw new \Exception("Option $name has not argument.");
 
-			} elseif ($arg === TRUE && !empty($opt[self::ARGUMENT])) {
+			} elseif ($arg === true && !empty($opt[self::ARGUMENT])) {
 				if (isset($args[$i]) && $args[$i][0] !== '-') {
 					$arg = $args[$i++];
 				} elseif (empty($opt[self::OPTIONAL])) {
@@ -115,8 +115,8 @@ class CommandLine
 				}
 			}
 
-			if (!empty($opt[self::ENUM]) && !in_array($arg, $opt[self::ENUM], TRUE) && !($opt[self::OPTIONAL] && $arg === TRUE)) {
-				throw new \Exception("Value of option $name must be " . implode(', or ', $opt[self::ENUM]) . ".");
+			if (!empty($opt[self::ENUM]) && !in_array($arg, $opt[self::ENUM], true) && !($opt[self::OPTIONAL] && $arg === true)) {
+				throw new \Exception("Value of option $name must be " . implode(', or ', $opt[self::ENUM]) . '.');
 			}
 			$this->checkArg($opt, $arg);
 
@@ -135,7 +135,7 @@ class CommandLine
 			} elseif ($name[0] !== '-' && empty($opt[self::OPTIONAL])) {
 				throw new \Exception("Missing required argument <$name>.");
 			} else {
-				$params[$name] = NULL;
+				$params[$name] = null;
 			}
 			if (!empty($opt[self::REPEATABLE])) {
 				$params[$name] = (array) $params[$name];
@@ -151,11 +151,11 @@ class CommandLine
 	}
 
 
-	public function checkArg(array $opt, & $arg)
+	public function checkArg(array $opt, &$arg)
 	{
 		if (!empty($opt[self::REALPATH])) {
 			$path = realpath($arg);
-			if ($path === FALSE) {
+			if ($path === false) {
 				throw new \Exception("File path '$arg' not found.");
 			}
 			$arg = $path;
@@ -167,5 +167,4 @@ class CommandLine
 	{
 		return !isset($_SERVER['argv']) || count($_SERVER['argv']) < 2;
 	}
-
 }

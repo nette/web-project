@@ -28,6 +28,16 @@ class Parser
 		CONTENT_XML = Engine::CONTENT_XML,
 		CONTENT_TEXT = Engine::CONTENT_TEXT;
 
+	/** @internal states */
+	const
+		CONTEXT_NONE = 'none',
+		CONTEXT_MACRO = 'macro',
+		CONTEXT_HTML_TEXT = 'htmlText',
+		CONTEXT_HTML_TAG = 'htmlTag',
+		CONTEXT_HTML_ATTRIBUTE = 'htmlAttribute',
+		CONTEXT_HTML_COMMENT = 'htmlComment',
+		CONTEXT_HTML_CDATA = 'htmlCData';
+
 	/** @var string default macro tag syntax */
 	public $defaultSyntax = 'latte';
 
@@ -67,16 +77,6 @@ class Parser
 
 	/** @var bool */
 	private $xmlMode;
-
-	/** @internal states */
-	const
-		CONTEXT_NONE = 'none',
-		CONTEXT_MACRO = 'macro',
-		CONTEXT_HTML_TEXT = 'htmlText',
-		CONTEXT_HTML_TAG = 'htmlTag',
-		CONTEXT_HTML_ATTRIBUTE = 'htmlAttribute',
-		CONTEXT_HTML_COMMENT = 'htmlComment',
-		CONTEXT_HTML_CDATA = 'htmlCData';
 
 
 	/**
@@ -187,7 +187,8 @@ class Parser
 
 		if (!empty($matches['end'])) { // end of HTML tag />
 			$this->addToken(Token::HTML_TAG_END, $matches[0]);
-			$this->setContext(!$this->xmlMode && in_array($this->lastHtmlTag, ['script', 'style'], true) ? self::CONTEXT_HTML_CDATA : self::CONTEXT_HTML_TEXT);
+			$empty = strpos($matches[0], '/') !== false;
+			$this->setContext(!$this->xmlMode && !$empty && in_array($this->lastHtmlTag, ['script', 'style'], true) ? self::CONTEXT_HTML_CDATA : self::CONTEXT_HTML_TEXT);
 
 		} elseif (isset($matches['attr']) && $matches['attr'] !== '') { // HTML attribute
 			$token = $this->addToken(Token::HTML_ATTRIBUTE_BEGIN, $matches[0]);

@@ -466,6 +466,18 @@ class Form extends Container implements Nette\Utils\IHtmlString
 
 
 	/**
+	 * Resets form.
+	 * @return static
+	 */
+	public function reset()
+	{
+		$this->setSubmittedBy(null);
+		$this->setValues([], true);
+		return $this;
+	}
+
+
+	/**
 	 * Internal: returns submitted HTTP data or null when form was not submitted.
 	 * @return array|null
 	 */
@@ -534,8 +546,11 @@ class Form extends Container implements Nette\Utils\IHtmlString
 	 * @param  string|object
 	 * @return void
 	 */
-	public function addError($message)
+	public function addError($message, $translate = true)
 	{
+		if ($translate && $this->translator) {
+			$message = $this->translator->translate($message);
+		}
 		$this->errors[] = $message;
 	}
 

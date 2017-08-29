@@ -45,6 +45,7 @@ class ComponentReflection extends \ReflectionClass
 		}
 		$params = [];
 		if (is_subclass_of($class, Component::class)) {
+			$isPresenter = is_subclass_of($class, Presenter::class);
 			$defaults = get_class_vars($class);
 			foreach ($class::getPersistentParams() as $name => $default) {
 				if (is_int($name)) {
@@ -53,7 +54,7 @@ class ComponentReflection extends \ReflectionClass
 				}
 				$params[$name] = [
 					'def' => $default,
-					'since' => $class,
+					'since' => $isPresenter ? $class : null,
 				];
 			}
 			foreach ($this->getPersistentParams(get_parent_class($class)) as $name => $param) {
@@ -91,6 +92,43 @@ class ComponentReflection extends \ReflectionClass
 			$components = $this->getPersistentComponents(get_parent_class($class)) + $components;
 		}
 		return $components;
+	}
+
+
+	/**
+	 * Saves state informations for next request.
+	 */
+	public function saveState(Component $component, array &$params)
+	{
+		foreach ($this->getPersistentParams() as $name => $meta) {
+			if (isset($params[$name])) {
+				// injected value
+
+			} elseif (array_key_exists($name, $params) // nulls are skipped
+				|| (isset($meta['since']) && !$component instanceof $meta['since']) // not related
+				|| !isset($component->$name)
+			) {
+				continue;
+
+			} else {
+				$params[$name] = $component->$name; // object property value
+			}
+
+			$type = gettype($meta['def']);
+			if (!self::convertType($params[$name], $type)) {
+				throw new InvalidLinkException(sprintf(
+					"Value passed to persistent parameter '%s' in %s must be %s, %s given.",
+					$name,
+					$component instanceof Presenter ? 'presenter ' . $component->getName() : "component '{$component->getUniqueId()}'",
+					$type === 'NULL' ? 'scalar' : $type,
+					is_object($params[$name]) ? get_class($params[$name]) : gettype($params[$name])
+				));
+			}
+
+			if ($params[$name] === $meta['def'] || ($meta['def'] === null && $params[$name] === '')) {
+				$params[$name] = null; // value transmit is unnecessary
+			}
+		}
 	}
 
 
