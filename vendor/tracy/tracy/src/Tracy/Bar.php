@@ -86,25 +86,25 @@ class Bar
 			});
 		}
 
-		if (!Helpers::isHtmlMode() && !Helpers::isAjax()) {
-			return;
-
-		} elseif (Helpers::isAjax()) {
-			$rows[] = (object) ['type' => 'ajax', 'panels' => $this->renderPanels('-ajax')];
-			$dumps = Dumper::fetchLiveData();
-			$contentId = $useSession ? $_SERVER['HTTP_X_TRACY_AJAX'] . '-ajax' : null;
+		if (Helpers::isAjax()) {
+			if ($useSession) {
+				$rows[] = (object) ['type' => 'ajax', 'panels' => $this->renderPanels('-ajax')];
+				$contentId = $_SERVER['HTTP_X_TRACY_AJAX'] . '-ajax';
+				$_SESSION['_tracy']['bar'][$contentId] = ['content' => self::renderHtmlRows($rows), 'dumps' => Dumper::fetchLiveData(), 'time' => time()];
+			}
 
 		} elseif (preg_match('#^Location:#im', implode("\n", headers_list()))) { // redirect
-			Dumper::fetchLiveData();
-			Dumper::$livePrefix = count($redirectQueue) . 'p';
-			$redirectQueue[] = [
-				'panels' => $this->renderPanels('-r' . count($redirectQueue)),
-				'dumps' => Dumper::fetchLiveData(),
-				'time' => time(),
-			];
-			return;
+			if ($useSession) {
+				Dumper::fetchLiveData();
+				Dumper::$livePrefix = count($redirectQueue) . 'p';
+				$redirectQueue[] = [
+					'panels' => $this->renderPanels('-r' . count($redirectQueue)),
+					'dumps' => Dumper::fetchLiveData(),
+					'time' => time(),
+				];
+			}
 
-		} else {
+		} elseif (Helpers::isHtmlMode()) {
 			$rows[] = (object) ['type' => 'main', 'panels' => $this->renderPanels()];
 			$dumps = Dumper::fetchLiveData();
 			foreach (array_reverse((array) $redirectQueue) as $info) {
@@ -112,23 +112,29 @@ class Bar
 				$dumps += $info['dumps'];
 			}
 			$redirectQueue = null;
-			$contentId = $this->contentId ?: ($useSession ? substr(md5(uniqid('', true)), 0, 10) : null);
-		}
+			$content = self::renderHtmlRows($rows);
 
+			if ($this->contentId) {
+				$_SESSION['_tracy']['bar'][$this->contentId] = ['content' => $content, 'dumps' => $dumps, 'time' => time()];
+			} else {
+				$contentId = substr(md5(uniqid('', true)), 0, 10);
+				$nonce = Helpers::getNonce();
+				$async = false;
+				require __DIR__ . '/assets/Bar/loader.phtml';
+			}
+		}
+	}
+
+
+	/**
+	 * @return string
+	 */
+	private function renderHtmlRows(array $rows)
+	{
 		ob_start(function () {});
 		require __DIR__ . '/assets/Bar/panels.phtml';
 		require __DIR__ . '/assets/Bar/bar.phtml';
-		$content = Helpers::fixEncoding(ob_get_clean());
-
-		if ($contentId) {
-			$_SESSION['_tracy']['bar'][$contentId] = ['content' => $content, 'dumps' => $dumps, 'time' => time()];
-		}
-
-		if (Helpers::isHtmlMode() && !$this->contentId) {
-			$nonce = Helpers::getNonce();
-			$async = false;
-			require __DIR__ . '/assets/Bar/loader.phtml';
-		}
+		return Helpers::fixEncoding(ob_get_clean());
 	}
 
 
@@ -197,7 +203,7 @@ class Bar
 			header('X-Tracy-Ajax: 1'); // session must be already locked
 		}
 
-		if ($this->useSession && $asset && preg_match('#^content(-ajax)?.(\w+)$#', $asset, $m)) {
+		if ($this->useSession && $asset && preg_match('#^content(-ajax)?\.(\w+)$#', $asset, $m)) {
 			$session = &$_SESSION['_tracy']['bar'][$m[2] . $m[1]];
 			header('Content-Type: text/javascript');
 			header('Cache-Control: max-age=60');
@@ -222,20 +228,20 @@ class Bar
 
 	private function renderAssets()
 	{
-		$css = array_map('file_get_contents', [
+		$css = array_map('file_get_contents', array_merge([
 			__DIR__ . '/assets/Bar/bar.css',
 			__DIR__ . '/assets/Toggle/toggle.css',
 			__DIR__ . '/assets/Dumper/dumper.css',
 			__DIR__ . '/assets/BlueScreen/bluescreen.css',
-		]);
+		], Debugger::$customCssFiles));
 		$css = json_encode(preg_replace('#\s+#u', ' ', implode($css)));
 		echo "(function(){var el = document.createElement('style'); el.className='tracy-debug'; el.textContent=$css; document.head.appendChild(el);})();\n";
 
-		array_map('readfile', [
+		array_map('readfile', array_merge([
 			__DIR__ . '/assets/Bar/bar.js',
 			__DIR__ . '/assets/Toggle/toggle.js',
 			__DIR__ . '/assets/Dumper/dumper.js',
 			__DIR__ . '/assets/BlueScreen/bluescreen.js',
-		]);
+		], Debugger::$customJsFiles));
 	}
 }

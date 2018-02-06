@@ -127,6 +127,11 @@ class SqlBuilder
 	public function buildUpdateQuery()
 	{
 		$query = "UPDATE {$this->delimitedTable} SET ?set" . $this->tryDelimite($this->buildConditions());
+
+		if ($this->order !== []) {
+			$query .= ' ORDER BY ' . implode(', ', $this->order);
+		}
+
 		if ($this->limit !== null || $this->offset) {
 			$this->driver->applyLimit($query, $this->limit, $this->offset);
 		}
@@ -254,7 +259,7 @@ class SqlBuilder
 	}
 
 
-	public function importConditions(SqlBuilder $builder)
+	public function importConditions(self $builder)
 	{
 		$this->where = $builder->where;
 		$this->joinCondition = $builder->joinCondition;

@@ -296,7 +296,7 @@ class Image
 		list($newWidth, $newHeight) = static::calculateSize($this->getWidth(), $this->getHeight(), $width, $height, $flags);
 
 		if ($newWidth !== $this->getWidth() || $newHeight !== $this->getHeight()) { // resize
-			$newImage = static::fromBlank($newWidth, $newHeight, self::RGB(0, 0, 0, 127))->getImageResource();
+			$newImage = static::fromBlank($newWidth, $newHeight, self::rgb(0, 0, 0, 127))->getImageResource();
 			imagecopyresampled(
 				$newImage, $this->image,
 				0, 0, 0, 0,
@@ -462,7 +462,7 @@ class Image
 	 * @param  int  opacity 0..100
 	 * @return static
 	 */
-	public function place(Image $image, $left = 0, $top = 0, $opacity = 100)
+	public function place(self $image, $left = 0, $top = 0, $opacity = 100)
 	{
 		$opacity = max(0, min(100, (int) $opacity));
 		if ($opacity === 0) {
@@ -482,6 +482,7 @@ class Image
 
 		$output = $input = $image->image;
 		if ($opacity < 100) {
+			$tbl = [];
 			for ($i = 0; $i < 128; $i++) {
 				$tbl[$i] = round(127 - (127 - $i) * $opacity / 100);
 			}

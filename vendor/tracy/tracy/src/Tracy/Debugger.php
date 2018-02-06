@@ -16,7 +16,7 @@ use Tracy;
  */
 class Debugger
 {
-	const VERSION = '2.4.9';
+	const VERSION = '2.4.11';
 
 	/** server modes for Debugger::enable() */
 	const
@@ -103,6 +103,12 @@ class Debugger
 	/** @var string custom static error template */
 	public static $errorTemplate;
 
+	/** @var string[] */
+	public static $customCssFiles = [];
+
+	/** @var string[] */
+	public static $customJsFiles = [];
+
 	/** @var array */
 	private static $cpuUsage;
 
@@ -157,9 +163,12 @@ class Debugger
 			self::$logDirectory = $logDirectory;
 		}
 		if (self::$logDirectory) {
-			if (!is_dir(self::$logDirectory) || !preg_match('#([a-z]+:)?[/\\\\]#Ai', self::$logDirectory)) {
+			if (!preg_match('#([a-z]+:)?[/\\\\]#Ai', self::$logDirectory)) {
+				self::exceptionHandler(new \RuntimeException('Logging directory must be absolute path.'));
 				self::$logDirectory = null;
-				self::exceptionHandler(new \RuntimeException('Logging directory not found or is not absolute path.'));
+			} elseif (!is_dir(self::$logDirectory)) {
+				self::exceptionHandler(new \RuntimeException("Logging directory '" . self::$logDirectory . "' is not found."));
+				self::$logDirectory = null;
 			}
 		}
 
@@ -197,7 +206,7 @@ class Debugger
 	 */
 	public static function dispatch()
 	{
-		if (self::$productionMode) {
+		if (self::$productionMode || PHP_SAPI === 'cli') {
 			return;
 
 		} elseif (headers_sent($file, $line) || ob_get_length()) {
@@ -361,7 +370,7 @@ class Debugger
 	 * @throws ErrorException
 	 * @internal
 	 */
-	public static function errorHandler($severity, $message, $file, $line, $context)
+	public static function errorHandler($severity, $message, $file, $line, $context = [])
 	{
 		if (self::$scream) {
 			error_reporting(E_ALL);
@@ -620,7 +629,7 @@ class Debugger
 		$list = is_string($list)
 			? preg_split('#[,\s]+#', $list)
 			: (array) $list;
-		if (!isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+		if (!isset($_SERVER['HTTP_X_FORWARDED_FOR']) && !isset($_SERVER['HTTP_FORWARDED'])) {
 			$list[] = '127.0.0.1';
 			$list[] = '::1';
 		}
