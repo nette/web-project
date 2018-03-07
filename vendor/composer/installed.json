@@ -75,17 +75,17 @@
     },
     {
         "name": "nette/application",
-        "version": "v2.4.10",
-        "version_normalized": "2.4.10.0",
+        "version": "v2.4.11",
+        "version_normalized": "2.4.11.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/application.git",
-            "reference": "c7fea54e04011fa3f9b808cd5513e53b76d621db"
+            "reference": "2379b1ddeb1f2aebf21b73db67659575442c588a"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/application/zipball/c7fea54e04011fa3f9b808cd5513e53b76d621db",
-            "reference": "c7fea54e04011fa3f9b808cd5513e53b76d621db",
+            "url": "https://api.github.com/repos/nette/application/zipball/2379b1ddeb1f2aebf21b73db67659575442c588a",
+            "reference": "2379b1ddeb1f2aebf21b73db67659575442c588a",
             "shasum": ""
         },
         "require": {
@@ -115,7 +115,7 @@
             "latte/latte": "Allows using Latte in templates",
             "nette/forms": "Allows to use Nette\\Application\\UI\\Form"
         },
-        "time": "2018-02-05T18:42:29+00:00",
+        "time": "2018-03-07T16:04:13+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -575,17 +575,17 @@
     },
     {
         "name": "nette/forms",
-        "version": "v2.4.6",
-        "version_normalized": "2.4.6.0",
+        "version": "v2.4.7",
+        "version_normalized": "2.4.7.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/forms.git",
-            "reference": "70224011c6ca3941f5aeeb4efbe31d2cb3b13652"
+            "reference": "a5e96ad1fb0647f7a68d0e3049b539bfb5dd568a"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/forms/zipball/70224011c6ca3941f5aeeb4efbe31d2cb3b13652",
-            "reference": "70224011c6ca3941f5aeeb4efbe31d2cb3b13652",
+            "url": "https://api.github.com/repos/nette/forms/zipball/a5e96ad1fb0647f7a68d0e3049b539bfb5dd568a",
+            "reference": "a5e96ad1fb0647f7a68d0e3049b539bfb5dd568a",
             "shasum": ""
         },
         "require": {
@@ -603,7 +603,7 @@
             "nette/tester": "~2.0",
             "tracy/tracy": "^2.4"
         },
-        "time": "2017-08-25T12:45:48+00:00",
+        "time": "2018-03-07T16:29:18+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -1096,23 +1096,23 @@
     },
     {
         "name": "nette/tester",
-        "version": "v2.0.0",
-        "version_normalized": "2.0.0.0",
+        "version": "v2.0.1",
+        "version_normalized": "2.0.1.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/tester.git",
-            "reference": "ee0ad514d66409037a0e72fe798112fd8cdae92e"
+            "reference": "93f70b53f7b87b44334d98219302939eda2a423b"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/tester/zipball/ee0ad514d66409037a0e72fe798112fd8cdae92e",
-            "reference": "ee0ad514d66409037a0e72fe798112fd8cdae92e",
+            "url": "https://api.github.com/repos/nette/tester/zipball/93f70b53f7b87b44334d98219302939eda2a423b",
+            "reference": "93f70b53f7b87b44334d98219302939eda2a423b",
             "shasum": ""
         },
         "require": {
             "php": ">=5.6.0"
         },
-        "time": "2017-08-22T06:46:57+00:00",
+        "time": "2018-02-07T12:55:20+00:00",
         "bin": [
             "src/tester"
         ],
@@ -1160,17 +1160,17 @@
     },
     {
         "name": "nette/utils",
-        "version": "v2.4.9",
-        "version_normalized": "2.4.9.0",
+        "version": "v2.5.1",
+        "version_normalized": "2.5.1.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/utils.git",
-            "reference": "1e08eb4c9d26ae5aedced8260e8b4ed951ee4aa6"
+            "reference": "8a85ce76298c8a8941f912b8fa3ee93ca17d2ebc"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/utils/zipball/1e08eb4c9d26ae5aedced8260e8b4ed951ee4aa6",
-            "reference": "1e08eb4c9d26ae5aedced8260e8b4ed951ee4aa6",
+            "url": "https://api.github.com/repos/nette/utils/zipball/8a85ce76298c8a8941f912b8fa3ee93ca17d2ebc",
+            "reference": "8a85ce76298c8a8941f912b8fa3ee93ca17d2ebc",
             "shasum": ""
         },
         "require": {
@@ -1191,17 +1191,20 @@
             "ext-mbstring": "to use Strings::lower() etc...",
             "ext-xml": "to use Strings::length() etc. when mbstring is not available"
         },
-        "time": "2018-02-06T15:40:36+00:00",
+        "time": "2018-02-19T14:42:42+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
-                "dev-master": "2.4-dev"
+                "dev-master": "2.5-dev"
             }
         },
         "installation-source": "dist",
         "autoload": {
             "classmap": [
                 "src/"
+            ],
+            "files": [
+                "src/loader.php"
             ]
         },
         "notification-url": "https://packagist.org/downloads/",
@@ -1241,17 +1244,17 @@
     },
     {
         "name": "tracy/tracy",
-        "version": "v2.4.11",
-        "version_normalized": "2.4.11.0",
+        "version": "v2.4.12",
+        "version_normalized": "2.4.12.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/tracy.git",
-            "reference": "bcb93a9d4347be8779c83b200b64ea6f52d6f9ed"
+            "reference": "4182ce7b92f67002509b7fa2fc34bd84deea0b24"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/tracy/zipball/bcb93a9d4347be8779c83b200b64ea6f52d6f9ed",
-            "reference": "bcb93a9d4347be8779c83b200b64ea6f52d6f9ed",
+            "url": "https://api.github.com/repos/nette/tracy/zipball/4182ce7b92f67002509b7fa2fc34bd84deea0b24",
+            "reference": "4182ce7b92f67002509b7fa2fc34bd84deea0b24",
             "shasum": ""
         },
         "require": {
@@ -1266,7 +1269,7 @@
         "suggest": {
             "https://nette.org/donate": "Please support Tracy via a donation"
         },
-        "time": "2018-02-01T18:11:38+00:00",
+        "time": "2018-02-28T00:49:47+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {

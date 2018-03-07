@@ -14,6 +14,8 @@
 		return contentId;
 	};
 
+	Tracy.panelZIndex = Tracy.panelZIndex || 20000;
+
 	var Panel = Tracy.DebugPanel = function(id) {
 		this.id = id;
 		this.elem = document.getElementById(this.id);
@@ -24,7 +26,7 @@
 	Panel.FLOAT = 'tracy-mode-float';
 	Panel.WINDOW = 'tracy-mode-window';
 	Panel.FOCUSED = 'tracy-focused';
-	Panel.zIndex = 20000;
+	Panel.zIndexCounter = 1;
 
 	Panel.prototype.init = function() {
 		var _this = this, elem = this.elem;
@@ -39,12 +41,19 @@
 			handles: elem.querySelectorAll('h1'),
 			start: function() {
 				_this.toFloat();
+				_this.focus();
+			}
+		});
+
+		elem.addEventListener('mousedown', function(e) {
+			if (isTargetChanged(e.relatedTarget, this)) {
+				_this.focus();
 			}
 		});
 
 		elem.addEventListener('mouseover', function(e) {
 			if (isTargetChanged(e.relatedTarget, this)) {
-				_this.focus();
+				clearTimeout(elem.Tracy.displayTimeout);
 			}
 		});
 
@@ -98,7 +107,7 @@
 			clearTimeout(elem.Tracy.displayTimeout);
 			elem.Tracy.displayTimeout = setTimeout(function() {
 				elem.classList.add(Panel.FOCUSED);
-				elem.style.zIndex = Panel.zIndex++;
+				elem.style.zIndex = Tracy.panelZIndex + Panel.zIndexCounter++;
 				if (callback) {
 					callback();
 				}
@@ -184,7 +193,7 @@
 		if (this.is(Panel.WINDOW)) {
 			localStorage.setItem(this.id, JSON.stringify({window: true}));
 		} else if (pos.width) {
-			localStorage.setItem(this.id, JSON.stringify({right: pos.right, bottom: pos.bottom}));
+			localStorage.setItem(this.id, JSON.stringify({right: pos.right, bottom: pos.bottom, zIndex: this.elem.style.zIndex - Tracy.panelZIndex}));
 		} else {
 			localStorage.removeItem(this.id);
 		}
@@ -201,6 +210,8 @@
 			this.init();
 			this.toFloat();
 			setPosition(this.elem, pos);
+			this.elem.style.zIndex = Tracy.panelZIndex + (pos.zIndex || 1);
+			Panel.zIndexCounter = Math.max(Panel.zIndexCounter, (pos.zIndex || 1)) + 1;
 		}
 	};
 

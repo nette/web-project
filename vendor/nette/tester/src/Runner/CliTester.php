@@ -91,7 +91,7 @@ class CliTester
 		echo <<<'XX'
  _____ ___  ___ _____ ___  ___
 |_   _/ __)( __/_   _/ __)| _ )
-  |_| \___ /___) |_| \___ |_|_\  v2.0.0
+  |_| \___ /___) |_| \___ |_|_\  v2.0.1
 
 
 XX;
@@ -105,7 +105,7 @@ Options:
     -c <path>                    Look for php.ini file (or look in directory) <path>.
     -C                           Use system-wide php.ini.
     -l | --log <path>            Write log to file <path>.
-    -d <key=value>...            Define INI entry 'key' with value 'val'.
+    -d <key=value>...            Define INI entry 'key' with value 'value'.
     -s                           Show information about skipped tests.
     --stop-on-fail               Stop execution upon the first failure.
     -j <num>                     Run <num> jobs in parallel (default: 8).

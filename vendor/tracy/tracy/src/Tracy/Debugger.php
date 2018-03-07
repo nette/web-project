@@ -8,7 +8,6 @@
 namespace Tracy;
 
 use ErrorException;
-use Tracy;
 
 
 /**
@@ -16,7 +15,7 @@ use Tracy;
  */
 class Debugger
 {
-	const VERSION = '2.4.11';
+	const VERSION = '2.4.12';
 
 	/** server modes for Debugger::enable() */
 	const

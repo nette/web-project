@@ -49,7 +49,7 @@ use Nette;
  * @property-read Nette\Reflection\ClassType|\ReflectionClass $reflection
  * @deprecated use trait Nette\SmartObject
  */
-abstract class Object
+abstract class LegacyObject
 {
 
 	/**
@@ -72,7 +72,7 @@ abstract class Object
 	 */
 	public function __call($name, $args)
 	{
-		return Nette\Utils\ObjectMixin::call($this, $name, $args);
+		return @Nette\Utils\ObjectMixin::call($this, $name, $args); // is deprecated
 	}
 
 
@@ -85,7 +85,7 @@ abstract class Object
 	 */
 	public static function __callStatic($name, $args)
 	{
-		return Nette\Utils\ObjectMixin::callStatic(get_called_class(), $name, $args);
+		return @Nette\Utils\ObjectMixin::callStatic(get_called_class(), $name, $args); // is deprecated
 	}
 
 
@@ -97,6 +97,7 @@ abstract class Object
 	 */
 	public static function extensionMethod($name, $callback = null)
 	{
+		trigger_error('Class Nette\Object and extension methods are deprecated', E_USER_DEPRECATED);
 		if (strpos($name, '::') === false) {
 			$class = get_called_class();
 		} else {
@@ -132,7 +133,7 @@ abstract class Object
 	 */
 	public function __set($name, $value)
 	{
-		Nette\Utils\ObjectMixin::set($this, $name, $value);
+		@Nette\Utils\ObjectMixin::set($this, $name, $value); // is deprecated
 	}
 
 
@@ -143,7 +144,7 @@ abstract class Object
 	 */
 	public function __isset($name)
 	{
-		return Nette\Utils\ObjectMixin::has($this, $name);
+		return @Nette\Utils\ObjectMixin::has($this, $name); // is deprecated
 	}
 
 
@@ -155,6 +156,6 @@ abstract class Object
 	 */
 	public function __unset($name)
 	{
-		Nette\Utils\ObjectMixin::remove($this, $name);
+		@Nette\Utils\ObjectMixin::remove($this, $name); // is deprecated
 	}
 }
