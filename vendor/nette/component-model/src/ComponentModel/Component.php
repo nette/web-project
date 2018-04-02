@@ -22,13 +22,13 @@ abstract class Component implements IComponent
 {
 	use Nette\SmartObject;
 
-	/** @var IContainer */
+	/** @var IContainer|null */
 	private $parent;
 
-	/** @var string */
+	/** @var string|null */
 	private $name;
 
-	/** @var array of [type => [obj, depth, path, is_monitored?]] */
+	/** @var array of [type => [obj, depth, path, array of [attached, detached]]] */
 	private $monitors = [];
 
 
@@ -36,18 +36,20 @@ abstract class Component implements IComponent
 	{
 		list($parent, $name) = func_get_args() + [null, null];
 		if ($parent !== null) {
+			trigger_error(__METHOD__ . '() argument $parent is deprecated, use $parent->addComponent() instead.', E_USER_DEPRECATED);
 			$parent->addComponent($this, $name);
 
-		} elseif (is_string($name)) {
+		} elseif ($name !== null) {
+			trigger_error(__METHOD__ . '() argument $name is deprecated, use $parent->setParent(null, $name) instead.', E_USER_DEPRECATED);
 			$this->name = $name;
 		}
 	}
 
 
 	/**
-	 * Lookup hierarchy for component specified by class or interface name.
-	 * @param  string|null
-	 * @param  bool
+	 * Finds the closest ancestor specified by class or interface name.
+	 * @param  string|null  $type
+	 * @param  bool  $throw
 	 * @return IComponent|null
 	 */
 	public function lookup($type, $throw = true)
@@ -70,10 +72,10 @@ abstract class Component implements IComponent
 			}
 
 			if ($obj) {
-				$this->monitors[$type] = [$obj, $depth, substr($path, 1), false];
+				$this->monitors[$type] = [$obj, $depth, substr($path, 1), []];
 
 			} else {
-				$this->monitors[$type] = [null, null, null, false]; // not found
+				$this->monitors[$type] = [null, null, null, []]; // not found
 			}
 		}
 
@@ -86,10 +88,10 @@ abstract class Component implements IComponent
 
 
 	/**
-	 * Lookup for component specified by class or interface name. Returns backtrace path.
+	 * Finds the closest ancestor specified by class or interface name and returns backtrace path.
 	 * A path is the concatenation of component names separated by self::NAME_SEPARATOR.
-	 * @param  string|null
-	 * @param  bool
+	 * @param  string|null  $type
+	 * @param  bool  $throw
 	 * @return string|null
 	 */
 	public function lookupPath($type = null, $throw = true)
@@ -100,24 +102,26 @@ abstract class Component implements IComponent
 
 
 	/**
-	 * Starts monitoring.
-	 * @param  string
+	 * Starts monitoring of ancestors.
+	 * @param  string  $type
 	 * @return void
 	 */
-	public function monitor($type)
+	final public function monitor($type, callable $attached = null, callable $detached = null)
 	{
-		if (empty($this->monitors[$type][3])) {
-			if ($obj = $this->lookup($type, false)) {
-				$this->attached($obj);
-			}
-			$this->monitors[$type][3] = true; // mark as monitored
+		if (func_num_args() === 1) {
+			$attached = [$this, 'attached'];
+			$detached = [$this, 'detached'];
 		}
+		if (($obj = $this->lookup($type, false)) && $attached && !in_array([$attached, $detached], $this->monitors[$type][3], true)) {
+			$attached($obj);
+		}
+		$this->monitors[$type][3][] = [$attached, $detached]; // mark as monitored
 	}
 
 
 	/**
-	 * Stops monitoring.
-	 * @param  string
+	 * Stops monitoring of ancestors.
+	 * @param  string  $type
 	 * @return void
 	 */
 	public function unmonitor($type)
@@ -129,8 +133,9 @@ abstract class Component implements IComponent
 	/**
 	 * This method will be called when the component (or component's parent)
 	 * becomes attached to a monitored object. Do not call this method yourself.
-	 * @param  IComponent
+	 * @param  IComponent  $obj
 	 * @return void
+	 * @deprecated  use monitor($type, $attached)
 	 */
 	protected function attached($obj)
 	{
@@ -140,8 +145,9 @@ abstract class Component implements IComponent
 	/**
 	 * This method will be called before the component (or component's parent)
 	 * becomes detached from a monitored object. Do not call this method yourself.
-	 * @param  IComponent
+	 * @param  IComponent  $obj
 	 * @return void
+	 * @deprecated  use monitor($type, null, $detached)
 	 */
 	protected function detached($obj)
 	{
@@ -161,7 +167,7 @@ abstract class Component implements IComponent
 
 
 	/**
-	 * Returns the container if any.
+	 * Returns the parent container if any.
 	 * @return IContainer|null
 	 */
 	public function getParent()
@@ -173,8 +179,7 @@ abstract class Component implements IComponent
 	/**
 	 * Sets or removes the parent of this component. This method is managed by containers and should
 	 * not be called by applications
-	 * @param  IContainer
-	 * @param  string
+	 * @param  string  $name
 	 * @return static
 	 * @throws Nette\InvalidStateException
 	 * @internal
@@ -226,9 +231,9 @@ abstract class Component implements IComponent
 
 	/**
 	 * Refreshes monitors.
-	 * @param  int
-	 * @param  array|null (array = attaching, null = detaching)
-	 * @param  array
+	 * @param  int  $depth
+	 * @param  array|null  $missing (array = attaching, null = detaching)
+	 * @param  array  $listeners
 	 * @return void
 	 */
 	private function refreshMonitors($depth, &$missing = null, &$listeners = [])
@@ -245,8 +250,10 @@ abstract class Component implements IComponent
 			foreach ($this->monitors as $type => $rec) {
 				if (isset($rec[1]) && $rec[1] > $depth) {
 					if ($rec[3]) { // monitored
-						$this->monitors[$type] = [null, null, null, true];
-						$listeners[] = [$this, $rec[0]];
+						$this->monitors[$type] = [null, null, null, $rec[3]];
+						foreach ($rec[3] as $pair) {
+							$listeners[] = [$pair[1], $rec[0]];
+						}
 					} else { // not monitored, just randomly cached
 						unset($this->monitors[$type]);
 					}
@@ -262,26 +269,27 @@ abstract class Component implements IComponent
 					unset($this->monitors[$type]);
 
 				} elseif (isset($missing[$type])) { // known from previous lookup
-					$this->monitors[$type] = [null, null, null, true];
+					$this->monitors[$type] = [null, null, null, $rec[3]];
 
 				} else {
 					$this->monitors[$type] = null; // forces re-lookup
 					if ($obj = $this->lookup($type, false)) {
-						$listeners[] = [$this, $obj];
+						foreach ($rec[3] as $pair) {
+							$listeners[] = [$pair[0], $obj];
+						}
 					} else {
 						$missing[$type] = true;
 					}
-					$this->monitors[$type][3] = true; // mark as monitored
+					$this->monitors[$type][3] = $rec[3]; // mark as monitored
 				}
 			}
 		}
 
 		if ($depth === 0) { // call listeners
-			$method = $missing === null ? 'detached' : 'attached';
 			$prev = [];
 			foreach ($listeners as $item) {
-				if (!in_array($item, $prev, true)) {
-					$item[0]->$method($item[1]);
+				if ($item[0] && !in_array($item, $prev, true)) {
+					call_user_func($item[0], $item[1]);
 					$prev[] = $item;
 				}
 			}

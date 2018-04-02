@@ -423,6 +423,8 @@ class ContainerBuilder
 		if ($rc->hasMethod('get')) {
 			if ($method->getParameters()) {
 				throw new ServiceCreationException("Method $methodName used in service '$name' must have no arguments.");
+			} elseif ($def->getSetup()) {
+				throw new ServiceCreationException("Service accessor '$name' must have no setup.");
 			}
 			if (!$def->getEntity()) {
 				$def->setFactory('@\\' . ltrim($def->getType(), '\\'));
@@ -581,7 +583,7 @@ class ContainerBuilder
 				$def->setSetup($setups);
 
 			} catch (\Exception $e) {
-				throw new ServiceCreationException("Service '$name': " . $e->getMessage(), 0, $e);
+				throw new ServiceCreationException("Service '$name' (type of $entity): " . $e->getMessage(), 0, $e);
 
 			} finally {
 				$this->currentService = null;

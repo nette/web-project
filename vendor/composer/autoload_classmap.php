@@ -120,6 +120,7 @@ return array(
     'Nette\\Caching\\Storages\\NewMemcachedStorage' => $vendorDir . '/nette/caching/src/Caching/Storages/NewMemcachedStorage.php',
     'Nette\\Caching\\Storages\\SQLiteJournal' => $vendorDir . '/nette/caching/src/Caching/Storages/SQLiteJournal.php',
     'Nette\\Caching\\Storages\\SQLiteStorage' => $vendorDir . '/nette/caching/src/Caching/Storages/SQLiteStorage.php',
+    'Nette\\ComponentModel\\ArrayAccess' => $vendorDir . '/nette/component-model/src/ComponentModel/ArrayAccess.php',
     'Nette\\ComponentModel\\Component' => $vendorDir . '/nette/component-model/src/ComponentModel/Component.php',
     'Nette\\ComponentModel\\Container' => $vendorDir . '/nette/component-model/src/ComponentModel/Container.php',
     'Nette\\ComponentModel\\IComponent' => $vendorDir . '/nette/component-model/src/ComponentModel/IComponent.php',

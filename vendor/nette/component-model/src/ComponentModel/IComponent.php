@@ -22,15 +22,14 @@ interface IComponent
 	function getName();
 
 	/**
-	 * Returns the container if any.
+	 * Returns the parent container if any.
 	 * @return IContainer|null
 	 */
 	function getParent();
 
 	/**
 	 * Sets the parent of this component.
-	 * @param  IContainer
-	 * @param  string
+	 * @param  string  $name
 	 * @return static
 	 */
 	function setParent(IContainer $parent = null, $name = null);
