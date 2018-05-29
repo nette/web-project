@@ -354,6 +354,8 @@ return array(
     'Tester\\TestCaseException' => $vendorDir . '/nette/tester/src/Framework/TestCase.php',
     'Tracy\\Bar' => $vendorDir . '/tracy/tracy/src/Tracy/Bar.php',
     'Tracy\\BlueScreen' => $vendorDir . '/tracy/tracy/src/Tracy/BlueScreen.php',
+    'Tracy\\Bridges\\Nette\\Bridge' => $vendorDir . '/tracy/tracy/src/Bridges/Nette/Bridge.php',
+    'Tracy\\Bridges\\Nette\\MailSender' => $vendorDir . '/tracy/tracy/src/Bridges/Nette/MailSender.php',
     'Tracy\\Bridges\\Nette\\TracyExtension' => $vendorDir . '/tracy/tracy/src/Bridges/Nette/TracyExtension.php',
     'Tracy\\Debugger' => $vendorDir . '/tracy/tracy/src/Tracy/Debugger.php',
     'Tracy\\DefaultBarPanel' => $vendorDir . '/tracy/tracy/src/Tracy/DefaultBarPanel.php',

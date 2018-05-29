@@ -55,7 +55,7 @@ class Compiler
 	private $position;
 
 	/** @var array of [name => IMacro[]] */
-	private $macros;
+	private $macros = [];
 
 	/** @var int[] IMacro flags */
 	private $flags;
@@ -124,7 +124,10 @@ class Compiler
 		$this->methods = ['main' => null, 'prepare' => null];
 
 		$macroHandlers = new \SplObjectStorage;
-		array_map([$macroHandlers, 'attach'], call_user_func_array('array_merge', $this->macros));
+
+		if ($this->macros) {
+			array_map([$macroHandlers, 'attach'], call_user_func_array('array_merge', $this->macros));
+		}
 
 		foreach ($macroHandlers as $handler) {
 			$handler->initialize($this);
@@ -430,7 +433,8 @@ class Compiler
 		if ($htmlNode->closing) {
 			$this->htmlNode = $this->htmlNode->parentNode;
 
-		} elseif ((($lower = strtolower($htmlNode->name)) === 'script' || $lower === 'style')
+		} elseif (
+			(($lower = strtolower($htmlNode->name)) === 'script' || $lower === 'style')
 			&& (!isset($htmlNode->attrs['type']) || preg_match('#(java|j|ecma|live)script|json|css#i', $htmlNode->attrs['type']))
 		) {
 			$this->context = $lower === 'script' ? self::CONTEXT_HTML_JS : self::CONTEXT_HTML_CSS;
@@ -471,7 +475,8 @@ class Compiler
 			$this->context = self::CONTEXT_HTML_TAG;
 		}
 
-		if (in_array($this->contentType, [self::CONTENT_HTML, self::CONTENT_XHTML], true)
+		if (
+			in_array($this->contentType, [self::CONTENT_HTML, self::CONTENT_XHTML], true)
 			&& (in_array($lower, ['href', 'src', 'action', 'formaction'], true)
 				|| ($lower === 'data' && strtolower($this->htmlNode->name) === 'object'))
 		) {
@@ -556,7 +561,10 @@ class Compiler
 	{
 		$node = $this->macroNode;
 
-		if (!$node || ($node->name !== $name && $name !== '') || $modifiers
+		if (
+			!$node
+			|| ($node->name !== $name && $name !== '')
+			|| $modifiers
 			|| ($args && $node->args && !Helpers::startsWith("$node->args ", "$args "))
 			|| $nPrefix !== $node->prefix
 		) {
@@ -698,8 +706,11 @@ class Compiler
 		}
 
 		if ($attrs) {
-			throw new CompileException('Unknown attribute ' . Parser::N_PREFIX
-				. implode(' and ' . Parser::N_PREFIX, array_keys($attrs)));
+			throw new CompileException(
+				'Unknown attribute ' . Parser::N_PREFIX
+				. implode(' and ' . Parser::N_PREFIX, array_keys($attrs))
+				. (($t = Helpers::getSuggestion(array_keys($this->macros), key($attrs))) ? ', did you mean ' . Parser::N_PREFIX . $t . '?' : '')
+			);
 		}
 
 		if (!$this->htmlNode->closing) {

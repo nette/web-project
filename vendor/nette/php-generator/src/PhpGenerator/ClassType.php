@@ -23,7 +23,9 @@ class ClassType
 	use Traits\CommentAware;
 
 	const TYPE_CLASS = 'class';
+
 	const TYPE_INTERFACE = 'interface';
+
 	const TYPE_TRAIT = 'trait';
 
 	/** @var PhpNamespace|null */
@@ -47,7 +49,7 @@ class ClassType
 	/** @var string[] */
 	private $implements = [];
 
-	/** @var string[] */
+	/** @var array[] */
 	private $traits = [];
 
 	/** @var Constant[] name => Constant */

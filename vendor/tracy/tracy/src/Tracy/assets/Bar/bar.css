@@ -16,8 +16,8 @@ body#tracy-debug { /* in popup window */
 
 #tracy-debug:not(body) {
 	position: absolute;
-	bottom: 0;
-	right: 0;
+	left: 0;
+	top: 0;
 }
 
 #tracy-debug * {
@@ -81,6 +81,7 @@ body#tracy-debug { /* in popup window */
 #tracy-debug table {
 	border-collapse: collapse;
 	background: #FDF5CE;
+	width: 100%;
 }
 
 #tracy-debug tr:nth-child(2n) td {
@@ -128,8 +129,6 @@ body#tracy-debug { /* in popup window */
 	background: #EDEAE0 url('data:image/png;base64,R0lGODlhAQAUALMAAOzq4e/t5e7s4/Dt5vDu5e3r4vDu5uvp4O/t5AAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAABABQAAAQM0EgySEAYi1LA+UcEADs=') top;
 	background-size: 1em;
 	position: fixed;
-	right: 0;
-	bottom: 0;
 
 	min-width: 50px;
 	white-space: nowrap;
@@ -137,7 +136,7 @@ body#tracy-debug { /* in popup window */
 	z-index: 30000;
 	opacity: .9;
 	transition: opacity 0.2s;
-	will-change: opacity, right, bottom;
+	will-change: opacity, top, left;
 
 	border-radius: 3px;
 	box-shadow: 1px 1px 10px rgba(0, 0, 0, .15);
@@ -151,7 +150,6 @@ body#tracy-debug { /* in popup window */
 #tracy-debug-bar ul {
 	list-style: none none;
 	display: flex;
-	flex-wrap: wrap;
 }
 
 #tracy-debug-bar ul:not(:first-child) li {
@@ -224,18 +222,9 @@ body#tracy-debug .tracy-panel { /* in popup window */
 	word-wrap: break-word;
 }
 
-#tracy-debug .tracy-mode-peek .tracy-inner,
-#tracy-debug .tracy-mode-float .tracy-inner {
-	max-width: 700px;
-	max-height: 500px;
+#tracy-debug .tracy-inner {
 	overflow: auto;
-}
-
-@media (max-height: 555px) {
-	#tracy-debug .tracy-mode-peek .tracy-inner,
-	#tracy-debug .tracy-mode-float .tracy-inner {
-		max-height: calc(100vh - 55px);
-	}
+	flex: 1;
 }
 
 #tracy-debug .tracy-panel .tracy-icons {
@@ -245,14 +234,26 @@ body#tracy-debug .tracy-panel { /* in popup window */
 #tracy-debug .tracy-mode-peek,
 #tracy-debug .tracy-mode-float {
 	position: fixed;
-	right: 0;
-	bottom: 0;
+	flex-direction: column;
 	padding: 10px;
-	min-width: 150px;
-	min-height: 50px;
+	min-width: 200px;
+	min-height: 80px;
 	border-radius: 5px;
 	box-shadow: 1px 1px 20px rgba(102, 102, 102, 0.36);
 	border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+#tracy-debug .tracy-mode-peek,
+#tracy-debug .tracy-mode-float:not(.tracy-panel-resized) {
+	max-width: 700px;
+	max-height: 500px;
+}
+
+@media (max-height: 555px) {
+	#tracy-debug .tracy-mode-peek,
+	#tracy-debug .tracy-mode-float:not(.tracy-panel-resized) {
+		max-height: 100vh;
+	}
 }
 
 #tracy-debug .tracy-mode-peek h1 {
@@ -260,14 +261,16 @@ body#tracy-debug .tracy-panel { /* in popup window */
 }
 
 #tracy-debug .tracy-mode-float {
-	display: block;
+	display: flex;
 	opacity: .95;
 	transition: opacity 0.2s;
-	will-change: opacity, right, bottom;
+	will-change: opacity, top, left;
+	overflow: auto;
+	resize: both;
 }
 
 #tracy-debug .tracy-focused {
-	display: block;
+	display: flex;
 	opacity: 1;
 	transition: opacity 0.1s;
 }
@@ -294,6 +297,12 @@ body#tracy-debug .tracy-panel { /* in popup window */
 
 #tracy-debug .tracy-icons a:hover {
 	color: white;
+}
+
+
+#tracy-debug .tracy-inner-container {
+	min-width: 100%;
+	float: left;
 }
 
 

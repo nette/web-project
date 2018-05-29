@@ -21,7 +21,8 @@ class Dumper
 		COLLAPSE_COUNT = 'collapsecount', // how big array/object are collapsed? (defaults to 7)
 		LOCATION = 'location', // show location string? (defaults to 0)
 		OBJECT_EXPORTERS = 'exporters', // custom exporters for objects (defaults to Dumper::$objectexporters)
-		LIVE = 'live'; // will be rendered using JavaScript
+		LIVE = 'live', // will be rendered using JavaScript
+		DEBUGINFO = 'debuginfo'; // use magic method __debugInfo if exists (defaults to false)
 
 	const
 		LOCATION_SOURCE = 0b0001, // shows where dump was called
@@ -93,6 +94,7 @@ class Dumper
 			self::COLLAPSE => 14,
 			self::COLLAPSE_COUNT => 7,
 			self::OBJECT_EXPORTERS => null,
+			self::DEBUGINFO => false,
 		];
 		$loc = &$options[self::LOCATION];
 		$loc = $loc === true ? ~0 : (int) $loc;
@@ -141,9 +143,9 @@ class Dumper
 
 	/**
 	 * Internal toHtml() dump implementation.
-	 * @param  mixed  variable to dump
-	 * @param  array  options
-	 * @param  int    current recursion level
+	 * @param  mixed  $var
+	 * @param  array  $options
+	 * @param  int  $level  recursion level
 	 * @return string
 	 */
 	private static function dumpVar(&$var, array $options, $level = 0)
@@ -231,17 +233,24 @@ class Dumper
 
 	private static function dumpObject(&$var, $options, $level)
 	{
-		$fields = self::exportObject($var, $options[self::OBJECT_EXPORTERS]);
-		$editor = null;
+		$fields = self::exportObject($var, $options[self::OBJECT_EXPORTERS], $options[self::DEBUGINFO]);
+
+		$editorAttributes = '';
 		if ($options[self::LOCATION] & self::LOCATION_CLASS) {
 			$rc = $var instanceof \Closure ? new \ReflectionFunction($var) : new \ReflectionClass($var);
 			$editor = Helpers::editorUri($rc->getFileName(), $rc->getStartLine());
+			if ($editor) {
+				$editorAttributes = Helpers::formatHtml(
+					' title="Declared in file % on line %" data-tracy-href="%"',
+					$rc->getFileName(),
+					$rc->getStartLine(),
+					$editor
+				);
+			}
 		}
-		$out = '<span class="tracy-dump-object"'
-			. ($editor ? Helpers::formatHtml(
-				' title="Declared in file % on line %" data-tracy-href="%"', $rc->getFileName(), $rc->getStartLine(), $editor
-			) : '')
-			. '>' . Helpers::escapeHtml(Helpers::getClass($var)) . '</span> <span class="tracy-dump-hash">#' . substr(md5(spl_object_hash($var)), 0, 4) . '</span>';
+		$out = '<span class="tracy-dump-object"' . $editorAttributes . '>'
+			. Helpers::escapeHtml(Helpers::getClass($var))
+			. '</span> <span class="tracy-dump-hash">#' . substr(md5(spl_object_hash($var)), 0, 4) . '</span>';
 
 		static $list = [];
 
@@ -335,15 +344,17 @@ class Dumper
 				return ['object' => $obj['id']];
 			}
 
+			$editorInfo = null;
 			if ($options[self::LOCATION] & self::LOCATION_CLASS) {
 				$rc = $var instanceof \Closure ? new \ReflectionFunction($var) : new \ReflectionClass($var);
 				$editor = Helpers::editorUri($rc->getFileName(), $rc->getStartLine());
+				$editorInfo = $editor ? ['file' => $rc->getFileName(), 'line' => $rc->getStartLine(), 'url' => $editor] : null;
 			}
 			static $counter = 1;
 			$obj = $obj ?: [
 				'id' => self::$livePrefix . '0' . $counter++, // differentiate from resources
 				'name' => Helpers::getClass($var),
-				'editor' => empty($editor) ? null : ['file' => $rc->getFileName(), 'line' => $rc->getStartLine(), 'url' => $editor],
+				'editor' => $editorInfo,
 				'level' => $level,
 				'object' => $var,
 			];
@@ -352,7 +363,7 @@ class Dumper
 				$obj['level'] = $level;
 				$obj['items'] = [];
 
-				foreach (self::exportObject($var, $options[self::OBJECT_EXPORTERS]) as $k => $v) {
+				foreach (self::exportObject($var, $options[self::OBJECT_EXPORTERS], $options[self::DEBUGINFO]) as $k => $v) {
 					$vis = 0;
 					if (isset($k[0]) && $k[0] === "\x00") {
 						$vis = $k[1] === '*' ? 1 : 2;
@@ -446,13 +457,18 @@ class Dumper
 	/**
 	 * @return array
 	 */
-	private static function exportObject($obj, array $exporters)
+	private static function exportObject($obj, array $exporters, $useDebugInfo)
 	{
 		foreach ($exporters as $type => $dumper) {
 			if (!$type || $obj instanceof $type) {
 				return call_user_func($dumper, $obj);
 			}
 		}
+
+		if ($useDebugInfo && method_exists($obj, '__debugInfo')) {
+			return $obj->__debugInfo();
+		}
+
 		return (array) $obj;
 	}
 
@@ -521,7 +537,7 @@ class Dumper
 
 	/**
 	 * Finds the location where dump was called.
-	 * @return array [file, line, code]
+	 * @return array|null [file, line, code]
 	 */
 	private static function findLocation()
 	{

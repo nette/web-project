@@ -20,7 +20,7 @@ use Nette\Http;
  * @property-read Nette\Application\Request $request
  * @property-read string $action
  * @property      string $view
- * @property      string $layout
+ * @property      string|bool $layout
  * @property-read \stdClass $payload
  * @property-read Nette\DI\Container $context
  * @property-read Nette\Http\Session $session
@@ -67,7 +67,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	/** @var array */
 	private $globalState;
 
-	/** @var array */
+	/** @var array|null */
 	private $globalStateSinces;
 
 	/** @var string */
@@ -76,7 +76,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	/** @var string */
 	private $view;
 
-	/** @var string */
+	/** @var string|bool */
 	private $layout;
 
 	/** @var \stdClass */
@@ -85,7 +85,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	/** @var string */
 	private $signalReceiver;
 
-	/** @var string */
+	/** @var string|null */
 	private $signal;
 
 	/** @var bool */
@@ -97,7 +97,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	/** @var Nette\Application\Request|null */
 	private $lastCreatedRequest;
 
-	/** @var array */
+	/** @var array|null */
 	private $lastCreatedRequestFlag;
 
 	/** @var Nette\DI\Container */
@@ -423,7 +423,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 	/**
 	 * Returns current layout name.
-	 * @return string|false
+	 * @return string|bool
 	 */
 	public function getLayout()
 	{
@@ -433,7 +433,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 	/**
 	 * Changes or disables layout.
-	 * @param  string|false
+	 * @param  string|bool
 	 * @return static
 	 */
 	public function setLayout($layout)
@@ -461,8 +461,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 			}
 
 			if (!$template->getFile()) {
-				$file = preg_replace('#^.*([/\\\\].{1,70})\z#U', "\xE2\x80\xA6\$1", reset($files));
-				$file = strtr($file, '/', DIRECTORY_SEPARATOR);
+				$file = strtr(reset($files), '/', DIRECTORY_SEPARATOR);
 				$this->error("Page not found. Missing template '$file'.");
 			}
 		}
@@ -489,8 +488,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 		}
 
 		if ($this->layout) {
-			$file = preg_replace('#^.*([/\\\\].{1,70})\z#U', "\xE2\x80\xA6\$1", reset($files));
-			$file = strtr($file, '/', DIRECTORY_SEPARATOR);
+			$file = strtr(reset($files), '/', DIRECTORY_SEPARATOR);
 			throw new Nette\FileNotFoundException("Layout not found. Missing template '$file'.");
 		}
 	}
@@ -680,19 +678,6 @@ abstract class Presenter extends Control implements Application\IPresenter
 				: Http\IResponse::S302_FOUND;
 		}
 		$this->sendResponse(new Responses\RedirectResponse($url, $httpCode));
-	}
-
-
-	/**
-	 * Throws HTTP error.
-	 * @param  string
-	 * @param  int HTTP error code
-	 * @return void
-	 * @throws Nette\Application\BadRequestException
-	 */
-	public function error($message = null, $httpCode = Http\IResponse::S404_NOT_FOUND)
-	{
-		throw new Application\BadRequestException($message, $httpCode);
 	}
 
 

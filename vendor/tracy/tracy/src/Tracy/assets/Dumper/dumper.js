@@ -3,47 +3,47 @@
  */
 
 (function() {
-	var COLLAPSE_COUNT = 7,
+	const
+		COLLAPSE_COUNT = 7,
 		COLLAPSE_COUNT_TOP = 14;
 
-	Tracy = window.Tracy || {};
-
-	Tracy.Dumper = Tracy.Dumper || {};
-
-	Tracy.Dumper.init = function(repository, context) {
-		if (repository) {
-			[].forEach.call((context || document).querySelectorAll('.tracy-dump[data-tracy-dump]'), function(el) {
-				try {
-					el.appendChild(build(JSON.parse(el.getAttribute('data-tracy-dump')), repository, el.classList.contains('tracy-collapsed')));
-					el.classList.remove('tracy-collapsed');
-					el.removeAttribute('data-tracy-dump');
-				} catch (e) {
-					if (!(e instanceof UnknownEntityException)) {
-						throw e;
+	class Dumper
+	{
+		static init(repository, context) {
+			if (repository) {
+				[].forEach.call((context || document).querySelectorAll('.tracy-dump[data-tracy-dump]'), function(el) {
+					try {
+						el.appendChild(build(JSON.parse(el.getAttribute('data-tracy-dump')), repository, el.classList.contains('tracy-collapsed')));
+						el.classList.remove('tracy-collapsed');
+						el.removeAttribute('data-tracy-dump');
+					} catch (e) {
+						if (!(e instanceof UnknownEntityException)) {
+							throw e;
+						}
 					}
+				});
+			}
+
+			if (Dumper.inited) {
+				return;
+			}
+			Dumper.inited = true;
+
+			// enables <span data-tracy-href=""> & ctrl key
+			document.documentElement.addEventListener('click', function(e) {
+				var el;
+				if (e.ctrlKey && (el = e.target.closest('[data-tracy-href]'))) {
+					location.href = el.getAttribute('data-tracy-href');
+					return false;
 				}
 			});
+
+			Tracy.Toggle.init();
 		}
-
-		if (this.inited) {
-			return;
-		}
-		this.inited = true;
-
-		// enables <span data-tracy-href=""> & ctrl key
-		document.documentElement.addEventListener('click', function(e) {
-			var el;
-			if (e.ctrlKey && (el = Tracy.closest(e.target, '[data-tracy-href]'))) {
-				location.href = el.getAttribute('data-tracy-href');
-				return false;
-			}
-		});
-
-		Tracy.Toggle.init();
-	};
+	}
 
 
-	var build = function(data, repository, collapsed, parentIds) {
+	function build(data, repository, collapsed, parentIds) {
 		var type = data === null ? 'null' : typeof data,
 			collapseCount = typeof collapsed === 'undefined' ? COLLAPSE_COUNT_TOP : COLLAPSE_COUNT;
 
@@ -108,10 +108,10 @@
 				parentIds
 			);
 		}
-	};
+	}
 
 
-	var buildStruct = function(span, ellipsis, items, collapsed, repository, parentIds) {
+	function buildStruct(span, ellipsis, items, collapsed, repository, parentIds) {
 		var res, toggle, div, handler;
 
 		if (!items || !items.length) {
@@ -134,10 +134,10 @@
 			createItems(div, items, repository, parentIds);
 		}
 		return res;
-	};
+	}
 
 
-	var createEl = function(el, attrs, content) {
+	function createEl(el, attrs, content) {
 		if (!(el instanceof Node)) {
 			el = el ? document.createElement(el) : document.createDocumentFragment();
 		}
@@ -154,10 +154,10 @@
 			}
 		}
 		return el;
-	};
+	}
 
 
-	var createItems = function(el, items, repository, parentIds) {
+	function createItems(el, items, repository, parentIds) {
 		for (var i = 0; i < items.length; i++) {
 			var vis = items[i][2];
 			createEl(el, null, [
@@ -168,8 +168,12 @@
 				build(items[i][1], repository, null, parentIds)
 			]);
 		}
-	};
+	}
 
-	var UnknownEntityException = function() {};
 
+	function UnknownEntityException() {}
+
+
+	Tracy = window.Tracy || {};
+	Tracy.Dumper = Dumper;
 })();

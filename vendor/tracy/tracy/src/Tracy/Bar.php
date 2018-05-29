@@ -25,8 +25,8 @@ class Bar
 
 	/**
 	 * Add custom panel.
-	 * @param  IBarPanel
-	 * @param  string
+	 * @param  IBarPanel  $panel
+	 * @param  string  $id
 	 * @return static
 	 */
 	public function addPanel(IBarPanel $panel, $id = null)
@@ -44,7 +44,7 @@ class Bar
 
 	/**
 	 * Returns panel with given id
-	 * @param  string
+	 * @param  string  $id
 	 * @return IBarPanel|null
 	 */
 	public function getPanel($id)
@@ -85,6 +85,8 @@ class Bar
 				return isset($item['time']) && $item['time'] > time() - 60;
 			});
 		}
+
+		$rows = [];
 
 		if (Helpers::isAjax()) {
 			if ($useSession) {
@@ -129,7 +131,7 @@ class Bar
 	/**
 	 * @return string
 	 */
-	private function renderHtmlRows(array $rows)
+	private static function renderHtmlRows(array $rows)
 	{
 		ob_start(function () {});
 		require __DIR__ . '/assets/Bar/panels.phtml';
@@ -223,6 +225,8 @@ class Bar
 			}
 			return true;
 		}
+
+		return false;
 	}
 
 

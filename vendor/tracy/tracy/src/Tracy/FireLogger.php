@@ -29,7 +29,7 @@ class FireLogger implements ILogger
 
 	/**
 	 * Sends message to FireLogger console.
-	 * @param  mixed
+	 * @param  mixed  $message
 	 * @return bool    was successful?
 	 */
 	public function log($message, $priority = self::DEBUG)
@@ -56,7 +56,9 @@ class FireLogger implements ILogger
 		if (isset($args[0]) && ($args[0] instanceof \Exception || $args[0] instanceof \Throwable)) {
 			$e = array_shift($args);
 			$trace = $e->getTrace();
-			if (isset($trace[0]['class']) && $trace[0]['class'] === 'Tracy\Debugger'
+			if (
+				isset($trace[0]['class'])
+				&& $trace[0]['class'] === 'Tracy\Debugger'
 				&& ($trace[0]['function'] === 'shutdownHandler' || $trace[0]['function'] === 'errorHandler')
 			) {
 				unset($trace[0]);
@@ -70,7 +72,9 @@ class FireLogger implements ILogger
 
 		} else {
 			$trace = debug_backtrace();
-			if (isset($trace[1]['class']) && $trace[1]['class'] === 'Tracy\Debugger'
+			if (
+				isset($trace[1]['class'])
+				&& $trace[1]['class'] === 'Tracy\Debugger'
 				&& ($trace[1]['function'] === 'fireLog')
 			) {
 				unset($trace[0]);
@@ -110,9 +114,9 @@ class FireLogger implements ILogger
 
 	/**
 	 * Dump implementation for JSON.
-	 * @param  mixed  variable to dump
-	 * @param  int    current recursion level
-	 * @return string
+	 * @param  mixed  $var
+	 * @param  int  $level  recursion level
+	 * @return array|null|int|float|bool|string
 	 */
 	private function jsonDump(&$var, $level = 0)
 	{

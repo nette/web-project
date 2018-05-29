@@ -19,7 +19,7 @@ class Logger implements ILogger
 	/** @var string|array email or emails to which send error notifications */
 	public $email;
 
-	/** @var string sender of email notifications */
+	/** @var string|null sender of email notifications */
 	public $fromEmail;
 
 	/** @var mixed interval for sending email is 2 days */
@@ -28,7 +28,7 @@ class Logger implements ILogger
 	/** @var callable handler for sending emails */
 	public $mailer;
 
-	/** @var BlueScreen */
+	/** @var BlueScreen|null */
 	private $blueScreen;
 
 
@@ -43,9 +43,9 @@ class Logger implements ILogger
 
 	/**
 	 * Logs message or exception to file and sends email notification.
-	 * @param  string|\Exception|\Throwable
-	 * @param  int   one of constant ILogger::INFO, WARNING, ERROR (sends email), EXCEPTION (sends email), CRITICAL (sends email)
-	 * @return string logged error filename
+	 * @param  string|\Exception|\Throwable  $message
+	 * @param  int  $priority  one of constant ILogger::INFO, WARNING, ERROR (sends email), EXCEPTION (sends email), CRITICAL (sends email)
+	 * @return string|null logged error filename
 	 */
 	public function log($message, $priority = self::INFO)
 	{
@@ -58,7 +58,7 @@ class Logger implements ILogger
 		$exceptionFile = $message instanceof \Exception || $message instanceof \Throwable
 			? $this->getExceptionFile($message)
 			: null;
-		$line = $this->formatLogLine($message, $exceptionFile);
+		$line = static::formatLogLine($message, $exceptionFile);
 		$file = $this->directory . '/' . strtolower($priority ?: self::INFO) . '.log';
 
 		if (!@file_put_contents($file, $line . PHP_EOL, FILE_APPEND | LOCK_EX)) { // @ is escalated to exception
@@ -78,10 +78,10 @@ class Logger implements ILogger
 
 
 	/**
-	 * @param  string|\Exception|\Throwable
+	 * @param  mixed  $message
 	 * @return string
 	 */
-	protected function formatMessage($message)
+	public static function formatMessage($message)
 	{
 		if ($message instanceof \Exception || $message instanceof \Throwable) {
 			while ($message) {
@@ -102,14 +102,14 @@ class Logger implements ILogger
 
 
 	/**
-	 * @param  string|\Exception|\Throwable
+	 * @param  string|\Exception|\Throwable  $message
 	 * @return string
 	 */
-	protected function formatLogLine($message, $exceptionFile = null)
+	public static function formatLogLine($message, $exceptionFile = null)
 	{
 		return implode(' ', [
 			@date('[Y-m-d H-i-s]'), // @ timezone may not be set
-			preg_replace('#\s*\r?\n\s*#', ' ', $this->formatMessage($message)),
+			preg_replace('#\s*\r?\n\s*#', ' ', static::formatMessage($message)),
 			' @  ' . Helpers::getSource(),
 			$exceptionFile ? ' @@  ' . basename($exceptionFile) : null,
 		]);
@@ -117,7 +117,7 @@ class Logger implements ILogger
 
 
 	/**
-	 * @param  \Exception|\Throwable
+	 * @param  \Exception|\Throwable  $exception
 	 * @return string
 	 */
 	public function getExceptionFile($exception)
@@ -142,7 +142,7 @@ class Logger implements ILogger
 
 	/**
 	 * Logs exception to the file if file doesn't exist.
-	 * @param  \Exception|\Throwable
+	 * @param  \Exception|\Throwable  $exception
 	 * @return string logged error filename
 	 */
 	protected function logException($exception, $file = null)
@@ -155,7 +155,7 @@ class Logger implements ILogger
 
 
 	/**
-	 * @param  string|\Exception|\Throwable
+	 * @param  string|\Exception|\Throwable  $message
 	 * @return void
 	 */
 	protected function sendEmail($message)
@@ -164,7 +164,9 @@ class Logger implements ILogger
 			? $this->emailSnooze
 			: @strtotime($this->emailSnooze) - time(); // @ timezone may not be set
 
-		if ($this->email && $this->mailer
+		if (
+			$this->email
+			&& $this->mailer
 			&& @filemtime($this->directory . '/email-sent') + $snooze < time() // @ file may not exist
 			&& @file_put_contents($this->directory . '/email-sent', 'sent') // @ file may not be writable
 		) {
@@ -175,8 +177,8 @@ class Logger implements ILogger
 
 	/**
 	 * Default mailer.
-	 * @param  string|\Exception|\Throwable
-	 * @param  string
+	 * @param  string|\Exception|\Throwable  $message
+	 * @param  string  $email
 	 * @return void
 	 * @internal
 	 */
@@ -194,7 +196,7 @@ class Logger implements ILogger
 					'Content-Transfer-Encoding: 8bit',
 				]) . "\n",
 				'subject' => "PHP: An error occurred on the server $host",
-				'body' => $this->formatMessage($message) . "\n\nsource: " . Helpers::getSource(),
+				'body' => static::formatMessage($message) . "\n\nsource: " . Helpers::getSource(),
 			]
 		);
 

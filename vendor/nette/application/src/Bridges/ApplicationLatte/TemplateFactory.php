@@ -19,6 +19,9 @@ class TemplateFactory implements UI\ITemplateFactory
 {
 	use Nette\SmartObject;
 
+	/** @var callable[]  function (Template $template); Occurs when a new template is created */
+	public $onCreate;
+
 	/** @var ILatteFactory */
 	private $latteFactory;
 
@@ -68,7 +71,7 @@ class TemplateFactory implements UI\ITemplateFactory
 
 		array_unshift($latte->onCompile, function ($latte) use ($control, $template) {
 			if ($this->cacheStorage) {
-				$latte->getCompiler()->addMacro('cache', new Nette\Bridges\CacheLatte\CacheMacro($latte->getCompiler()));
+				$latte->getCompiler()->addMacro('cache', new Nette\Bridges\CacheLatte\CacheMacro);
 			}
 			UIMacros::install($latte->getCompiler());
 			if (class_exists(Nette\Bridges\FormsLatte\FormMacros::class)) {
@@ -105,7 +108,11 @@ class TemplateFactory implements UI\ITemplateFactory
 			$latte->addProvider('uiControl', $control);
 			$latte->addProvider('uiPresenter', $presenter);
 			$latte->addProvider('snippetBridge', new Nette\Bridges\ApplicationLatte\SnippetBridge($control));
-			$nonce = $presenter && preg_match('#\s\'nonce-([\w+/]+=*)\'#', $presenter->getHttpResponse()->getHeader('Content-Security-Policy'), $m) ? $m[1] : null;
+			if ($presenter) {
+				$header = $presenter->getHttpResponse()->getHeader('Content-Security-Policy')
+					?: $presenter->getHttpResponse()->getHeader('Content-Security-Policy-Report-Only');
+			}
+			$nonce = $presenter && preg_match('#\s\'nonce-([\w+/]+=*)\'#', (string) $header, $m) ? $m[1] : null;
 			$latte->addProvider('uiNonce', $nonce);
 		}
 		$latte->addProvider('cacheStorage', $this->cacheStorage);
@@ -119,6 +126,8 @@ class TemplateFactory implements UI\ITemplateFactory
 			$id = $control->getParameterId('flash');
 			$template->flashes = (array) $presenter->getFlashSession()->$id;
 		}
+
+		$this->onCreate($template);
 
 		return $template;
 	}
