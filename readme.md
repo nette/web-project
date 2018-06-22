@@ -8,6 +8,8 @@ be used as a starting point for your new projects.
 It is designed to be the most usable and friendliest as possible. It focuses
 on security and performance and is definitely one of the safest PHP frameworks.
 
+If you like Nette, **[please make a donation now](https://nette.org/donate)**. Thank you!
+
 
 Requirements
 ------------
