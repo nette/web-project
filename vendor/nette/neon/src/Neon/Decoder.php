@@ -76,7 +76,7 @@ class Decoder
 
 	/**
 	 * Decodes a NEON string.
-	 * @param  string
+	 * @param  string  $input
 	 * @return mixed
 	 */
 	public function decode($input)
@@ -113,9 +113,8 @@ class Decoder
 
 
 	/**
-	 * @param  string  indentation (for block-parser)
-	 * @param  mixed
-	 * @return array
+	 * @param  string|bool|null  $indent  indentation (for block-parser)
+	 * @return mixed
 	 */
 	private function parse($indent, $result = null, $key = null, $hasKey = false)
 	{

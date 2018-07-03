@@ -235,6 +235,7 @@ class ContainerBuilder
 
 		} else {
 			$list = $types[$type][true];
+			natsort($list);
 			$hint = count($list) === 2 && ($tmp = strpos($list[0], '.') xor strpos($list[1], '.'))
 				? '. If you want to overwrite service ' . $list[$tmp ? 0 : 1] . ', give it proper name.'
 				: '';
@@ -586,7 +587,10 @@ class ContainerBuilder
 				$def->setSetup($setups);
 
 			} catch (\Exception $e) {
-				throw new ServiceCreationException("Service '$name' (type of $entity): " . $e->getMessage(), 0, $e);
+				$message = "Service '$name' (type of {$def->getType()}): " . $e->getMessage();
+				throw $e instanceof ServiceCreationException
+					? $e->setMessage($message)
+					: new ServiceCreationException($message, 0, $e);
 
 			} finally {
 				$this->currentService = null;
@@ -669,29 +673,40 @@ class ContainerBuilder
 			}
 		}
 
-		array_walk_recursive($arguments, function (&$val) {
-			if ($val instanceof Statement) {
-				$val = $this->completeStatement($val);
+		try {
+			array_walk_recursive($arguments, function (&$val) {
+				if ($val instanceof Statement) {
+					$val = $this->completeStatement($val);
 
-			} elseif ($val === $this) {
-				trigger_error("Replace object ContainerBuilder in Statement arguments with '@container'.", E_USER_DEPRECATED);
-				$val = self::literal('$this');
+				} elseif ($val === $this) {
+					trigger_error("Replace object ContainerBuilder in Statement arguments with '@container'.", E_USER_DEPRECATED);
+					$val = self::literal('$this');
 
-			} elseif ($val instanceof ServiceDefinition) {
-				$val = '@' . current(array_keys($this->getDefinitions(), $val, true));
+				} elseif ($val instanceof ServiceDefinition) {
+					$val = '@' . current(array_keys($this->getDefinitions(), $val, true));
 
-			} elseif (is_string($val) && strlen($val) > 1 && $val[0] === '@' && $val[1] !== '@') {
-				$pair = explode('::', $val, 2);
-				$name = $this->getServiceName($pair[0]);
-				if (!isset($pair[1])) { // @service
-					$val = '@' . $name;
-				} elseif (preg_match('#^[A-Z][A-Z0-9_]*\z#', $pair[1], $m)) { // @service::CONSTANT
-					$val = self::literal($this->getDefinition($name)->getType() . '::' . $pair[1]);
-				} else { // @service::property
-					$val = new Statement(['@' . $name, '$' . $pair[1]]);
+				} elseif (is_string($val) && strlen($val) > 1 && $val[0] === '@' && $val[1] !== '@') {
+					$pair = explode('::', $val, 2);
+					$name = $this->getServiceName($pair[0]);
+					if (!isset($pair[1])) { // @service
+						$val = '@' . $name;
+					} elseif (preg_match('#^[A-Z][A-Z0-9_]*\z#', $pair[1], $m)) { // @service::CONSTANT
+						$val = self::literal($this->getDefinition($name)->getType() . '::' . $pair[1]);
+					} else { // @service::property
+						$val = new Statement(['@' . $name, '$' . $pair[1]]);
+					}
 				}
+			});
+
+		} catch (ServiceCreationException $e) {
+			if ((is_string($entity) || is_array($entity)) && !strpos($e->getMessage(), ' (used in')) {
+				$desc = is_string($entity)
+					? $entity . '::__construct'
+					: (is_string($entity[0]) ? ($entity[0] . '::') : 'method ') . $entity[1];
+				$e->setMessage($e->getMessage() . " (used in $desc)");
 			}
-		});
+			throw $e;
+		}
 
 		return new Statement($entity, $arguments);
 	}
@@ -740,7 +755,10 @@ class ContainerBuilder
 	}
 
 
-	/** @internal */
+	/**
+	 * @return string|array  Class, @service, [Class, member], [@service, member], [, globalFunc], [Statement, member]
+	 * @internal
+	 */
 	public function normalizeEntity($entity)
 	{
 		if (is_string($entity) && Strings::contains($entity, '::') && !Strings::contains($entity, '?')) { // Class::method -> [Class, method]
@@ -757,7 +775,7 @@ class ContainerBuilder
 			trigger_error("Replace object ContainerBuilder in Statement entity with '@container'.", E_USER_DEPRECATED);
 			$entity[0] = '@' . self::THIS_CONTAINER;
 		}
-		return $entity; // Class, @service, [Class, member], [@service, member], [, globalFunc], Statement
+		return $entity;
 	}
 
 

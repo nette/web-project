@@ -306,9 +306,10 @@
 
 
 		autoHideLabels() {
+			var width = getWindowSize().width;
 			forEach(this.elem.children, function (ul) {
 				var labels = ul.querySelectorAll('.tracy-label');
-				for (var i = labels.length - 1; i >= 0 && ul.clientHeight >= 40; i--) { // row height = 1em (cca 20px)
+				for (var i = labels.length - 1; i >= 0 && ul.clientWidth >= width; i--) {
 					labels.item(i).hidden = true;
 				}
 			});
@@ -322,14 +323,16 @@
 
 		reposition(deltaX, deltaY) {
 			var pos = getPosition(this.elem);
-			setPosition(this.elem, {left: pos.left + (deltaX || 0), top: pos.top + (deltaY || 0)});
-			this.savePosition();
+			if (pos.width) { // is visible?
+				setPosition(this.elem, {left: pos.left + (deltaX || 0), top: pos.top + (deltaY || 0)});
+				this.savePosition();
+			}
 		}
 
 
 		savePosition() {
-			if (document.getElementById('tracy-debug').style.display !== 'none') {
-				var pos = getPosition(this.elem);
+			var pos = getPosition(this.elem);
+			if (pos.width) { // is visible?
 				localStorage.setItem(this.id, JSON.stringify(this.isAtTop() ? {right: pos.right, top: pos.top} : {right: pos.right, bottom: pos.bottom}));
 			}
 		}

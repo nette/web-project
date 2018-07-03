@@ -66,20 +66,20 @@ class RobotLoader
 
 	/**
 	 * Register autoloader.
-	 * @param  bool  prepend autoloader?
+	 * @param  bool  $prepend
 	 * @return static
 	 */
 	public function register($prepend = false)
 	{
 		$this->loadCache();
-		spl_autoload_register([$this, 'tryLoad'], true, (bool) $prepend);
+		spl_autoload_register([$this, 'tryLoad'], true, $prepend);
 		return $this;
 	}
 
 
 	/**
 	 * Handles autoloading of classes, interfaces or traits.
-	 * @param  string
+	 * @param  string  $type
 	 * @return void
 	 */
 	public function tryLoad($type)
@@ -117,7 +117,7 @@ class RobotLoader
 
 	/**
 	 * Add path or paths to list.
-	 * @param  string|string[]  absolute path
+	 * @param  string|string[]  $path  absolute path
 	 * @return static
 	 */
 	public function addDirectory($path)
@@ -129,7 +129,7 @@ class RobotLoader
 
 	/**
 	 * Excludes path or paths from list.
-	 * @param  string|string[]  absolute path
+	 * @param  string|string[]  $path  absolute path
 	 * @return static
 	 */
 	public function excludeDirectory($path)
@@ -204,7 +204,7 @@ class RobotLoader
 
 	/**
 	 * Creates an iterator scaning directory for PHP files, subdirectories and 'netterobots.txt' files.
-	 * @return \Iterator
+	 * @return Nette\Utils\Finder
 	 * @throws Nette\IOException if path is not found
 	 */
 	private function createFileIterator($dir)
@@ -223,12 +223,12 @@ class RobotLoader
 
 		$iterator = Nette\Utils\Finder::findFiles(is_array($this->acceptFiles) ? $this->acceptFiles : preg_split('#[,\s]+#', $this->acceptFiles))
 			->filter(function (SplFileInfo $file) use (&$disallow) {
-				return !isset($disallow[str_replace('\\', '/', $file->getPathname())]);
+				return !isset($disallow[str_replace('\\', '/', $file->getRealPath())]);
 			})
 			->from($dir)
 			->exclude($ignoreDirs)
 			->filter($filter = function (SplFileInfo $dir) use (&$disallow) {
-				$path = str_replace('\\', '/', $dir->getPathname());
+				$path = str_replace('\\', '/', $dir->getRealPath());
 				if (is_file("$path/netterobots.txt")) {
 					foreach (file("$path/netterobots.txt") as $s) {
 						if (preg_match('#^(?:disallow\\s*:)?\\s*(\\S+)#i', $s, $matches)) {
@@ -272,7 +272,7 @@ class RobotLoader
 
 	/**
 	 * Searches classes, interfaces and traits in PHP file.
-	 * @param  string
+	 * @param  string  $code
 	 * @return string[]
 	 */
 	private function scanPhp($code)
