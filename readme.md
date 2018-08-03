@@ -14,7 +14,7 @@ If you like Nette, **[please make a donation now](https://nette.org/donate)**. T
 Requirements
 ------------
 
-PHP 5.6 or higher.
+PHP 7.1 or higher.
 
 
 Installation
