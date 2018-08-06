@@ -49,10 +49,11 @@ via a web browser. See [security warning](https://nette.org/security-warning).**
 Notice: Composer PHP version
 ----------------------------
 This project forces `PHP 7.1` as your PHP version for Composer packages. If you have newer version on production you should change it in `composer.json`.
+
 ```json
 "config": {
 	"platform": {
-		"php": "7.1"
+		"php": "7.2"
 	}
 }
 ```
