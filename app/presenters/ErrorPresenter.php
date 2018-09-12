@@ -8,7 +8,7 @@ use Nette\Http;
 use Tracy\ILogger;
 
 
-class ErrorPresenter implements Nette\Application\IPresenter
+final class ErrorPresenter implements Nette\Application\IPresenter
 {
 	use Nette\SmartObject;
 
