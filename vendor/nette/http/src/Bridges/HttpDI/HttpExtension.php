@@ -23,7 +23,11 @@ class HttpExtension extends Nette\DI\CompilerExtension
 		],
 		'frames' => 'SAMEORIGIN', // X-Frame-Options
 		'csp' => [], // Content-Security-Policy
-		'csp-report' => [], // Content-Security-Policy-Report-Only
+		'cspReportOnly' => [], // Content-Security-Policy-Report-Only
+		'csp-report' => null, // for compatibility
+		'featurePolicy' => [], // Feature-Policy
+		'cookieSecure' => null, // true|false|auto  Whether the cookie is available only through HTTPS
+		'sameSiteProtection' => null, // activates Request::isSameSite() protection
 	];
 
 	/** @var bool */
@@ -65,6 +69,27 @@ class HttpExtension extends Nette\DI\CompilerExtension
 	}
 
 
+	public function beforeCompile()
+	{
+		$builder = $this->getContainerBuilder();
+		if (isset($this->config['cookieSecure'])) {
+			$value = $this->config['cookieSecure'] === 'auto'
+				? $builder::literal('$this->getService(?)->isSecured()', [$this->prefix('request')])
+				: (bool) $this->config['cookieSecure'];
+
+			$builder->getDefinition($this->prefix('response'))
+				->addSetup('$cookieSecure', [$value]);
+			$builder->getDefinitionByType(Nette\Http\Session::class)
+				->addSetup('setOptions', [['cookie_secure' => $value]]);
+		}
+
+		if (!empty($this->config['sameSiteProtection'])) {
+			$builder->getDefinitionByType(Nette\Http\Session::class)
+				->addSetup('setOptions', [['cookie_samesite' => 'Lax']]);
+		}
+	}
+
+
 	public function afterCompile(Nette\PhpGenerator\ClassType $class)
 	{
 		if ($this->cliMode) {
@@ -85,18 +110,16 @@ class HttpExtension extends Nette\DI\CompilerExtension
 			$headers['X-Frame-Options'] = $frames;
 		}
 
-		foreach (['csp', 'csp-report'] as $key) {
+		if (isset($config['csp-report'])) {
+			trigger_error('Rename csp-repost to cspReportOnly in config.', E_USER_DEPRECATED);
+			$config['cspReportOnly'] = $config['csp-report'];
+		}
+
+		foreach (['csp', 'cspReportOnly'] as $key) {
 			if (empty($config[$key])) {
 				continue;
 			}
-			$value = '';
-			foreach ($config[$key] as $type => $policy) {
-				$value .= $type;
-				foreach ((array) $policy as $item) {
-					$value .= preg_match('#^[a-z-]+\z#', $item) ? " '$item'" : " $item";
-				}
-				$value .= '; ';
-			}
+			$value = self::buildPolicy($config[$key]);
 			if (strpos($value, "'nonce'")) {
 				$value = Nette\DI\ContainerBuilder::literal(
 					'str_replace(?, ? . (isset($cspNonce) \? $cspNonce : $cspNonce = base64_encode(Nette\Utils\Random::generate(16, "\x00-\xFF"))), ?)',
@@ -106,10 +129,37 @@ class HttpExtension extends Nette\DI\CompilerExtension
 			$headers['Content-Security-Policy' . ($key === 'csp' ? '' : '-Report-Only')] = $value;
 		}
 
+		if (!empty($config['featurePolicy'])) {
+			$headers['Feature-Policy'] = self::buildPolicy($config['featurePolicy']);
+		}
+
 		foreach ($headers as $key => $value) {
 			if ($value != null) { // intentionally ==
 				$initialize->addBody('$this->getService(?)->setHeader(?, ?);', [$this->prefix('response'), $key, $value]);
 			}
 		}
+
+		if (!empty($config['sameSiteProtection'])) {
+			$initialize->addBody('$this->getService(?)->setCookie(...?);', [$this->prefix('response'), ['nette-samesite', '1', 0, '/', null, null, true, 'Strict']]);
+		}
+	}
+
+
+	private static function buildPolicy(array $config)
+	{
+		static $nonQuoted = ['require-sri-for' => 1, 'sandbox' => 1];
+		$value = '';
+		foreach ($config as $type => $policy) {
+			if ($policy === false) {
+				continue;
+			}
+			$policy = $policy === true ? [] : (array) $policy;
+			$value .= $type;
+			foreach ($policy as $item) {
+				$value .= !isset($nonQuoted[$type]) && preg_match('#^[a-z-]+\z#', $item) ? " '$item'" : " $item";
+			}
+			$value .= '; ';
+		}
+		return $value;
 	}
 }

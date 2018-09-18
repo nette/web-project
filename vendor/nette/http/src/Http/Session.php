@@ -116,9 +116,6 @@ class Session
 			$this->regenerated = true;
 		}
 
-		// resend cookie
-		$this->sendCookie();
-
 		// process meta metadata
 		if (isset($nf['META'])) {
 			$now = time();
@@ -418,10 +415,17 @@ class Session
 		}
 
 		if ($cookie !== $origCookie) {
-			session_set_cookie_params(
-				$cookie['lifetime'], $cookie['path'], $cookie['domain'],
-				$cookie['secure'], $cookie['httponly']
-			);
+			if (PHP_VERSION_ID >= 70300) {
+				session_set_cookie_params($cookie);
+			} else {
+				session_set_cookie_params(
+					$cookie['lifetime'],
+					$cookie['path'] . (isset($cookie['samesite']) ? '; SameSite=' . $cookie['samesite'] : ''),
+					$cookie['domain'],
+					$cookie['secure'],
+					$cookie['httponly']
+				);
+			}
 			if (self::$started) {
 				$this->sendCookie();
 			}
@@ -461,14 +465,16 @@ class Session
 	 * @param  string  path
 	 * @param  string  domain
 	 * @param  bool    secure
+	 * @param  string  samesite
 	 * @return static
 	 */
-	public function setCookieParameters($path, $domain = null, $secure = null)
+	public function setCookieParameters($path, $domain = null, $secure = null, $samesite = null)
 	{
 		return $this->setOptions([
 			'cookie_path' => $path,
 			'cookie_domain' => $domain,
 			'cookie_secure' => $secure,
+			'cookie_samesite' => $samesite,
 		]);
 	}
 
@@ -536,7 +542,8 @@ class Session
 		$this->response->setCookie(
 			session_name(), session_id(),
 			$cookie['lifetime'] ? $cookie['lifetime'] + time() : 0,
-			$cookie['path'], $cookie['domain'], $cookie['secure'], $cookie['httponly']
+			$cookie['path'], $cookie['domain'], $cookie['secure'], $cookie['httponly'],
+			isset($cookie['samesite']) ? $cookie['samesite'] : null
 		);
 	}
 }

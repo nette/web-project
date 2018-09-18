@@ -241,12 +241,22 @@ class Request implements IRequest
 
 
 	/**
-	 * Is the request is sent via secure channel (https).
+	 * Is the request sent via secure channel (https)?
 	 * @return bool
 	 */
 	public function isSecured()
 	{
 		return $this->url->getScheme() === 'https';
+	}
+
+
+	/**
+	 * Is the request sent from the same origin?
+	 * @return bool
+	 */
+	public function isSameSite()
+	{
+		return isset($this->cookies['nette-samesite']);
 	}
 
 
