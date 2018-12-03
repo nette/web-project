@@ -24,6 +24,9 @@
 	"require-dev": {
 		"nette/tester": "^2.0"
 	},
+	"autoload": {
+		"classmap": ["app/Booting.php"]
+	},
 	"minimum-stability": "dev",
 	"config": {
 		"platform": {
