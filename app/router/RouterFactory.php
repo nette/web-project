@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Router;
 
 use Nette;
@@ -11,13 +13,10 @@ final class RouterFactory
 {
 	use Nette\StaticClass;
 
-	/**
-	 * @return Nette\Application\IRouter
-	 */
-	public static function createRouter()
+	public static function createRouter(): RouteList
 	{
 		$router = new RouteList;
-		$router[] = new Route('<presenter>/<action>[/<id>]', 'Homepage:default');
+		$router->addRoute('<presenter>/<action>[/<id>]', 'Homepage:default');
 		return $router;
 	}
 }

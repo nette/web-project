@@ -1,6 +1,10 @@
 <?php
 
-$container = require __DIR__ . '/../app/bootstrap.php';
+declare(strict_types=1);
 
-$container->getByType(Nette\Application\Application::class)
+require __DIR__ . '/../vendor/autoload.php';
+
+App\Booting::boot()
+	->createContainer()
+	->getByType(Nette\Application\Application::class)
 	->run();
