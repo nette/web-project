@@ -27,6 +27,13 @@
 	"autoload": {
 		"classmap": ["app/Booting.php"]
 	},
+	"autoload-dev": {
+		"psr-4": {
+			"App\\": "app/",
+			"App\\Presenters\\": "app/presenters/",
+			"App\\Router\\": "app/router/"
+		}
+	},
 	"minimum-stability": "dev",
 	"config": {
 		"platform": {
