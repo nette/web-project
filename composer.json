@@ -25,9 +25,7 @@
 		"nette/tester": "^2.0"
 	},
 	"autoload": {
-		"classmap": ["app/Booting.php"]
-	},
-	"autoload-dev": {
+		"classmap": ["app/Booting.php"],
 		"psr-4": {
 			"App\\": "app/",
 			"App\\Presenters\\": "app/presenters/",
