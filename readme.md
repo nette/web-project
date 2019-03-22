@@ -14,8 +14,7 @@ If you like Nette, **[please make a donation now](https://nette.org/donate)**. T
 Requirements
 ------------
 
-- Web Project for Nette 2.4 requires PHP 5.6
-- The master version of Web Project requires PHP 7.1
+- Web Project for Nette 3.0 requires PHP 7.1
 
 
 Installation
