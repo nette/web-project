@@ -86,13 +86,6 @@
 	font-style: normal;
 }
 
-#tracy-bs-ie-warning {
-	background: black;
-	margin: 1em;
-	padding: .5em;
-	text-align: center;
-}
-
 #tracy-bs h1 {
 	font-size: 15pt;
 	font-weight: normal;
@@ -174,11 +167,12 @@
 
 #tracy-bs ul {
 	font-size: 7pt;
-	padding: 2em 4em;
+	padding: 2em 3em;
 	margin: 1em 0 0;
 	color: #777;
 	background: #F6F5F3;
 	border-top: 1px solid #DDD;
+	list-style: none;
 }
 
 #tracy-bs-logo a {
@@ -263,6 +257,11 @@ html.tracy-js #tracy-bs .tracy-toggle.tracy-collapsed {
 
 #tracy-bs .tracy-toggle {
 	cursor: pointer;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-khtml-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
 }
 
 #tracy-bs .tracy-toggle:after {
@@ -272,7 +271,6 @@ html.tracy-js #tracy-bs .tracy-toggle.tracy-collapsed {
 
 #tracy-bs .tracy-toggle.tracy-collapsed:after {
 	content: "\A0\25BA";
-	opacity: .4;
 }
 
 
@@ -288,6 +286,10 @@ html.tracy-js #tracy-bs .tracy-toggle.tracy-collapsed {
 
 #tracy-bs .tracy-dump-number {
 	color: #090;
+}
+
+#tracy-bs .tracy-dump-whitespace {
+	color: #0003;
 }
 
 #tracy-bs .tracy-dump-null,

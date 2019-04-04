@@ -23,13 +23,13 @@ class Helpers
 		$file = strtr($origFile = $file, Debugger::$editorMapping);
 		if ($editor = self::editorUri($origFile, $line)) {
 			$file = strtr($file, '\\', '/');
-			if (preg_match('#(^[a-z]:)?/.{1,50}$#i', $file, $m) && strlen($file) > strlen($m[0])) {
+			if (preg_match('#(^[a-z]:)?/.{1,40}$#i', $file, $m) && strlen($file) > strlen($m[0])) {
 				$file = '...' . $m[0];
 			}
 			$file = strtr($file, '/', DIRECTORY_SEPARATOR);
 			return self::formatHtml('<a href="%" title="%">%<b>%</b>%</a>',
 				$editor,
-				$file . ($line ? ":$line" : ''),
+				$origFile . ($line ? ":$line" : ''),
 				rtrim(dirname($file), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR,
 				basename($file),
 				$line ? ":$line" : ''
@@ -64,7 +64,7 @@ class Helpers
 	{
 		$args = func_get_args();
 		return preg_replace_callback('#%#', function () use (&$args, &$count) {
-			return Helpers::escapeHtml($args[++$count]);
+			return self::escapeHtml($args[++$count]);
 		}, $mask);
 	}
 
@@ -185,7 +185,7 @@ class Helpers
 			$replace = ["$m[2](", "$hint("];
 
 		} elseif (preg_match('#^Call to undefined method ([\w\\\\]+)::(\w+)#', $message, $m)) {
-			$hint = self::getSuggestion(get_class_methods($m[1]), $m[2]);
+			$hint = self::getSuggestion(get_class_methods($m[1]) ?: [], $m[2]);
 			$message .= ", did you mean $hint()?";
 			$replace = ["$m[2](", "$hint("];
 
@@ -218,6 +218,46 @@ class Helpers
 				'label' => 'fix it',
 			];
 		}
+	}
+
+
+	/** @internal */
+	public static function improveError($message, array $context = [])
+	{
+		if (preg_match('#^Undefined variable: (\w+)#', $message, $m) && $context) {
+			$hint = self::getSuggestion(array_keys($context), $m[1]);
+			return $hint ? "Undefined variable $$m[1], did you mean $$hint?" : $message;
+
+		} elseif (preg_match('#^Undefined property: ([\w\\\\]+)::\$(\w+)#', $message, $m)) {
+			$rc = new \ReflectionClass($m[1]);
+			$items = array_diff($rc->getProperties(\ReflectionProperty::IS_PUBLIC), $rc->getProperties(\ReflectionProperty::IS_STATIC));
+			$hint = self::getSuggestion($items, $m[2]);
+			return $hint ? $message . ", did you mean $$hint?" : $message;
+		}
+		return $message;
+	}
+
+
+	/** @internal */
+	public static function guessClassFile($class)
+	{
+		$segments = explode(DIRECTORY_SEPARATOR, $class);
+		$res = null;
+		$max = 0;
+		foreach (get_declared_classes() as $class) {
+			$parts = explode(DIRECTORY_SEPARATOR, $class);
+			foreach ($parts as $i => $part) {
+				if (!isset($segments[$i]) || $part !== $segments[$i]) {
+					break;
+				}
+			}
+			if ($i > $max && ($file = (new \ReflectionClass($class))->getFileName())) {
+				$max = $i;
+				$res = array_merge(array_slice(explode(DIRECTORY_SEPARATOR, $file), 0, $i - count($parts)), array_slice($segments, $i));
+				$res = implode(DIRECTORY_SEPARATOR, $res) . '.php';
+			}
+		}
+		return $res;
 	}
 
 

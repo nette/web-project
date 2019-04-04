@@ -75,17 +75,17 @@
     },
     {
         "name": "nette/application",
-        "version": "v2.4.12",
-        "version_normalized": "2.4.12.0",
+        "version": "v2.4.13",
+        "version_normalized": "2.4.13.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/application.git",
-            "reference": "fe1915f880d8e5d16217bad467950733fd5cbad3"
+            "reference": "023acd964383de11fbc32cae8f4dfd8043643a0f"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/application/zipball/fe1915f880d8e5d16217bad467950733fd5cbad3",
-            "reference": "fe1915f880d8e5d16217bad467950733fd5cbad3",
+            "url": "https://api.github.com/repos/nette/application/zipball/023acd964383de11fbc32cae8f4dfd8043643a0f",
+            "reference": "023acd964383de11fbc32cae8f4dfd8043643a0f",
             "shasum": ""
         },
         "require": {
@@ -104,7 +104,7 @@
         "require-dev": {
             "latte/latte": "^2.4.3",
             "mockery/mockery": "^0.9.5",
-            "nette/di": "^2.4 || ~3.0.0",
+            "nette/di": "^2.4",
             "nette/forms": "^2.4",
             "nette/robot-loader": "^2.4.2 || ^3.0",
             "nette/security": "^2.4",
@@ -115,7 +115,7 @@
             "latte/latte": "Allows using Latte in templates",
             "nette/forms": "Allows to use Nette\\Application\\UI\\Form"
         },
-        "time": "2018-05-16T09:28:51+00:00",
+        "time": "2018-11-23T22:28:11+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -147,7 +147,7 @@
                 "homepage": "https://nette.org/contributors"
             }
         ],
-        "description": "🏆 Nette Application: a full-stack component-based MVC kernel for PHP that helps you write powerful and modern web applications. Write less, have cleaner code and your work will bring you joy.",
+        "description": "? Nette Application: a full-stack component-based MVC kernel for PHP that helps you write powerful and modern web applications. Write less, have cleaner code and your work will bring you joy.",
         "homepage": "https://nette.org",
         "keywords": [
             "Forms",
@@ -376,17 +376,17 @@
     },
     {
         "name": "nette/database",
-        "version": "v2.4.6",
-        "version_normalized": "2.4.6.0",
+        "version": "v2.4.8",
+        "version_normalized": "2.4.8.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/database.git",
-            "reference": "b094b7ae07daa7d4c188168f78b15eb2f4f27212"
+            "reference": "388b172536f49e93c4b775c0adb1db2233a42c9f"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/database/zipball/b094b7ae07daa7d4c188168f78b15eb2f4f27212",
-            "reference": "b094b7ae07daa7d4c188168f78b15eb2f4f27212",
+            "url": "https://api.github.com/repos/nette/database/zipball/388b172536f49e93c4b775c0adb1db2233a42c9f",
+            "reference": "388b172536f49e93c4b775c0adb1db2233a42c9f",
             "shasum": ""
         },
         "require": {
@@ -404,7 +404,7 @@
             "nette/tester": "^2.0",
             "tracy/tracy": "^2.4"
         },
-        "time": "2018-06-01T15:50:27+00:00",
+        "time": "2018-11-26T15:09:27+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -433,7 +433,7 @@
                 "homepage": "https://nette.org/contributors"
             }
         ],
-        "description": "💾 Nette Database: layer with a familiar PDO-like API but much more powerful. Building queries, advanced joins, drivers for MySQL, PostgreSQL, SQLite, MS SQL Server and Oracle.",
+        "description": "? Nette Database: layer with a familiar PDO-like API but much more powerful. Building queries, advanced joins, drivers for MySQL, PostgreSQL, SQLite, MS SQL Server and Oracle.",
         "homepage": "https://nette.org",
         "keywords": [
             "database",
@@ -450,24 +450,24 @@
     },
     {
         "name": "nette/di",
-        "version": "v2.4.14",
-        "version_normalized": "2.4.14.0",
+        "version": "v2.4.15",
+        "version_normalized": "2.4.15.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/di.git",
-            "reference": "923da3e2c0aa53162ef455472c0ac7787b096c5a"
+            "reference": "d0561b8f77e8ef2ed6d83328860e16c81a5a8649"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/di/zipball/923da3e2c0aa53162ef455472c0ac7787b096c5a",
-            "reference": "923da3e2c0aa53162ef455472c0ac7787b096c5a",
+            "url": "https://api.github.com/repos/nette/di/zipball/d0561b8f77e8ef2ed6d83328860e16c81a5a8649",
+            "reference": "d0561b8f77e8ef2ed6d83328860e16c81a5a8649",
             "shasum": ""
         },
         "require": {
             "ext-tokenizer": "*",
             "nette/neon": "^2.3.3 || ~3.0.0",
-            "nette/php-generator": "^2.6.1 || ~3.0.0",
-            "nette/utils": "^2.4.3 || ~3.0.0",
+            "nette/php-generator": "^2.6.1 || ^3.0.0",
+            "nette/utils": "^2.5.0 || ~3.0.0",
             "php": ">=5.6.0"
         },
         "conflict": {
@@ -478,7 +478,7 @@
             "nette/tester": "^2.0",
             "tracy/tracy": "^2.3"
         },
-        "time": "2018-09-17T15:47:40+00:00",
+        "time": "2019-01-30T13:26:05+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -507,7 +507,7 @@
                 "homepage": "https://nette.org/contributors"
             }
         ],
-        "description": "💎 Nette Dependency Injection Container: Flexible, compiled and full-featured DIC with perfectly usable autowiring and support for all new PHP 7.1 features.",
+        "description": "? Nette Dependency Injection Container: Flexible, compiled and full-featured DIC with perfectly usable autowiring and support for all new PHP 7.1 features.",
         "homepage": "https://nette.org",
         "keywords": [
             "compiled",
@@ -655,17 +655,17 @@
     },
     {
         "name": "nette/http",
-        "version": "v2.4.10",
-        "version_normalized": "2.4.10.0",
+        "version": "v2.4.11",
+        "version_normalized": "2.4.11.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/http.git",
-            "reference": "a36e6bad0aae8bacf849c150b5e0ecacef0d9eca"
+            "reference": "3d75d11a880fe223bfa6bc7ca9822bdfe789e5a6"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/http/zipball/a36e6bad0aae8bacf849c150b5e0ecacef0d9eca",
-            "reference": "a36e6bad0aae8bacf849c150b5e0ecacef0d9eca",
+            "url": "https://api.github.com/repos/nette/http/zipball/3d75d11a880fe223bfa6bc7ca9822bdfe789e5a6",
+            "reference": "3d75d11a880fe223bfa6bc7ca9822bdfe789e5a6",
             "shasum": ""
         },
         "require": {
@@ -684,7 +684,7 @@
             "ext-fileinfo": "to detect type of uploaded files",
             "nette/security": "allows use Nette\\Http\\UserStorage"
         },
-        "time": "2018-09-03T19:16:55+00:00",
+        "time": "2019-03-13T19:04:45+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -713,7 +713,7 @@
                 "homepage": "https://nette.org/contributors"
             }
         ],
-        "description": "🌐 Nette Http: abstraction for HTTP request, response and session. Provides careful data sanitization and utility for URL and cookies manipulation.",
+        "description": "? Nette Http: abstraction for HTTP request, response and session. Provides careful data sanitization and utility for URL and cookies manipulation.",
         "homepage": "https://nette.org",
         "keywords": [
             "cookies",
@@ -729,17 +729,17 @@
     },
     {
         "name": "nette/mail",
-        "version": "v2.4.5",
-        "version_normalized": "2.4.5.0",
+        "version": "v2.4.6",
+        "version_normalized": "2.4.6.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/mail.git",
-            "reference": "13312eb627d913f2630018a07a9e40cb7003dc76"
+            "reference": "431f1774034cc14ee6a795b6514fe6343f75a68e"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/mail/zipball/13312eb627d913f2630018a07a9e40cb7003dc76",
-            "reference": "13312eb627d913f2630018a07a9e40cb7003dc76",
+            "url": "https://api.github.com/repos/nette/mail/zipball/431f1774034cc14ee6a795b6514fe6343f75a68e",
+            "reference": "431f1774034cc14ee6a795b6514fe6343f75a68e",
             "shasum": ""
         },
         "require": {
@@ -758,7 +758,7 @@
         "suggest": {
             "ext-fileinfo": "to detect type of attached files"
         },
-        "time": "2018-03-18T16:30:02+00:00",
+        "time": "2018-11-21T22:35:13+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -787,7 +787,7 @@
                 "homepage": "https://nette.org/contributors"
             }
         ],
-        "description": "📧 Nette Mail: handy email creation and transfer library for PHP with both text and MIME-compliant support.",
+        "description": "? Nette Mail: handy email creation and transfer library for PHP with both text and MIME-compliant support.",
         "homepage": "https://nette.org",
         "keywords": [
             "mail",
@@ -992,17 +992,17 @@
     },
     {
         "name": "nette/robot-loader",
-        "version": "v3.1.0",
-        "version_normalized": "3.1.0.0",
+        "version": "v3.1.1",
+        "version_normalized": "3.1.1.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/robot-loader.git",
-            "reference": "fc76c70e740b10f091e502b2e393d0be912f38d4"
+            "reference": "3e8d75d6d976e191bdf46752ca40a286671219d2"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/robot-loader/zipball/fc76c70e740b10f091e502b2e393d0be912f38d4",
-            "reference": "fc76c70e740b10f091e502b2e393d0be912f38d4",
+            "url": "https://api.github.com/repos/nette/robot-loader/zipball/3e8d75d6d976e191bdf46752ca40a286671219d2",
+            "reference": "3e8d75d6d976e191bdf46752ca40a286671219d2",
             "shasum": ""
         },
         "require": {
@@ -1018,7 +1018,7 @@
             "nette/tester": "^2.0",
             "tracy/tracy": "^2.3"
         },
-        "time": "2018-08-13T14:19:06+00:00",
+        "time": "2019-03-01T20:23:02+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -1047,7 +1047,7 @@
                 "homepage": "https://nette.org/contributors"
             }
         ],
-        "description": "🍀 Nette RobotLoader: high performance and comfortable autoloader that will search and autoload classes within your application.",
+        "description": "? Nette RobotLoader: high performance and comfortable autoloader that will search and autoload classes within your application.",
         "homepage": "https://nette.org",
         "keywords": [
             "autoload",
@@ -1059,17 +1059,17 @@
     },
     {
         "name": "nette/security",
-        "version": "v2.4.3",
-        "version_normalized": "2.4.3.0",
+        "version": "v2.4.4",
+        "version_normalized": "2.4.4.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/security.git",
-            "reference": "9b60f156626394f859a42a04dfbdcbe59095a37c"
+            "reference": "7b8ac90c9ec405bb3b4dab9214bf122d3620fc65"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/security/zipball/9b60f156626394f859a42a04dfbdcbe59095a37c",
-            "reference": "9b60f156626394f859a42a04dfbdcbe59095a37c",
+            "url": "https://api.github.com/repos/nette/security/zipball/7b8ac90c9ec405bb3b4dab9214bf122d3620fc65",
+            "reference": "7b8ac90c9ec405bb3b4dab9214bf122d3620fc65",
             "shasum": ""
         },
         "require": {
@@ -1085,7 +1085,7 @@
             "nette/tester": "~2.0",
             "tracy/tracy": "^2.4"
         },
-        "time": "2018-04-02T19:47:47+00:00",
+        "time": "2018-10-17T15:50:54+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -1114,7 +1114,7 @@
                 "homepage": "https://nette.org/contributors"
             }
         ],
-        "description": "🔑 Nette Security: provides authentication, authorization and a role-based access control management via ACL (Access Control List)",
+        "description": "? Nette Security: provides authentication, authorization and a role-based access control management via ACL (Access Control List)",
         "homepage": "https://nette.org",
         "keywords": [
             "Authentication",
@@ -1273,17 +1273,17 @@
     },
     {
         "name": "tracy/tracy",
-        "version": "v2.5.2",
-        "version_normalized": "2.5.2.0",
+        "version": "v2.5.8",
+        "version_normalized": "2.5.8.0",
         "source": {
             "type": "git",
             "url": "https://github.com/nette/tracy.git",
-            "reference": "93f89fbff33db4d583062104c71d6083b717371a"
+            "reference": "3c874946fc403f728af9118cd602cac56bd493d3"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/nette/tracy/zipball/93f89fbff33db4d583062104c71d6083b717371a",
-            "reference": "93f89fbff33db4d583062104c71d6083b717371a",
+            "url": "https://api.github.com/repos/nette/tracy/zipball/3c874946fc403f728af9118cd602cac56bd493d3",
+            "reference": "3c874946fc403f728af9118cd602cac56bd493d3",
             "shasum": ""
         },
         "require": {
@@ -1292,13 +1292,14 @@
             "php": ">=5.4.4"
         },
         "require-dev": {
-            "nette/di": "~2.3",
-            "nette/tester": "~1.7"
+            "nette/di": "~2.3 || ~3.0.0",
+            "nette/tester": "~1.7 || ~2.0",
+            "nette/utils": "~2.3"
         },
         "suggest": {
             "https://nette.org/donate": "Please support Tracy via a donation"
         },
-        "time": "2018-08-13T16:46:17+00:00",
+        "time": "2019-03-21T15:06:29+00:00",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -1328,7 +1329,7 @@
                 "homepage": "https://nette.org/contributors"
             }
         ],
-        "description": "😎 Tracy: the addictive tool to ease debugging PHP code for cool developers. Friendly design, logging, profiler, advanced features like debugging AJAX calls or CLI support. You will love it.",
+        "description": "? Tracy: the addictive tool to ease debugging PHP code for cool developers. Friendly design, logging, profiler, advanced features like debugging AJAX calls or CLI support. You will love it.",
         "homepage": "https://tracy.nette.org",
         "keywords": [
             "Xdebug",

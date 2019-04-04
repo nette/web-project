@@ -17,6 +17,26 @@ class SqlPreprocessor
 {
 	use Nette\SmartObject;
 
+	const ARRAY_MODES = [
+		'INSERT' => 'values',
+		'REPLACE' => 'values',
+		'KEY UPDATE' => 'set',
+		'SET' => 'set',
+		'WHERE' => 'and',
+		'HAVING' => 'and',
+		'ORDER BY' => 'order',
+		'GROUP BY' => 'order',
+	];
+
+	const PARAMETRIC_COMMANDS = [
+		'SELECT' => 1,
+		'INSERT' => 1,
+		'UPDATE' => 1,
+		'DELETE' => 1,
+		'REPLACE' => 1,
+		'EXPLAIN' => 1,
+	];
+
 	/** @var Connection */
 	private $connection;
 
@@ -31,6 +51,9 @@ class SqlPreprocessor
 
 	/** @var int */
 	private $counter;
+
+	/** @var bool */
+	private $useParams;
 
 	/** @var string values|set|and|order */
 	private $arrayMode;
@@ -47,13 +70,14 @@ class SqlPreprocessor
 	 * @param  array
 	 * @return array of [sql, params]
 	 */
-	public function process($params)
+	public function process($params, $useParams = false)
 	{
 		$this->params = $params;
 		$this->counter = 0;
 		$prev = -1;
 		$this->remaining = [];
 		$this->arrayMode = null;
+		$this->useParams = $useParams;
 		$res = [];
 
 		while ($this->counter < count($params)) {
@@ -68,7 +92,7 @@ class SqlPreprocessor
 				$this->arrayMode = null;
 				$res[] = Nette\Utils\Strings::replace(
 					$param,
-					'~\'[^\']*+\'|"[^"]*+"|\?[a-z]*|^\s*+(?:INSERT|REPLACE)\b|\b(?:SET|WHERE|HAVING|ORDER BY|GROUP BY|KEY UPDATE)(?=\s*\z|\s*\?)|/\*.*?\*/|--[^\n]*~si',
+					'~\'[^\']*+\'|"[^"]*+"|\?[a-z]*|^\s*+(?:SELECT|INSERT|UPDATE|DELETE|REPLACE|EXPLAIN)\b|\b(?:SET|WHERE|HAVING|ORDER BY|GROUP BY|KEY UPDATE)(?=\s*\z|\s*\?)|/\*.*?\*/|--[^\n]*~si',
 					[$this, 'callback']
 				);
 			} else {
@@ -94,17 +118,11 @@ class SqlPreprocessor
 			return $m;
 
 		} else { // command
-			static $modes = [
-				'INSERT' => 'values',
-				'REPLACE' => 'values',
-				'KEY UPDATE' => 'set',
-				'SET' => 'set',
-				'WHERE' => 'and',
-				'HAVING' => 'and',
-				'ORDER BY' => 'order',
-				'GROUP BY' => 'order',
-			];
-			$this->arrayMode = $modes[ltrim(strtoupper($m))];
+			$cmd = ltrim(strtoupper($m));
+			$tmp = self::ARRAY_MODES;
+			$this->arrayMode = isset($tmp[$cmd]) ? $tmp[$cmd] : null;
+			$tmp = self::PARAMETRIC_COMMANDS;
+			$this->useParams = isset($tmp[$cmd]) || $this->useParams;
 			return $m;
 		}
 	}
@@ -113,12 +131,14 @@ class SqlPreprocessor
 	private function formatValue($value, $mode = null)
 	{
 		if (!$mode || $mode === 'auto') {
-			if (is_string($value)) {
-				if (strlen($value) > 20 || strpos($value, '\\') !== false) {
+			if (is_string($value) || is_resource($value)) {
+				if ($this->useParams) {
 					$this->remaining[] = $value;
 					return '?';
-
 				} else {
+					if (is_resource($value)) {
+						$value = stream_get_contents($value);
+					}
 					return $this->connection->quote($value);
 				}
 
@@ -139,7 +159,7 @@ class SqlPreprocessor
 
 			} elseif ($value instanceof SqlLiteral) {
 				$prep = clone $this;
-				list($res, $params) = $prep->process(array_merge([$value->__toString()], $value->getParameters()));
+				list($res, $params) = $prep->process(array_merge([$value->__toString()], $value->getParameters()), $this->useParams);
 				$this->remaining = array_merge($this->remaining, $params);
 				return $res;
 
@@ -151,10 +171,6 @@ class SqlPreprocessor
 
 			} elseif (is_object($value) && method_exists($value, '__toString')) {
 				return $this->formatValue((string) $value);
-
-			} elseif (is_resource($value)) {
-				$this->remaining[] = $value;
-				return '?';
 			}
 
 		} elseif ($mode === 'name') {

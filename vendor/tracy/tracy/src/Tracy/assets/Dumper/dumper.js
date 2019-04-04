@@ -11,9 +11,10 @@
 	{
 		static init(repository, context) {
 			if (repository) {
-				[].forEach.call((context || document).querySelectorAll('.tracy-dump[data-tracy-dump]'), function(el) {
+				[].forEach.call((context || document).querySelectorAll('.tracy-dump[data-tracy-dump]'), (el) => {
 					try {
-						el.appendChild(build(JSON.parse(el.getAttribute('data-tracy-dump')), repository, el.classList.contains('tracy-collapsed')));
+						let built = build(JSON.parse(el.getAttribute('data-tracy-dump')), repository, el.classList.contains('tracy-collapsed'));
+						el.insertBefore(built, el.lastChild);
 						el.classList.remove('tracy-collapsed');
 						el.removeAttribute('data-tracy-dump');
 					} catch (e) {
@@ -30,8 +31,8 @@
 			Dumper.inited = true;
 
 			// enables <span data-tracy-href=""> & ctrl key
-			document.documentElement.addEventListener('click', function(e) {
-				var el;
+			document.documentElement.addEventListener('click', (e) => {
+				let el;
 				if (e.ctrlKey && (el = e.target.closest('[data-tracy-href]'))) {
 					location.href = el.getAttribute('data-tracy-href');
 					return false;
@@ -44,8 +45,8 @@
 
 
 	function build(data, repository, collapsed, parentIds) {
-		var type = data === null ? 'null' : typeof data,
-			collapseCount = typeof collapsed === 'undefined' ? COLLAPSE_COUNT_TOP : COLLAPSE_COUNT;
+		let type = data === null ? 'null' : typeof data,
+			collapseCount = collapsed === null ? COLLAPSE_COUNT : COLLAPSE_COUNT_TOP;
 
 		if (type === 'null' || type === 'string' || type === 'number' || type === 'boolean') {
 			data = type === 'string' ? '"' + data + '"' : (data + '');
@@ -81,14 +82,14 @@
 			]);
 
 		} else if (type === 'object') {
-			var id = data.object || data.resource,
+			let id = data.object || data.resource,
 				object = repository[id];
 
 			if (!object) {
 				throw new UnknownEntityException;
 			}
 			parentIds = parentIds || [];
-			var recursive = parentIds.indexOf(id) > -1;
+			let recursive = parentIds.indexOf(id) > -1;
 			parentIds.push(id);
 
 			return buildStruct(
@@ -112,7 +113,7 @@
 
 
 	function buildStruct(span, ellipsis, items, collapsed, repository, parentIds) {
-		var res, toggle, div, handler;
+		let res, toggle, div, handler;
 
 		if (!items || !items.length) {
 			span.push(!items || items.length ? ellipsis + '\n' : '\n');
@@ -141,14 +142,14 @@
 		if (!(el instanceof Node)) {
 			el = el ? document.createElement(el) : document.createDocumentFragment();
 		}
-		for (var id in attrs || {}) {
+		for (let id in attrs || {}) {
 			if (attrs[id] !== null) {
 				el.setAttribute(id, attrs[id]);
 			}
 		}
 		content = content || [];
-		for (id = 0; id < content.length; id++) {
-			var child = content[id];
+		for (let id = 0; id < content.length; id++) {
+			let child = content[id];
 			if (child !== null) {
 				el.appendChild(child instanceof Node ? child : document.createTextNode(child));
 			}
@@ -158,8 +159,8 @@
 
 
 	function createItems(el, items, repository, parentIds) {
-		for (var i = 0; i < items.length; i++) {
-			var vis = items[i][2];
+		for (let i = 0; i < items.length; i++) {
+			let vis = items[i][2];
 			createEl(el, null, [
 				createEl('span', {'class': 'tracy-dump-key'}, [items[i][0]]),
 				vis ? ' ' : null,

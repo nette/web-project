@@ -220,7 +220,7 @@ class Compiler
 			throw new Nette\DeprecatedException("Extensions '$extra' were added while container was being compiled.");
 
 		} elseif ($extra = key(array_diff_key($this->config, self::$reserved, $this->extensions))) {
-			$hint = Nette\Utils\ObjectMixin::getSuggestion(array_keys(self::$reserved + $this->extensions), $extra);
+			$hint = Nette\Utils\ObjectHelpers::getSuggestion(array_keys(self::$reserved + $this->extensions), $extra);
 			throw new Nette\InvalidStateException(
 				"Found section '$extra' in configuration, but corresponding extension is missing"
 				. ($hint ? ", did you mean '$hint'?" : '.')
@@ -275,9 +275,11 @@ class Compiler
 	public static function loadDefinitions(ContainerBuilder $builder, array $services, $namespace = null)
 	{
 		$depths = [];
+		$sort = false;
 		foreach ($services as $name => $def) {
 			$path = [];
 			while (Config\Helpers::isInheriting($def)) {
+				$sort = true;
 				$path[] = $def;
 				$def = isset($services[$def[Config\Helpers::EXTENDS_KEY]]) ? $services[$def[Config\Helpers::EXTENDS_KEY]] : [];
 				if (in_array($def, $path, true)) {
@@ -286,12 +288,16 @@ class Compiler
 			}
 			$depths[$name] = count($path) + preg_match('#^@[\w\\\\]+\z#', $name);
 		}
-		@array_multisort($depths, $services); // @ may trigger E_NOTICE: Object of class Nette\DI\Statement could not be converted to int
+		if ($sort) {
+			@array_multisort($depths, $services); // @ may trigger E_NOTICE: Object of class Nette\DI\Statement could not be converted to int
+		}
 
 		foreach ($services as $name => $def) {
 			if (is_int($name)) {
-				$postfix = $def instanceof Statement && is_string($def->getEntity()) ? '.' . $def->getEntity() : (is_scalar($def) ? ".$def" : '');
-				$name = (count($builder->getDefinitions()) + 1) . preg_replace('#\W+#', '_', $postfix);
+				$counter = 1;
+				do {
+					$name = (string) $counter++;
+				} while ($builder->hasDefinition($name));
 			} elseif (preg_match('#^@[\w\\\\]+\z#', $name)) {
 				$name = $builder->getByType(substr($name, 1), true);
 			} elseif ($namespace) {
@@ -368,10 +374,10 @@ class Compiler
 			unset($config['create']);
 		}
 
-		$known = ['type', 'class', 'factory', 'arguments', 'setup', 'autowired', 'dynamic', 'inject', 'parameters', 'implement', 'run', 'tags', 'alteration'];
+		$known = ['type', 'class', 'factory', 'arguments', 'setup', 'autowired', 'dynamic', 'imported', 'inject', 'parameters', 'implement', 'run', 'tags', 'alteration'];
 		if ($error = array_diff(array_keys($config), $known)) {
 			$hints = array_filter(array_map(function ($error) use ($known) {
-				return Nette\Utils\ObjectMixin::getSuggestion($known, $error);
+				return Nette\Utils\ObjectHelpers::getSuggestion($known, $error);
 			}, $error));
 			$hint = $hints ? ", did you mean '" . implode("', '", $hints) . "'?" : '.';
 			throw new Nette\InvalidStateException(sprintf("Unknown key '%s' in definition of service$hint", implode("', '", $error)));
@@ -442,6 +448,10 @@ class Compiler
 		if (isset($config['autowired'])) {
 			Validators::assertField($config, 'autowired', 'bool|string|array');
 			$definition->setAutowired($config['autowired']);
+		}
+
+		if (isset($config['imported'])) {
+			$config['dynamic'] = $config['imported'];
 		}
 
 		if (isset($config['dynamic'])) {

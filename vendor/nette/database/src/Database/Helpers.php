@@ -56,7 +56,14 @@ class Helpers
 			}
 			echo "\t<tr>\n\t\t<th>", $i, "</th>\n";
 			foreach ($row as $col) {
-				echo "\t\t<td>", htmlspecialchars($col, ENT_NOQUOTES, 'UTF-8'), "</td>\n";
+				if (is_bool($col)) {
+					$s = $col ? 'TRUE' : 'FALSE';
+				} elseif ($col === null) {
+					$s = 'NULL';
+				} else {
+					$s = (string) $col;
+				}
+				echo "\t\t<td>", htmlspecialchars($s, ENT_NOQUOTES, 'UTF-8'), "</td>\n";
 			}
 			echo "\t</tr>\n";
 			$i++;
@@ -92,7 +99,7 @@ class Helpers
 
 		// syntax highlight
 		$sql = htmlspecialchars($sql, ENT_IGNORE, 'UTF-8');
-		$sql = preg_replace_callback("#(/\\*.+?\\*/)|(\\*\\*.+?\\*\\*)|(?<=[\\s,(])($keywords1)(?=[\\s,)])|(?<=[\\s,(=])($keywords2)(?=[\\s,)=])#is", function ($matches) {
+		$sql = preg_replace_callback("#(/\\*.+?\\*/)|(\\*\\*.+?\\*\\*)|(?<=[\\s,(])($keywords1)(?=[\\s,)])|(?<=[\\s,(=])($keywords2)(?=[\\s,)=])#is", function (array $matches) {
 			if (!empty($matches[1])) { // comment
 				return '<em style="color:gray">' . $matches[1] . '</em>';
 

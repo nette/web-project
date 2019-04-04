@@ -460,7 +460,7 @@ class ContainerBuilder
 					}
 					$def->getFactory()->arguments[$arg->getPosition()] = self::literal('$' . $arg->getName());
 				} elseif (!$def->getSetup()) {
-					$hint = Nette\Utils\ObjectMixin::getSuggestion(array_keys($ctorParams), $param->getName());
+					$hint = Nette\Utils\ObjectHelpers::getSuggestion(array_keys($ctorParams), $param->getName());
 					throw new ServiceCreationException("Unused parameter \${$param->getName()} when implementing method $methodName" . ($hint ? ", did you mean \${$hint}?" : '.'));
 				}
 				$nullable = $hint && $param->allowsNull() && (!$param->isDefaultValueAvailable() || $param->getDefaultValue() !== null);
@@ -588,7 +588,14 @@ class ContainerBuilder
 				$def->setSetup($setups);
 
 			} catch (\Exception $e) {
-				$message = "Service '$name' (type of {$def->getType()}): " . $e->getMessage();
+				$type = $def->getType();
+				if (!$type) {
+					$message = "Service '$name': " . $e->getMessage();
+				} elseif (ctype_digit($name)) {
+					$message = "Service of type $type: " . str_replace("$type::", '', $e->getMessage());
+				} else {
+					$message = "Service '$name' (type of $type): " . str_replace("$type::", '', $e->getMessage());
+				}
 				throw $e instanceof ServiceCreationException
 					? $e->setMessage($message)
 					: new ServiceCreationException($message, 0, $e);
@@ -702,8 +709,9 @@ class ContainerBuilder
 		} catch (ServiceCreationException $e) {
 			if ((is_string($entity) || is_array($entity)) && !strpos($e->getMessage(), ' (used in')) {
 				$desc = is_string($entity)
-					? $entity . '::__construct'
-					: (is_string($entity[0]) ? ($entity[0] . '::') : 'method ') . $entity[1];
+					? $entity . '::__construct()'
+					: (is_string($entity[0]) ? ($entity[0] . '::') : '')
+						. $entity[1] . (strpos($entity[1], '$') === false ? '()' : '');
 				$e->setMessage($e->getMessage() . " (used in $desc)");
 			}
 			throw $e;
