@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database;
 
 use Nette;
@@ -40,84 +42,64 @@ class Context
 	}
 
 
-	/** @return void */
-	public function beginTransaction()
+	public function beginTransaction(): void
 	{
 		$this->connection->beginTransaction();
 	}
 
 
-	/** @return void */
-	public function commit()
+	public function commit(): void
 	{
 		$this->connection->commit();
 	}
 
 
-	/** @return void */
-	public function rollBack()
+	public function rollBack(): void
 	{
 		$this->connection->rollBack();
 	}
 
 
-	/**
-	 * @param  string  sequence object
-	 * @return string
-	 */
-	public function getInsertId($name = null)
+	public function getInsertId(string $sequence = null): string
 	{
-		return $this->connection->getInsertId($name);
+		return $this->connection->getInsertId($sequence);
 	}
 
 
 	/**
 	 * Generates and executes SQL query.
-	 * @param  string
-	 * @return ResultSet
 	 */
-	public function query($sql, ...$params)
+	public function query(string $sql, ...$params): ResultSet
 	{
 		return $this->connection->query($sql, ...$params);
 	}
 
 
-	/**
-	 * @param  string
-	 * @return ResultSet
-	 */
-	public function queryArgs($sql, array $params)
+	public function queryArgs(string $sql, array $params): ResultSet
 	{
 		return $this->connection->query($sql, ...$params);
 	}
 
 
-	/**
-	 * @param  string
-	 * @return Table\Selection
-	 */
-	public function table($table)
+	public function table(string $table): Table\Selection
 	{
 		return new Table\Selection($this, $this->conventions, $table, $this->cacheStorage);
 	}
 
 
-	/** @return Connection */
-	public function getConnection()
+	public function getConnection(): Connection
 	{
 		return $this->connection;
 	}
 
 
-	/** @return IStructure */
-	public function getStructure()
+	public function getStructure(): IStructure
 	{
 		return $this->structure;
 	}
 
 
-	/** @return IConventions */
-	public function getConventions()
+	public function getConventions(): IConventions
 	{
 		return $this->conventions;
 	}
@@ -128,10 +110,8 @@ class Context
 
 	/**
 	 * Shortcut for query()->fetch()
-	 * @param  string
-	 * @return Row
 	 */
-	public function fetch($sql, ...$params)
+	public function fetch(string $sql, ...$params): ?Row
 	{
 		return $this->connection->query($sql, ...$params)->fetch();
 	}
@@ -139,10 +119,9 @@ class Context
 
 	/**
 	 * Shortcut for query()->fetchField()
-	 * @param  string
 	 * @return mixed
 	 */
-	public function fetchField($sql, ...$params)
+	public function fetchField(string $sql, ...$params)
 	{
 		return $this->connection->query($sql, ...$params)->fetchField();
 	}
@@ -150,10 +129,8 @@ class Context
 
 	/**
 	 * Shortcut for query()->fetchFields()
-	 * @param  string
-	 * @return array|null
 	 */
-	public function fetchFields($sql, ...$params)
+	public function fetchFields(string $sql, ...$params): ?array
 	{
 		return $this->connection->query($sql, ...$params)->fetchFields();
 	}
@@ -161,10 +138,8 @@ class Context
 
 	/**
 	 * Shortcut for query()->fetchPairs()
-	 * @param  string
-	 * @return array
 	 */
-	public function fetchPairs($sql, ...$params)
+	public function fetchPairs(string $sql, ...$params): array
 	{
 		return $this->connection->query($sql, ...$params)->fetchPairs();
 	}
@@ -172,19 +147,14 @@ class Context
 
 	/**
 	 * Shortcut for query()->fetchAll()
-	 * @param  string
-	 * @return array
 	 */
-	public function fetchAll($sql, ...$params)
+	public function fetchAll(string $sql, ...$params): array
 	{
 		return $this->connection->query($sql, ...$params)->fetchAll();
 	}
 
 
-	/**
-	 * @return SqlLiteral
-	 */
-	public static function literal($value, ...$params)
+	public static function literal(string $value, ...$params): SqlLiteral
 	{
 		return new SqlLiteral($value, $params);
 	}

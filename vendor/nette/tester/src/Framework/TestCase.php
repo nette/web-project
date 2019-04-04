@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester;
 
 
@@ -14,7 +16,7 @@ namespace Tester;
 class TestCase
 {
 	/** @internal */
-	const
+	public const
 		LIST_METHODS = 'nette-tester-list-methods',
 		METHOD_PATTERN = '#^test[A-Z0-9_]#';
 
@@ -27,15 +29,14 @@ class TestCase
 
 	/**
 	 * Runs the test case.
-	 * @return void
 	 */
-	public function run()
+	public function run(): void
 	{
 		if (func_num_args()) {
 			throw new \LogicException('Calling TestCase::run($method) is deprecated. Use TestCase::runTest($method) instead.');
 		}
 
-		$methods = array_values(preg_grep(self::METHOD_PATTERN, array_map(function (\ReflectionMethod $rm) {
+		$methods = array_values(preg_grep(self::METHOD_PATTERN, array_map(function (\ReflectionMethod $rm): string {
 			return $rm->getName();
 		}, (new \ReflectionObject($this))->getMethods())));
 
@@ -59,11 +60,9 @@ class TestCase
 
 	/**
 	 * Runs the test method.
-	 * @param  string  test method name
-	 * @param  array  test method parameters (dataprovider bypass)
-	 * @return void
+	 * @param  array  $args  test method parameters (dataprovider bypass)
 	 */
-	public function runTest($method, array $args = null)
+	public function runTest(string $method, array $args = null): void
 	{
 		if (!method_exists($this, $method)) {
 			throw new TestCaseException("Method '$method' does not exist.");
@@ -83,7 +82,7 @@ class TestCase
 		} elseif (is_array($info['throws'])) {
 			throw new TestCaseException("Annotation @throws for {$method->getName()}() can be specified only once.");
 		} else {
-			$throws = preg_split('#\s+#', $info['throws'], 2);
+			$throws = is_string($info['throws']) ? preg_split('#\s+#', $info['throws'], 2) : [];
 		}
 
 		$data = [];
@@ -115,13 +114,13 @@ class TestCase
 
 
 		if ($this->prevErrorHandler === false) {
-			$this->prevErrorHandler = set_error_handler(function ($severity) {
+			$this->prevErrorHandler = set_error_handler(function (int $severity): ?bool {
 				if ($this->handleErrors && ($severity & error_reporting()) === $severity) {
 					$this->handleErrors = false;
 					$this->silentTearDown();
 				}
 
-				return $this->prevErrorHandler ? call_user_func_array($this->prevErrorHandler, func_get_args()) : false;
+				return $this->prevErrorHandler ? ($this->prevErrorHandler)(...func_get_args()) : false;
 			});
 		}
 
@@ -131,16 +130,17 @@ class TestCase
 				$this->setUp();
 
 				$this->handleErrors = true;
+				$params = array_values($params);
 				try {
 					if ($info['throws']) {
-						$e = Assert::error(function () use ($method, $params) {
-							call_user_func_array([$this, $method->getName()], $params);
+						$e = Assert::error(function () use ($method, $params): void {
+							[$this, $method->getName()](...$params);
 						}, ...$throws);
 						if ($e instanceof AssertException) {
 							throw $e;
 						}
 					} else {
-						call_user_func_array([$this, $method->getName()], $params);
+						[$this, $method->getName()](...$params);
 					}
 				} catch (\Exception $e) {
 					$this->handleErrors = false;
@@ -161,13 +161,13 @@ class TestCase
 	/**
 	 * @return mixed
 	 */
-	protected function getData($provider)
+	protected function getData(string $provider)
 	{
 		if (strpos($provider, '.') === false) {
 			return $this->$provider();
 		} else {
 			$rc = new \ReflectionClass($this);
-			list($file, $query) = DataProvider::parseAnnotation($provider, $rc->getFileName());
+			[$file, $query] = DataProvider::parseAnnotation($provider, $rc->getFileName());
 			return DataProvider::load($file, $query);
 		}
 	}
@@ -191,7 +191,7 @@ class TestCase
 	}
 
 
-	private function silentTearDown()
+	private function silentTearDown(): void
 	{
 		set_error_handler(function () {});
 		try {

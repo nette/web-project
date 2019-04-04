@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Mail;
 
 use Nette;
@@ -21,15 +23,16 @@ class MimePart
 	use Nette\SmartObject;
 
 	/** encoding */
-	const ENCODING_BASE64 = 'base64',
+	public const
+		ENCODING_BASE64 = 'base64',
 		ENCODING_7BIT = '7bit',
 		ENCODING_8BIT = '8bit',
 		ENCODING_QUOTED_PRINTABLE = 'quoted-printable';
 
 	/** @internal */
-	const EOL = "\r\n";
+	public const EOL = "\r\n";
 
-	const LINE_LENGTH = 76;
+	public const LINE_LENGTH = 76;
 
 	/** @var array */
 	private $headers = [];
@@ -43,12 +46,10 @@ class MimePart
 
 	/**
 	 * Sets a header.
-	 * @param  string
-	 * @param  string|array  value or pair email => name
-	 * @param  bool
+	 * @param  string|array  $value  value or pair email => name
 	 * @return static
 	 */
-	public function setHeader($name, $value, $append = false)
+	public function setHeader(string $name, $value, bool $append = false)
 	{
 		if (!$name || preg_match('#[^a-z0-9-]#i', $name)) {
 			throw new Nette\InvalidArgumentException("Header name must be non-empty alphanumeric string, '$name' given.");
@@ -90,21 +91,19 @@ class MimePart
 
 	/**
 	 * Returns a header.
-	 * @param  string
 	 * @return mixed
 	 */
-	public function getHeader($name)
+	public function getHeader(string $name)
 	{
-		return isset($this->headers[$name]) ? $this->headers[$name] : null;
+		return $this->headers[$name] ?? null;
 	}
 
 
 	/**
 	 * Removes a header.
-	 * @param  string
 	 * @return static
 	 */
-	public function clearHeader($name)
+	public function clearHeader(string $name)
 	{
 		unset($this->headers[$name]);
 		return $this;
@@ -113,10 +112,8 @@ class MimePart
 
 	/**
 	 * Returns an encoded header.
-	 * @param  string
-	 * @return string|null
 	 */
-	public function getEncodedHeader($name)
+	public function getEncodedHeader(string $name): ?string
 	{
 		$offset = strlen($name) + 2; // colon + space
 
@@ -146,9 +143,8 @@ class MimePart
 
 	/**
 	 * Returns all headers.
-	 * @return array
 	 */
-	public function getHeaders()
+	public function getHeaders(): array
 	{
 		return $this->headers;
 	}
@@ -156,11 +152,9 @@ class MimePart
 
 	/**
 	 * Sets Content-Type header.
-	 * @param  string
-	 * @param  string
 	 * @return static
 	 */
-	public function setContentType($contentType, $charset = null)
+	public function setContentType(string $contentType, string $charset = null)
 	{
 		$this->setHeader('Content-Type', $contentType . ($charset ? "; charset=$charset" : ''));
 		return $this;
@@ -169,10 +163,9 @@ class MimePart
 
 	/**
 	 * Sets Content-Transfer-Encoding header.
-	 * @param  string
 	 * @return static
 	 */
-	public function setEncoding($encoding)
+	public function setEncoding(string $encoding)
 	{
 		$this->setHeader('Content-Transfer-Encoding', $encoding);
 		return $this;
@@ -181,9 +174,8 @@ class MimePart
 
 	/**
 	 * Returns Content-Transfer-Encoding header.
-	 * @return string
 	 */
-	public function getEncoding()
+	public function getEncoding(): string
 	{
 		return $this->getHeader('Content-Transfer-Encoding');
 	}
@@ -191,9 +183,8 @@ class MimePart
 
 	/**
 	 * Adds or creates new multipart.
-	 * @return self
 	 */
-	public function addPart(self $part = null)
+	public function addPart(self $part = null): self
 	{
 		return $this->parts[] = $part === null ? new self : $part;
 	}
@@ -201,21 +192,19 @@ class MimePart
 
 	/**
 	 * Sets textual body.
-	 * @param  string
 	 * @return static
 	 */
-	public function setBody($body)
+	public function setBody(string $body)
 	{
-		$this->body = (string) $body;
+		$this->body = $body;
 		return $this;
 	}
 
 
 	/**
 	 * Gets textual body.
-	 * @return string
 	 */
-	public function getBody()
+	public function getBody(): string
 	{
 		return $this->body;
 	}
@@ -226,9 +215,8 @@ class MimePart
 
 	/**
 	 * Returns encoded message.
-	 * @return string
 	 */
-	public function getEncodedMessage()
+	public function getEncodedMessage(): string
 	{
 		$output = '';
 		$boundary = '--------' . Nette\Utils\Random::generate();
@@ -287,12 +275,8 @@ class MimePart
 
 	/**
 	 * Converts a 8 bit header to a string.
-	 * @param  string
-	 * @param  int
-	 * @param  bool
-	 * @return string
 	 */
-	private static function encodeHeader($s, &$offset = 0, $quotes = false)
+	private static function encodeHeader(string $s, int &$offset = 0, bool $quotes = false): string
 	{
 		if (strspn($s, "!\"#$%&\'()*+,-./0123456789:;<>@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^`abcdefghijklmnopqrstuvwxyz{|}~=? _\r\n\t") === strlen($s)) {
 			if ($quotes && preg_match('#[^ a-zA-Z0-9!\#$%&\'*+/?^_`{|}~-]#', $s)) { // RFC 2822 atext except =
@@ -319,7 +303,7 @@ class MimePart
 	}
 
 
-	private static function append($s, &$offset = 0)
+	private static function append(string $s, int &$offset = 0): string
 	{
 		if ($offset + strlen($s) > self::LINE_LENGTH) {
 			$offset = 1;

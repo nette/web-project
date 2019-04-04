@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database;
 
 
@@ -16,28 +18,31 @@ interface IRowContainer extends \Traversable
 
 	/**
 	 * Fetches single row object.
-	 * @return IRow|bool if there is no row
 	 */
-	function fetch();
+	function fetch(): ?IRow;
+
+	/**
+	 * Fetches single field.
+	 * @return mixed
+	 */
+	function fetchField();
 
 	/**
 	 * Fetches all rows as associative array.
-	 * @param  string|int column name used for an array key or null for numeric index
-	 * @param  string|int column name used for an array value or null for the whole row
-	 * @return array
+	 * @param  string|int  $key  column name used for an array key or null for numeric index
+	 * @param  string|int  $value  column name used for an array value or null for the whole row
 	 */
-	function fetchPairs($key = null, $value = null);
+	function fetchPairs($key = null, $value = null): array;
 
 	/**
 	 * Fetches all rows.
 	 * @return IRow[]
 	 */
-	function fetchAll();
+	function fetchAll(): array;
 
 	/**
 	 * Fetches all rows and returns associative tree.
-	 * @param  string  associative descriptor
-	 * @return array
+	 * @param  string  $path  associative descriptor
 	 */
-	function fetchAssoc($path);
+	function fetchAssoc(string $path): array;
 }

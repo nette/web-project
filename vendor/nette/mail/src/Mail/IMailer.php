@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Mail;
 
 
@@ -16,8 +18,7 @@ interface IMailer
 
 	/**
 	 * Sends email.
-	 * @return void
 	 * @throws SendException
 	 */
-	function send(Message $mail);
+	function send(Message $mail): void;
 }

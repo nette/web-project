@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\Routers;
 
 use Nette;
@@ -14,32 +16,23 @@ use Nette\Application;
 /**
  * The bidirectional route for trivial routing via query parameters.
  */
-class SimpleRouter implements Application\IRouter
+final class SimpleRouter extends Nette\Routing\SimpleRouter implements Nette\Application\IRouter
 {
-	use Nette\SmartObject;
-
-	const PRESENTER_KEY = 'presenter';
-
-	const MODULE_KEY = 'module';
+	private const
+		PRESENTER_KEY = 'presenter',
+		MODULE_KEY = 'module';
 
 	/** @var string */
 	private $module = '';
-
-	/** @var array */
-	private $defaults;
 
 	/** @var int */
 	private $flags;
 
 
-	/**
-	 * @param  array   default values
-	 * @param  int     flags
-	 */
-	public function __construct($defaults = [], $flags = 0)
+	public function __construct($defaults = [], int $flags = 0)
 	{
 		if (is_string($defaults)) {
-			list($presenter, $action) = Nette\Application\Helpers::splitName($defaults);
+			[$presenter, $action] = Nette\Application\Helpers::splitName($defaults);
 			if (!$presenter) {
 				throw new Nette\InvalidArgumentException("Argument must be array or string in format Presenter:action, '$defaults' given.");
 			}
@@ -50,100 +43,52 @@ class SimpleRouter implements Application\IRouter
 		}
 
 		if (isset($defaults[self::MODULE_KEY])) {
+			trigger_error(__METHOD__ . '() parameter module is deprecated, use RouteList::withModule() instead.', E_USER_DEPRECATED);
 			$this->module = $defaults[self::MODULE_KEY] . ':';
 			unset($defaults[self::MODULE_KEY]);
 		}
 
-		$this->defaults = $defaults;
 		$this->flags = $flags;
-		if ($flags & self::SECURED) {
-			trigger_error('IRouter::SECURED is deprecated, router by default keeps the used protocol.', E_USER_DEPRECATED);
-		}
+		parent::__construct($defaults);
 	}
 
 
 	/**
-	 * Maps HTTP request to a Request object.
-	 * @return Nette\Application\Request|null
+	 * Maps HTTP request to an array.
 	 */
-	public function match(Nette\Http\IRequest $httpRequest)
+	public function match(Nette\Http\IRequest $httpRequest): ?array
 	{
-		if ($httpRequest->getUrl()->getPathInfo() !== '') {
-			return null;
-		}
-		// combine with precedence: get, (post,) defaults
-		$params = $httpRequest->getQuery();
-		$params += $this->defaults;
-
-		if (!isset($params[self::PRESENTER_KEY]) || !is_string($params[self::PRESENTER_KEY])) {
-			return null;
+		$params = parent::match($httpRequest);
+		$presenter = $params[self::PRESENTER_KEY] ?? null;
+		if (is_string($presenter)) {
+			$params[self::PRESENTER_KEY] = $this->module . $presenter;
 		}
 
-		$presenter = $this->module . $params[self::PRESENTER_KEY];
-		unset($params[self::PRESENTER_KEY]);
-
-		return new Application\Request(
-			$presenter,
-			$httpRequest->getMethod(),
-			$params,
-			$httpRequest->getPost(),
-			$httpRequest->getFiles(),
-			[Application\Request::SECURED => $httpRequest->isSecured()]
-		);
+		return $params;
 	}
 
 
 	/**
-	 * Constructs absolute URL from Request object.
-	 * @return string|null
+	 * Constructs absolute URL from array.
 	 */
-	public function constructUrl(Application\Request $appRequest, Nette\Http\Url $refUrl)
+	public function constructUrl(array $params, Nette\Http\UrlScript $refUrl): ?string
 	{
 		if ($this->flags & self::ONE_WAY) {
 			return null;
 		}
-		$params = $appRequest->getParameters();
 
-		// presenter name
-		$presenter = $appRequest->getPresenterName();
-		if (strncmp($presenter, $this->module, strlen($this->module)) === 0) {
-			$params[self::PRESENTER_KEY] = substr($presenter, strlen($this->module));
-		} else {
+		if (strncmp($params[self::PRESENTER_KEY], $this->module, strlen($this->module)) !== 0) {
 			return null;
 		}
-
-		// remove default values; null values are retain
-		foreach ($this->defaults as $key => $value) {
-			if (isset($params[$key]) && $params[$key] == $value) { // intentionally ==
-				unset($params[$key]);
-			}
-		}
-
-		$url = ($this->flags & self::SECURED ? 'https://' : $refUrl->getScheme() . '://') . $refUrl->getAuthority() . $refUrl->getPath();
-		$sep = ini_get('arg_separator.input');
-		$query = http_build_query($params, '', $sep ? $sep[0] : '&');
-		if ($query != '') { // intentionally ==
-			$url .= '?' . $query;
-		}
-		return $url;
-	}
-
-
-	/**
-	 * Returns default values.
-	 * @return array
-	 */
-	public function getDefaults()
-	{
-		return $this->defaults;
+		$params[self::PRESENTER_KEY] = substr($params[self::PRESENTER_KEY], strlen($this->module));
+		return parent::constructUrl($params, $refUrl);
 	}
 
 
 	/**
 	 * Returns flags.
-	 * @return int
 	 */
-	public function getFlags()
+	public function getFlags(): int
 	{
 		return $this->flags;
 	}

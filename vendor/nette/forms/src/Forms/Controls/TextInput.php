@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms\Controls;
 
 use Nette;
@@ -18,10 +20,9 @@ class TextInput extends TextBase
 {
 
 	/**
-	 * @param  string|object
-	 * @param  int
+	 * @param  string|object  $label
 	 */
-	public function __construct($label = null, $maxLength = null)
+	public function __construct($label = null, int $maxLength = null)
 	{
 		parent::__construct($label);
 		$this->control->maxlength = $maxLength;
@@ -31,9 +32,8 @@ class TextInput extends TextBase
 
 	/**
 	 * Loads HTTP data.
-	 * @return void
 	 */
-	public function loadHttpData()
+	public function loadHttpData(): void
 	{
 		$this->setValue($this->getHttpData(Form::DATA_LINE));
 	}
@@ -41,21 +41,9 @@ class TextInput extends TextBase
 
 	/**
 	 * Changes control's type attribute.
-	 * @param  string
 	 * @return static
 	 */
-	public function setHtmlType($type)
-	{
-		return $this->setType($type);
-	}
-
-
-	/**
-	 * Alias for setHtmlType()
-	 * @param  string
-	 * @return static
-	 */
-	public function setType($type)
+	public function setHtmlType(string $type)
 	{
 		$this->control->type = $type;
 		return $this;
@@ -63,10 +51,19 @@ class TextInput extends TextBase
 
 
 	/**
-	 * Generates control's HTML element.
-	 * @return Nette\Utils\Html
+	 * @deprecated  use setHtmlType()
+	 * @return static
 	 */
-	public function getControl()
+	public function setType(string $type)
+	{
+		return $this->setHtmlType($type);
+	}
+
+
+	/**
+	 * Generates control's HTML element.
+	 */
+	public function getControl(): Nette\Utils\Html
 	{
 		return parent::getControl()->addAttributes([
 			'value' => $this->control->type === 'password' ? $this->control->value : $this->getRenderedValue(),

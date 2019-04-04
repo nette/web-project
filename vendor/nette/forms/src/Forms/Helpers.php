@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms;
 
 use Nette;
@@ -19,7 +21,7 @@ class Helpers
 {
 	use Nette\StaticClass;
 
-	private static $unsafeNames = [
+	private const UNSAFE_NAMES = [
 		'attributes', 'children', 'elements', 'focus', 'length', 'reset', 'style', 'submit', 'onsubmit', 'form',
 		'presenter', 'action',
 	];
@@ -27,13 +29,11 @@ class Helpers
 
 	/**
 	 * Extracts and sanitizes submitted form data for single control.
-	 * @param  array
-	 * @param  string
-	 * @param  int  type Form::DATA_TEXT, DATA_LINE, DATA_FILE, DATA_KEYS
+	 * @param  int  $type  type Form::DATA_TEXT, DATA_LINE, DATA_FILE, DATA_KEYS
 	 * @return string|string[]
 	 * @internal
 	 */
-	public static function extractHttpData(array $data, $htmlName, $type)
+	public static function extractHttpData(array $data, string $htmlName, int $type)
 	{
 		$name = explode('[', str_replace(['[]', ']', '.'], ['', '', '_'], $htmlName));
 		$data = Nette\Utils\Arrays::get($data, $name, null);
@@ -59,7 +59,7 @@ class Helpers
 	}
 
 
-	private static function sanitize($type, $value)
+	private static function sanitize(int $type, $value)
 	{
 		if ($type === Form::DATA_TEXT) {
 			return is_scalar($value) ? Strings::normalizeNewLines($value) : null;
@@ -78,25 +78,21 @@ class Helpers
 
 	/**
 	 * Converts control name to HTML name.
-	 * @return string
 	 */
-	public static function generateHtmlName($id)
+	public static function generateHtmlName(string $id): string
 	{
 		$name = str_replace(Nette\ComponentModel\IComponent::NAME_SEPARATOR, '][', $id, $count);
 		if ($count) {
 			$name = substr_replace($name, '', strpos($name, ']'), 1) . ']';
 		}
-		if (is_numeric($name) || in_array($name, self::$unsafeNames, true)) {
+		if (is_numeric($name) || in_array($name, self::UNSAFE_NAMES, true)) {
 			$name = '_' . $name;
 		}
 		return $name;
 	}
 
 
-	/**
-	 * @return array
-	 */
-	public static function exportRules(Rules $rules)
+	public static function exportRules(Rules $rules): array
 	{
 		$payload = [];
 		foreach ($rules as $rule) {
@@ -132,31 +128,25 @@ class Helpers
 
 			$payload[] = $item;
 		}
-		if ($payload && $rules->isOptional()) {
-			array_unshift($payload, ['op' => 'optional']);
-		}
 		return $payload;
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public static function createInputList(array $items, array $inputAttrs = null, array $labelAttrs = null, $wrapper = null)
+	public static function createInputList(array $items, array $inputAttrs = null, array $labelAttrs = null, $wrapper = null): string
 	{
-		list($inputAttrs, $inputTag) = self::prepareAttrs($inputAttrs, 'input');
-		list($labelAttrs, $labelTag) = self::prepareAttrs($labelAttrs, 'label');
+		[$inputAttrs, $inputTag] = self::prepareAttrs($inputAttrs, 'input');
+		[$labelAttrs, $labelTag] = self::prepareAttrs($labelAttrs, 'label');
 		$res = '';
 		$input = Html::el();
 		$label = Html::el();
-		list($wrapper, $wrapperEnd) = $wrapper instanceof Html ? [$wrapper->startTag(), $wrapper->endTag()] : [(string) $wrapper, ''];
+		[$wrapper, $wrapperEnd] = $wrapper instanceof Html ? [$wrapper->startTag(), $wrapper->endTag()] : [(string) $wrapper, ''];
 
 		foreach ($items as $value => $caption) {
 			foreach ($inputAttrs as $k => $v) {
-				$input->attrs[$k] = isset($v[$value]) ? $v[$value] : null;
+				$input->attrs[$k] = $v[$value] ?? null;
 			}
 			foreach ($labelAttrs as $k => $v) {
-				$label->attrs[$k] = isset($v[$value]) ? $v[$value] : null;
+				$label->attrs[$k] = $v[$value] ?? null;
 			}
 			$input->value = $value;
 			$res .= ($res === '' && $wrapperEnd === '' ? '' : $wrapper)
@@ -170,15 +160,12 @@ class Helpers
 	}
 
 
-	/**
-	 * @return Html
-	 */
-	public static function createSelectBox(array $items, array $optionAttrs = null, $selected = null)
+	public static function createSelectBox(array $items, array $optionAttrs = null, $selected = null): Html
 	{
 		if ($selected !== null) {
 			$optionAttrs['selected?'] = $selected;
 		}
-		list($optionAttrs, $optionTag) = self::prepareAttrs($optionAttrs, 'option');
+		[$optionAttrs, $optionTag] = self::prepareAttrs($optionAttrs, 'option');
 		$option = Html::el();
 		$res = $tmp = '';
 		foreach ($items as $group => $subitems) {
@@ -191,7 +178,7 @@ class Helpers
 			foreach ($subitems as $value => $caption) {
 				$option->value = $value;
 				foreach ($optionAttrs as $k => $v) {
-					$option->attrs[$k] = isset($v[$value]) ? $v[$value] : null;
+					$option->attrs[$k] = $v[$value] ?? null;
 				}
 				if ($caption instanceof Html) {
 					$caption = clone $caption;
@@ -212,7 +199,7 @@ class Helpers
 	}
 
 
-	private static function prepareAttrs($attrs, $name)
+	private static function prepareAttrs(?array $attrs, string $name): array
 	{
 		$dynamic = [];
 		foreach ((array) $attrs as $k => $v) {

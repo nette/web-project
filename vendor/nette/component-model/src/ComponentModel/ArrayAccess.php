@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\ComponentModel;
 
 use Nette;
@@ -19,10 +21,10 @@ trait ArrayAccess
 	 * Adds the component to the container.
 	 * @param  string|int  $name
 	 * @param  IComponent  $component
-	 * @return void
 	 */
-	public function offsetSet($name, $component)
+	public function offsetSet($name, $component): void
 	{
+		$name = is_int($name) ? (string) $name : $name;
 		$this->addComponent($component, $name);
 	}
 
@@ -30,11 +32,11 @@ trait ArrayAccess
 	/**
 	 * Returns component specified by name. Throws exception if component doesn't exist.
 	 * @param  string|int  $name
-	 * @return IComponent
 	 * @throws Nette\InvalidArgumentException
 	 */
-	public function offsetGet($name)
+	public function offsetGet($name): IComponent
 	{
+		$name = is_int($name) ? (string) $name : $name;
 		return $this->getComponent($name);
 	}
 
@@ -42,10 +44,10 @@ trait ArrayAccess
 	/**
 	 * Does component specified by name exists?
 	 * @param  string|int  $name
-	 * @return bool
 	 */
-	public function offsetExists($name)
+	public function offsetExists($name): bool
 	{
+		$name = is_int($name) ? (string) $name : $name;
 		return $this->getComponent($name, false) !== null;
 	}
 
@@ -53,10 +55,10 @@ trait ArrayAccess
 	/**
 	 * Removes component from the container.
 	 * @param  string|int  $name
-	 * @return void
 	 */
-	public function offsetUnset($name)
+	public function offsetUnset($name): void
 	{
+		$name = is_int($name) ? (string) $name : $name;
 		if ($component = $this->getComponent($name, false)) {
 			$this->removeComponent($component);
 		}

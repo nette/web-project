@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte;
 
 
@@ -13,7 +15,8 @@ namespace Latte;
  */
 class MacroTokens extends TokenIterator
 {
-	const T_WHITESPACE = 1,
+	public const
+		T_WHITESPACE = 1,
 		T_COMMENT = 2,
 		T_SYMBOL = 3,
 		T_NUMBER = 4,
@@ -31,7 +34,7 @@ class MacroTokens extends TokenIterator
 
 
 	/**
-	 * @param  string|array
+	 * @param  string|array  $input
 	 */
 	public function __construct($input = [])
 	{
@@ -40,7 +43,7 @@ class MacroTokens extends TokenIterator
 	}
 
 
-	public function parse($s)
+	public function parse(string $s): array
 	{
 		self::$tokenizer = self::$tokenizer ?: new Tokenizer([
 			self::T_WHITESPACE => '\s+',
@@ -61,7 +64,7 @@ class MacroTokens extends TokenIterator
 	 * Appends simple token or string (will be parsed).
 	 * @return static
 	 */
-	public function append($val, $position = null)
+	public function append($val, int $position = null)
 	{
 		if ($val != null) { // intentionally @
 			array_splice(
@@ -90,20 +93,18 @@ class MacroTokens extends TokenIterator
 
 	/**
 	 * Reads single token (optionally delimited by comma) from string.
-	 * @return string
 	 */
-	public function fetchWord()
+	public function fetchWord(): ?string
 	{
 		$words = $this->fetchWords();
-		return $words ? implode(':', $words) : false;
+		return $words ? implode(':', $words) : null;
 	}
 
 
 	/**
 	 * Reads single tokens delimited by colon from string.
-	 * @return array
 	 */
-	public function fetchWords()
+	public function fetchWords(): array
 	{
 		do {
 			$words[] = $this->joinUntil(self::T_WHITESPACE, ',', ':');
@@ -126,7 +127,7 @@ class MacroTokens extends TokenIterator
 	}
 
 
-	protected function next()
+	protected function next(): void
 	{
 		parent::next();
 		if ($this->isCurrent('[', '(', '{')) {

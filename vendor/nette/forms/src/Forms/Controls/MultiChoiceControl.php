@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms\Controls;
 
 use Nette;
@@ -18,11 +20,8 @@ use Nette;
  */
 abstract class MultiChoiceControl extends BaseControl
 {
-	/**
-	 * @var bool
-	 * @deprecated use checkDefaultValue()
-	 */
-	public $checkAllowedValues = true;
+	/** @var bool */
+	private $checkDefaultValue = true;
 
 	/** @var array */
 	private $items = [];
@@ -39,9 +38,8 @@ abstract class MultiChoiceControl extends BaseControl
 
 	/**
 	 * Loads HTTP data.
-	 * @return void
 	 */
-	public function loadHttpData()
+	public function loadHttpData(): void
 	{
 		$this->value = array_keys(array_flip($this->getHttpData(Nette\Forms\Form::DATA_TEXT)));
 		if (is_array($this->disabled)) {
@@ -52,7 +50,6 @@ abstract class MultiChoiceControl extends BaseControl
 
 	/**
 	 * Sets selected items (by keys).
-	 * @param  array
 	 * @return static
 	 * @internal
 	 */
@@ -71,7 +68,7 @@ abstract class MultiChoiceControl extends BaseControl
 			$flip[(string) $value] = true;
 		}
 		$values = array_keys($flip);
-		if ($this->checkAllowedValues && ($diff = array_diff($values, array_keys($this->items)))) {
+		if ($this->checkDefaultValue && ($diff = array_diff($values, array_keys($this->items)))) {
 			$set = Nette\Utils\Strings::truncate(implode(', ', array_map(function ($s) { return var_export($s, true); }, array_keys($this->items))), 70, '...');
 			$vals = (count($diff) > 1 ? 's' : '') . " '" . implode("', '", $diff) . "'";
 			throw new Nette\InvalidArgumentException("Value$vals are out of allowed set [$set] in field '{$this->name}'.");
@@ -83,9 +80,8 @@ abstract class MultiChoiceControl extends BaseControl
 
 	/**
 	 * Returns selected keys.
-	 * @return array
 	 */
-	public function getValue()
+	public function getValue(): array
 	{
 		return array_values(array_intersect($this->value, array_keys($this->items)));
 	}
@@ -93,9 +89,8 @@ abstract class MultiChoiceControl extends BaseControl
 
 	/**
 	 * Returns selected keys (not checked).
-	 * @return array
 	 */
-	public function getRawValue()
+	public function getRawValue(): array
 	{
 		return $this->value;
 	}
@@ -103,9 +98,8 @@ abstract class MultiChoiceControl extends BaseControl
 
 	/**
 	 * Is any item selected?
-	 * @return bool
 	 */
-	public function isFilled()
+	public function isFilled(): bool
 	{
 		return $this->getValue() !== [];
 	}
@@ -113,11 +107,9 @@ abstract class MultiChoiceControl extends BaseControl
 
 	/**
 	 * Sets items from which to choose.
-	 * @param  array
-	 * @param  bool
 	 * @return static
 	 */
-	public function setItems(array $items, $useKeys = true)
+	public function setItems(array $items, bool $useKeys = true)
 	{
 		$this->items = $useKeys ? $items : array_combine($items, $items);
 		return $this;
@@ -126,9 +118,8 @@ abstract class MultiChoiceControl extends BaseControl
 
 	/**
 	 * Returns items from which to choose.
-	 * @return array
 	 */
-	public function getItems()
+	public function getItems(): array
 	{
 		return $this->items;
 	}
@@ -136,9 +127,8 @@ abstract class MultiChoiceControl extends BaseControl
 
 	/**
 	 * Returns selected values.
-	 * @return array
 	 */
-	public function getSelectedItems()
+	public function getSelectedItems(): array
 	{
 		return array_intersect_key($this->items, array_flip($this->value));
 	}
@@ -146,7 +136,7 @@ abstract class MultiChoiceControl extends BaseControl
 
 	/**
 	 * Disables or enables control or items.
-	 * @param  bool|array
+	 * @param  bool|bool[]  $value
 	 * @return static
 	 */
 	public function setDisabled($value = true)
@@ -164,9 +154,8 @@ abstract class MultiChoiceControl extends BaseControl
 
 	/**
 	 * Returns HTML name of control.
-	 * @return string
 	 */
-	public function getHtmlName()
+	public function getHtmlName(): string
 	{
 		return parent::getHtmlName() . '[]';
 	}
@@ -175,9 +164,9 @@ abstract class MultiChoiceControl extends BaseControl
 	/**
 	 * @return static
 	 */
-	public function checkDefaultValue($value = true)
+	public function checkDefaultValue(bool $value = true)
 	{
-		$this->checkAllowedValues = $value;
+		$this->checkDefaultValue = $value;
 		return $this;
 	}
 }

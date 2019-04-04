@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\UI;
 
 
@@ -16,20 +18,17 @@ interface ITemplate
 
 	/**
 	 * Renders template to output.
-	 * @return void
 	 */
-	function render();
+	function render(): void;
 
 	/**
 	 * Sets the path to the template file.
-	 * @param  string
 	 * @return static
 	 */
-	function setFile($file);
+	function setFile(string $file);
 
 	/**
 	 * Returns the path to the template file.
-	 * @return string|null
 	 */
-	function getFile();
+	function getFile(): ?string;
 }

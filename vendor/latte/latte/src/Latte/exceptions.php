@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte;
 
 
@@ -23,11 +25,11 @@ class CompileException extends \Exception
 	public $sourceLine;
 
 
-	public function setSource($code, $line, $name = null)
+	public function setSource(string $code, int $line, string $name = null)
 	{
-		$this->sourceCode = (string) $code;
-		$this->sourceLine = (int) $line;
-		$this->sourceName = (string) $name;
+		$this->sourceCode = $code;
+		$this->sourceLine = $line;
+		$this->sourceName = $name;
 		if (@is_file($name)) { // @ - may trigger error
 			$this->message = rtrim($this->message, '.')
 				. ' in ' . str_replace(dirname(dirname($name)), '...', $name) . ($line ? ":$line" : '');
@@ -42,19 +44,19 @@ class CompileException extends \Exception
  */
 class RegexpException extends \Exception
 {
-	public static $messages = [
+	public const MESSAGES = [
 		PREG_INTERNAL_ERROR => 'Internal error',
 		PREG_BACKTRACK_LIMIT_ERROR => 'Backtrack limit was exhausted',
 		PREG_RECURSION_LIMIT_ERROR => 'Recursion limit was exhausted',
 		PREG_BAD_UTF8_ERROR => 'Malformed UTF-8 data',
-		5 => 'Offset didn\'t correspond to the begin of a valid UTF-8 code point', // PREG_BAD_UTF8_OFFSET_ERROR
+		PREG_BAD_UTF8_OFFSET_ERROR => 'Offset didn\'t correspond to the begin of a valid UTF-8 code point',
 		6 => 'Failed due to limited JIT stack space', // PREG_JIT_STACKLIMIT_ERROR
 	];
 
 
 	public function __construct($message, $code = null)
 	{
-		parent::__construct($message ?: (isset(self::$messages[$code]) ? self::$messages[$code] : 'Unknown error'), $code);
+		parent::__construct($message ?: (self::MESSAGES[$code] ?? 'Unknown error'), $code);
 	}
 }
 

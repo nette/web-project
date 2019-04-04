@@ -5,77 +5,109 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Http;
+
+use Nette;
 
 
 /**
- * Extended HTTP URL.
+ * Immutable representation of a URL with application base-path.
  *
  * <pre>
+ *      baseUrl    basePath  relativePath  relativeUrl
+ *         |          |        |               |
+ * /---------------/-----\/--------\-----------------------------\
  * http://nette.org/admin/script.php/pathinfo/?name=param#fragment
  *                 \_______________/\________/
  *                        |              |
  *                   scriptPath       pathInfo
  * </pre>
  *
- * - scriptPath:  /admin/script.php (or simply /admin/ when script is directory index)
- * - pathInfo:    /pathinfo/ (additional path information)
- *
- * @property   string $scriptPath
+ * @property-read string $scriptPath
+ * @property-read string $basePath
+ * @property-read string $relativePath
+ * @property-read string $baseUrl
+ * @property-read string $relativeUrl
  * @property-read string $pathInfo
  */
-class UrlScript extends Url
+class UrlScript extends UrlImmutable
 {
 	/** @var string */
 	private $scriptPath;
 
+	/** @var string */
+	private $basePath;
 
-	public function __construct($url = null, $scriptPath = '')
+
+	public function __construct($url = '/', string $scriptPath = '')
 	{
 		parent::__construct($url);
-		$this->setScriptPath($scriptPath);
+		$this->scriptPath = $scriptPath;
+		$this->build();
 	}
 
 
 	/**
-	 * Sets the script-path part of URI.
-	 * @param  string
 	 * @return static
 	 */
-	public function setScriptPath($value)
+	public function withPath(string $path, string $scriptPath = '')
 	{
-		$this->scriptPath = (string) $value;
-		return $this;
+		$dolly = clone $this;
+		$dolly->scriptPath = $scriptPath;
+		return call_user_func([$dolly, 'parent::withPath'], $path);
 	}
 
 
-	/**
-	 * Returns the script-path part of URI.
-	 * @return string
-	 */
-	public function getScriptPath()
+	public function getScriptPath(): string
 	{
-		return $this->scriptPath ?: $this->path;
+		return $this->scriptPath;
 	}
 
 
-	/**
-	 * Returns the base-path.
-	 * @return string
-	 */
-	public function getBasePath()
+	public function getBasePath(): string
 	{
-		$pos = strrpos($this->getScriptPath(), '/');
-		return $pos === false ? '' : substr($this->getPath(), 0, $pos + 1);
+		return $this->basePath;
+	}
+
+
+	public function getRelativePath(): string
+	{
+		return substr($this->getPath(), strlen($this->basePath));
+	}
+
+
+	public function getBaseUrl(): string
+	{
+		return $this->getHostUrl() . $this->basePath;
+	}
+
+
+	public function getRelativeUrl(): string
+	{
+		return substr($this->getAbsoluteUrl(), strlen($this->getBaseUrl()));
 	}
 
 
 	/**
 	 * Returns the additional path information.
-	 * @return string
 	 */
-	public function getPathInfo()
+	public function getPathInfo(): string
 	{
-		return (string) substr($this->getPath(), strlen($this->getScriptPath()));
+		return (string) substr($this->getPath(), strlen($this->scriptPath));
+	}
+
+
+	protected function build(): void
+	{
+		parent::build();
+		$path = $this->getPath();
+		$this->scriptPath = $this->scriptPath ?: $path;
+		$pos = strrpos($this->scriptPath, '/');
+		if ($pos === false || strncmp($this->scriptPath, $path, $pos + 1)) {
+			throw new Nette\InvalidArgumentException("ScriptPath '$this->scriptPath' doesn't match path '$path'");
+		}
+		$this->basePath = substr($this->scriptPath, 0, $pos + 1);
 	}
 }

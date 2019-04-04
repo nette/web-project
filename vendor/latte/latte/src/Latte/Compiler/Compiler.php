@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte;
 
 
@@ -16,7 +18,7 @@ class Compiler
 	use Strict;
 
 	/** Context-aware escaping content types */
-	const
+	public const
 		CONTENT_HTML = Engine::CONTENT_HTML,
 		CONTENT_XHTML = Engine::CONTENT_XHTML,
 		CONTENT_XML = Engine::CONTENT_XML,
@@ -26,7 +28,7 @@ class Compiler
 		CONTENT_TEXT = Engine::CONTENT_TEXT;
 
 	/** @internal Context-aware escaping HTML contexts */
-	const
+	public const
 		CONTEXT_HTML_TEXT = null,
 		CONTEXT_HTML_TAG = 'Tag',
 		CONTEXT_HTML_ATTRIBUTE = 'Attr',
@@ -93,10 +95,9 @@ class Compiler
 
 	/**
 	 * Adds new macro with IMacro flags.
-	 * @param  string
 	 * @return static
 	 */
-	public function addMacro($name, IMacro $macro, $flags = null)
+	public function addMacro(string $name, IMacro $macro, int $flags = null)
 	{
 		if (!isset($this->flags[$name])) {
 			$this->flags[$name] = $flags ?: IMacro::DEFAULT_FLAGS;
@@ -110,10 +111,9 @@ class Compiler
 
 	/**
 	 * Compiles tokens to PHP code.
-	 * @param  Token[]
-	 * @return string
+	 * @param  Token[]  $tokens
 	 */
-	public function compile(array $tokens, $className)
+	public function compile(array $tokens, string $className): string
 	{
 		$this->tokens = $tokens;
 		$output = '';
@@ -126,7 +126,7 @@ class Compiler
 		$macroHandlers = new \SplObjectStorage;
 
 		if ($this->macros) {
-			array_map([$macroHandlers, 'attach'], call_user_func_array('array_merge', $this->macros));
+			array_map([$macroHandlers, 'attach'], array_merge(...array_values($this->macros)));
 		}
 
 		foreach ($macroHandlers as $handler) {
@@ -135,7 +135,7 @@ class Compiler
 
 		foreach ($tokens as $this->position => $token) {
 			if ($this->inHead && !($token->type === $token::COMMENT
-				|| $token->type === $token::MACRO_TAG && isset($this->flags[$token->name]) && $this->flags[$token->name] & IMacro::ALLOWED_IN_HEAD
+				|| $token->type === $token::MACRO_TAG && ($this->flags[$token->name] ?? null) & IMacro::ALLOWED_IN_HEAD
 				|| $token->type === $token::TEXT && trim($token->text) === ''
 			)) {
 				$this->inHead = false;
@@ -191,7 +191,7 @@ class Compiler
 	/**
 	 * @return static
 	 */
-	public function setContentType($type)
+	public function setContentType(string $type)
 	{
 		$this->contentType = $type;
 		$this->context = null;
@@ -199,41 +199,7 @@ class Compiler
 	}
 
 
-	/**
-	 * @deprecated
-	 */
-	public function getContentType()
-	{
-		trigger_error(__METHOD__ . ' is deprecated.', E_USER_DEPRECATED);
-		return $this->contentType;
-	}
-
-
-	/**
-	 * @internal
-	 */
-	public function setContext($context)
-	{
-		trigger_error(__METHOD__ . ' is deprecated.', E_USER_DEPRECATED);
-		$this->context = $context;
-		return $this;
-	}
-
-
-	/**
-	 * @deprecated
-	 */
-	public function getContext()
-	{
-		trigger_error(__METHOD__ . ' is deprecated.', E_USER_DEPRECATED);
-		return $this->context;
-	}
-
-
-	/**
-	 * @return MacroNode|null
-	 */
-	public function getMacroNode()
+	public function getMacroNode(): ?MacroNode
 	{
 		return $this->macroNode;
 	}
@@ -241,18 +207,14 @@ class Compiler
 
 	/**
 	 * Returns current line number.
-	 * @return int|null
 	 */
-	public function getLine()
+	public function getLine(): ?int
 	{
 		return isset($this->tokens[$this->position]) ? $this->tokens[$this->position]->line : null;
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public function isInHead()
+	public function isInHead(): bool
 	{
 		return $this->inHead;
 	}
@@ -260,10 +222,9 @@ class Compiler
 
 	/**
 	 * Adds custom method to template.
-	 * @return void
 	 * @internal
 	 */
-	public function addMethod($name, $body, $arguments = '')
+	public function addMethod(string $name, string $body, string $arguments = ''): void
 	{
 		$this->methods[$name] = ['body' => trim($body), 'arguments' => $arguments];
 	}
@@ -271,10 +232,9 @@ class Compiler
 
 	/**
 	 * Returns custom methods.
-	 * @return array
 	 * @internal
 	 */
-	public function getMethods()
+	public function getMethods(): array
 	{
 		return $this->methods;
 	}
@@ -282,10 +242,9 @@ class Compiler
 
 	/**
 	 * Adds custom property to template.
-	 * @return void
 	 * @internal
 	 */
-	public function addProperty($name, $value)
+	public function addProperty(string $name, $value): void
 	{
 		$this->properties[$name] = $value;
 	}
@@ -293,23 +252,22 @@ class Compiler
 
 	/**
 	 * Returns custom properites.
-	 * @return array
 	 * @internal
 	 */
-	public function getProperties()
+	public function getProperties(): array
 	{
 		return $this->properties;
 	}
 
 
 	/** @internal */
-	public function expandTokens($s)
+	public function expandTokens(string $s): string
 	{
 		return strtr($s, $this->placeholders);
 	}
 
 
-	private function processText(Token $token)
+	private function processText(Token $token): void
 	{
 		if ($this->lastAttrValue === '' && $this->context && Helpers::startsWith($this->context, self::CONTEXT_HTML_ATTRIBUTE)) {
 			$this->lastAttrValue = $token->text;
@@ -318,7 +276,7 @@ class Compiler
 	}
 
 
-	private function processMacroTag(Token $token)
+	private function processMacroTag(Token $token): void
 	{
 		if ($this->context === self::CONTEXT_HTML_TAG || $this->context && Helpers::startsWith($this->context, self::CONTEXT_HTML_ATTRIBUTE)) {
 			$this->lastAttrValue = true;
@@ -330,9 +288,9 @@ class Compiler
 		if ($token->closing) {
 			$this->closeMacro($token->name, $token->value, $token->modifiers, $isRightmost);
 		} else {
-			if (!$token->empty && isset($this->flags[$token->name]) && $this->flags[$token->name] & IMacro::AUTO_EMPTY) {
+			if (!$token->empty && ($this->flags[$token->name] ?? null) & IMacro::AUTO_EMPTY) {
 				$pos = $this->position;
-				while (($t = isset($this->tokens[++$pos]) ? $this->tokens[$pos] : null)
+				while (($t = $this->tokens[++$pos] ?? null)
 					&& ($t->type !== Token::MACRO_TAG || $t->name !== $token->name)
 					&& ($t->type !== Token::HTML_ATTRIBUTE_BEGIN || $t->name !== Parser::N_PREFIX . $token->name));
 				$token->empty = $t ? !$t->closing : true;
@@ -348,7 +306,7 @@ class Compiler
 	}
 
 
-	private function processHtmlTagBegin(Token $token)
+	private function processHtmlTagBegin(Token $token): void
 	{
 		if ($token->closing) {
 			while ($this->htmlNode) {
@@ -372,8 +330,6 @@ class Compiler
 
 		} elseif ($token->text === '<?' || $token->text === '<!') {
 			$this->context = self::CONTEXT_HTML_BOGUS_COMMENT;
-			$this->output .= $token->text === '<?' ? '<<?php ?>?' : '<!'; // bypass error in escape()
-			return;
 
 		} else {
 			$this->htmlNode = new HtmlNode($token->name, $this->htmlNode);
@@ -381,11 +337,11 @@ class Compiler
 			$this->context = self::CONTEXT_HTML_TAG;
 		}
 		$this->tagOffset = strlen($this->output);
-		$this->output .= $token->text;
+		$this->output .= $this->escape($token->text);
 	}
 
 
-	private function processHtmlTagEnd(Token $token)
+	private function processHtmlTagEnd(Token $token): void
 	{
 		if (in_array($this->context, [self::CONTEXT_HTML_COMMENT, self::CONTEXT_HTML_BOGUS_COMMENT], true)) {
 			$this->output .= $token->text;
@@ -442,7 +398,7 @@ class Compiler
 	}
 
 
-	private function processHtmlAttributeBegin(Token $token)
+	private function processHtmlAttributeBegin(Token $token): void
 	{
 		if (Helpers::startsWith($token->name, Parser::N_PREFIX)) {
 			$name = substr($token->name, strlen(Parser::N_PREFIX));
@@ -485,14 +441,14 @@ class Compiler
 	}
 
 
-	private function processHtmlAttributeEnd(Token $token)
+	private function processHtmlAttributeEnd(Token $token): void
 	{
 		$this->context = self::CONTEXT_HTML_TAG;
 		$this->output .= $token->text;
 	}
 
 
-	private function processComment(Token $token)
+	private function processComment(Token $token): void
 	{
 		$leftOfs = ($tmp = strrpos($this->output, "\n")) === false ? 0 : $tmp + 1;
 		$isLeftmost = trim(substr($this->output, $leftOfs)) === '';
@@ -505,16 +461,9 @@ class Compiler
 	}
 
 
-	private function escape($s)
+	private function escape(string $s): string
 	{
-		return preg_replace_callback('#<(\z|\?xml|\?)#', function ($m) {
-			if ($m[1] === '?') {
-				trigger_error('Inline <?php ... ?> is deprecated, use {php ... } on line ' . $this->getLine(), E_USER_DEPRECATED);
-				return '<?';
-			} else {
-				return '<<?php ?>' . $m[1];
-			}
-		}, $s);
+		return substr(str_replace('<?', '<<?php ?>?', $s . '?'), 0, -1);
 	}
 
 
@@ -523,14 +472,9 @@ class Compiler
 
 	/**
 	 * Generates code for {macro ...} to the output.
-	 * @param  string
-	 * @param  string
-	 * @param  string
-	 * @param  bool
-	 * @return MacroNode
 	 * @internal
 	 */
-	public function openMacro($name, $args = null, $modifiers = null, $isRightmost = false, $nPrefix = null)
+	public function openMacro(string $name, string $args = null, string $modifiers = null, bool $isRightmost = false, string $nPrefix = null): MacroNode
 	{
 		$node = $this->expandMacro($name, $args, $modifiers, $nPrefix);
 		if ($node->empty) {
@@ -550,14 +494,9 @@ class Compiler
 
 	/**
 	 * Generates code for {/macro ...} to the output.
-	 * @param  string
-	 * @param  string
-	 * @param  string
-	 * @param  bool
-	 * @return MacroNode
 	 * @internal
 	 */
-	public function closeMacro($name, $args = null, $modifiers = null, $isRightmost = false, $nPrefix = null)
+	public function closeMacro(string $name, string $args = null, string $modifiers = null, bool $isRightmost = false, string $nPrefix = null): MacroNode
 	{
 		$node = $this->macroNode;
 
@@ -605,7 +544,7 @@ class Compiler
 	}
 
 
-	private function writeCode($code, $isReplaced, $isRightmost)
+	private function writeCode(string $code, ?bool $isReplaced, ?bool $isRightmost): void
 	{
 		if ($isRightmost) {
 			$leftOfs = ($tmp = strrpos($this->output, "\n")) === false ? 0 : $tmp + 1;
@@ -628,11 +567,9 @@ class Compiler
 
 	/**
 	 * Generates code for macro <tag n:attr> to the output.
-	 * @param  string HTML tag
-	 * @return void
 	 * @internal
 	 */
-	public function writeAttrsMacro($html)
+	public function writeAttrsMacro(string $html): void
 	{
 		//     none-2 none-1 tag-1 tag-2       <el attr-1 attr-2>   /tag-2 /tag-1 [none-2] [none-1] inner-2 inner-1
 		// /inner-1 /inner-2 [none-1] [none-2] tag-1 tag-2  </el>   /tag-2 /tag-1 /none-1 /none-2
@@ -736,13 +673,9 @@ class Compiler
 
 	/**
 	 * Expands macro and returns node & code.
-	 * @param  string
-	 * @param  string
-	 * @param  string
-	 * @return MacroNode
 	 * @internal
 	 */
-	public function expandMacro($name, $args, $modifiers = null, $nPrefix = null)
+	public function expandMacro(string $name, string $args, string $modifiers = null, string $nPrefix = null): MacroNode
 	{
 		if (empty($this->macros[$name])) {
 			$hint = (($t = Helpers::getSuggestion(array_keys($this->macros), $name)) ? ", did you mean {{$t}}?" : '')
@@ -750,15 +683,11 @@ class Compiler
 			throw new CompileException("Unknown macro {{$name}}$hint");
 		}
 
-		if ($modifiers && preg_match('#\|(no)?safeurl(?!\w)#i', $modifiers, $m)) {
-			$hint = $m[1] ? '|nocheck' : '|checkurl';
-			$modifiers = str_replace($m[0], $hint, $modifiers);
-			trigger_error("Modifier $m[0] is deprecated, please replace it with $hint.", E_USER_DEPRECATED);
-		}
+		$modifiers = (string) $modifiers;
 
 		if (strpbrk($name, '=~%^&_')) {
 			if (in_array($this->context, [self::CONTEXT_HTML_ATTRIBUTE_URL, self::CONTEXT_HTML_ATTRIBUTE_UNQUOTED_URL], true)) {
-				if (!Helpers::removeFilter($modifiers, 'nosafeurl|nocheck') && !preg_match('#\|datastream(?=\s|\||\z)#i', $modifiers)) {
+				if (!Helpers::removeFilter($modifiers, 'nocheck') && !preg_match('#\|datastream(?=\s|\||\z)#i', $modifiers)) {
 					$modifiers .= '|checkurl';
 				}
 			}
@@ -797,7 +726,7 @@ class Compiler
 	}
 
 
-	private static function printEndTag($node)
+	private static function printEndTag($node): string
 	{
 		if ($node instanceof HtmlNode) {
 			return  "</{$node->name}> for " . Parser::N_PREFIX

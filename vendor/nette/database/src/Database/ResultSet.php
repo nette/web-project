@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database;
 
 use Nette;
@@ -20,9 +22,6 @@ class ResultSet implements \Iterator, IRowContainer
 
 	/** @var Connection */
 	private $connection;
-
-	/** @var ISupplementalDriver */
-	private $supplementalDriver;
 
 	/** @var \PDOStatement|null */
 	private $pdoStatement;
@@ -49,11 +48,10 @@ class ResultSet implements \Iterator, IRowContainer
 	private $types;
 
 
-	public function __construct(Connection $connection, $queryString, array $params)
+	public function __construct(Connection $connection, string $queryString, array $params)
 	{
 		$time = microtime(true);
 		$this->connection = $connection;
-		$this->supplementalDriver = $connection->getSupplementalDriver();
 		$this->queryString = $queryString;
 		$this->params = $params;
 
@@ -66,13 +64,13 @@ class ResultSet implements \Iterator, IRowContainer
 				$this->pdoStatement = $connection->getPdo()->prepare($queryString);
 				foreach ($params as $key => $value) {
 					$type = gettype($value);
-					$this->pdoStatement->bindValue(is_int($key) ? $key + 1 : $key, $value, isset($types[$type]) ? $types[$type] : PDO::PARAM_STR);
+					$this->pdoStatement->bindValue(is_int($key) ? $key + 1 : $key, $value, $types[$type] ?? PDO::PARAM_STR);
 				}
 				$this->pdoStatement->setFetchMode(PDO::FETCH_ASSOC);
 				$this->pdoStatement->execute();
 			}
 		} catch (\PDOException $e) {
-			$e = $this->supplementalDriver->convertException($e);
+			$e = $connection->getSupplementalDriver()->convertException($e);
 			$e->queryString = $queryString;
 			throw $e;
 		}
@@ -80,10 +78,7 @@ class ResultSet implements \Iterator, IRowContainer
 	}
 
 
-	/**
-	 * @return Connection
-	 */
-	public function getConnection()
+	public function getConnection(): Connection
 	{
 		return $this->connection;
 	}
@@ -91,54 +86,38 @@ class ResultSet implements \Iterator, IRowContainer
 
 	/**
 	 * @internal
-	 * @return \PDOStatement
 	 */
-	public function getPdoStatement()
+	public function getPdoStatement(): \PDOStatement
 	{
 		return $this->pdoStatement;
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public function getQueryString()
+	public function getQueryString(): string
 	{
 		return $this->queryString;
 	}
 
 
-	/**
-	 * @return array
-	 */
-	public function getParameters()
+	public function getParameters(): array
 	{
 		return $this->params;
 	}
 
 
-	/**
-	 * @return int
-	 */
-	public function getColumnCount()
+	public function getColumnCount(): ?int
 	{
 		return $this->pdoStatement ? $this->pdoStatement->columnCount() : null;
 	}
 
 
-	/**
-	 * @return int
-	 */
-	public function getRowCount()
+	public function getRowCount(): ?int
 	{
 		return $this->pdoStatement ? $this->pdoStatement->rowCount() : null;
 	}
 
 
-	/**
-	 * @return float
-	 */
-	public function getTime()
+	public function getTime(): float
 	{
 		return $this->time;
 	}
@@ -146,13 +125,11 @@ class ResultSet implements \Iterator, IRowContainer
 
 	/**
 	 * Normalizes result row.
-	 * @param  array
-	 * @return array
 	 */
-	public function normalizeRow($row)
+	public function normalizeRow(array $row): array
 	{
 		if ($this->types === null) {
-			$this->types = (array) $this->supplementalDriver->getColumnTypes($this->pdoStatement);
+			$this->types = $this->connection->getSupplementalDriver()->getColumnTypes($this->pdoStatement);
 		}
 
 		foreach ($this->types as $key => $type) {
@@ -178,9 +155,7 @@ class ResultSet implements \Iterator, IRowContainer
 			} elseif ($type === IStructure::FIELD_TIME_INTERVAL) {
 				preg_match('#^(-?)(\d+)\D(\d+)\D(\d+)(\.\d+)?\z#', $value, $m);
 				$row[$key] = new \DateInterval("PT$m[2]H$m[3]M$m[4]S");
-				if (PHP_VERSION_ID >= 70100) {
-					$row[$key]->f = isset($m[5]) ? (float) $m[5] : 0.0;
-				}
+				$row[$key]->f = isset($m[5]) ? (float) $m[5] : 0.0;
 				$row[$key]->invert = (int) (bool) $m[1];
 
 			} elseif ($type === IStructure::FIELD_UNIX_TIMESTAMP) {
@@ -188,7 +163,7 @@ class ResultSet implements \Iterator, IRowContainer
 			}
 		}
 
-		return $this->supplementalDriver->normalizeRow($row);
+		return $row;
 	}
 
 
@@ -197,9 +172,8 @@ class ResultSet implements \Iterator, IRowContainer
 
 	/**
 	 * Displays complete result set as HTML table for debug purposes.
-	 * @return void
 	 */
-	public function dump()
+	public function dump(): void
 	{
 		Helpers::dumpResult($this);
 	}
@@ -208,10 +182,10 @@ class ResultSet implements \Iterator, IRowContainer
 	/********************* interface Iterator ****************d*g**/
 
 
-	public function rewind()
+	public function rewind(): void
 	{
 		if ($this->result === false) {
-			throw new Nette\InvalidStateException('Nette\\Database\\ResultSet implements only one way iterator.');
+			throw new Nette\InvalidStateException(__CLASS__ . ' implements only one way iterator.');
 		}
 	}
 
@@ -228,19 +202,19 @@ class ResultSet implements \Iterator, IRowContainer
 	}
 
 
-	public function next()
+	public function next(): void
 	{
 		$this->result = false;
 	}
 
 
-	public function valid()
+	public function valid(): bool
 	{
 		if ($this->result) {
 			return true;
 		}
 
-		return $this->fetch() !== false;
+		return $this->fetch() !== null;
 	}
 
 
@@ -250,12 +224,12 @@ class ResultSet implements \Iterator, IRowContainer
 	/**
 	 * @inheritDoc
 	 */
-	public function fetch()
+	public function fetch(): ?IRow
 	{
 		$data = $this->pdoStatement ? $this->pdoStatement->fetch() : null;
 		if (!$data) {
 			$this->pdoStatement->closeCursor();
-			return false;
+			return null;
 
 		} elseif ($this->result === null && count($data) !== $this->pdoStatement->columnCount()) {
 			$duplicates = Helpers::findDuplicates($this->pdoStatement);
@@ -275,22 +249,22 @@ class ResultSet implements \Iterator, IRowContainer
 
 
 	/**
-	 * Fetches single field.
-	 * @param  int
-	 * @return mixed|false
+	 * @inheritDoc
 	 */
 	public function fetchField($column = 0)
 	{
+		if (func_num_args()) {
+			trigger_error(__METHOD__ . '() argument is deprecated.', E_USER_DEPRECATED);
+		}
 		$row = $this->fetch();
-		return $row ? $row[$column] : false;
+		return $row ? $row[$column] : null;
 	}
 
 
 	/**
 	 * Fetches array of fields.
-	 * @return array|null
 	 */
-	public function fetchFields()
+	public function fetchFields(): ?array
 	{
 		$row = $this->fetch();
 		return $row ? array_values((array) $row) : null;
@@ -300,7 +274,7 @@ class ResultSet implements \Iterator, IRowContainer
 	/**
 	 * @inheritDoc
 	 */
-	public function fetchPairs($key = null, $value = null)
+	public function fetchPairs($key = null, $value = null): array
 	{
 		return Helpers::toPairs($this->fetchAll(), $key, $value);
 	}
@@ -309,7 +283,7 @@ class ResultSet implements \Iterator, IRowContainer
 	/**
 	 * @inheritDoc
 	 */
-	public function fetchAll()
+	public function fetchAll(): array
 	{
 		if ($this->results === null) {
 			$this->results = iterator_to_array($this);
@@ -321,7 +295,7 @@ class ResultSet implements \Iterator, IRowContainer
 	/**
 	 * @inheritDoc
 	 */
-	public function fetchAssoc($path)
+	public function fetchAssoc(string $path): array
 	{
 		return Nette\Utils\Arrays::associate($this->fetchAll(), $path);
 	}

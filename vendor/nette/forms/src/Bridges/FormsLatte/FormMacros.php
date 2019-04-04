@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\FormsLatte;
 
 use Latte;
@@ -25,7 +27,7 @@ use Latte\PhpWriter;
  */
 class FormMacros extends MacroSet
 {
-	public static function install(Latte\Compiler $compiler)
+	public static function install(Latte\Compiler $compiler): void
 	{
 		$me = new static($compiler);
 		$me->addMacro('form', [$me, 'macroForm'], 'echo Nette\Bridges\FormsLatte\Runtime::renderFormEnd(array_pop($this->global->formsStack));');
@@ -52,7 +54,7 @@ class FormMacros extends MacroSet
 			throw new CompileException('Did you mean <form n:name=...> ?');
 		}
 		$name = $node->tokenizer->fetchWord();
-		if ($name === false) {
+		if ($name == null) { // null or false
 			throw new CompileException('Missing form name in ' . $node->getNotation());
 		}
 		$node->replaced = true;
@@ -75,7 +77,7 @@ class FormMacros extends MacroSet
 			throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
 		}
 		$name = $node->tokenizer->fetchWord();
-		if ($name === false) {
+		if ($name == null) { // null or false
 			throw new CompileException('Missing name in ' . $node->getNotation());
 		}
 		$node->tokenizer->reset();
@@ -212,7 +214,7 @@ class FormMacros extends MacroSet
 			}
 		} elseif ($tagName === 'button') {
 			if ($node->htmlNode->empty) {
-				$node->innerContent = '<?php echo htmlspecialchars($_input->caption) ?>';
+				$node->innerContent = '<?php echo htmlspecialchars($_input->getCaption()) ?>';
 			}
 		} else { // select, textarea
 			$node->innerContent = '<?php echo $_input->getControl()->getHtml() ?>';
@@ -237,21 +239,5 @@ class FormMacros extends MacroSet
 		} else {
 			return $writer->write('echo %escape(end($this->global->formsStack)[%0.word]->getError());', $name);
 		}
-	}
-
-
-	/** @deprecated */
-	public static function renderFormBegin(Form $form, array $attrs, $withTags = true)
-	{
-		trigger_error(__METHOD__ . '() is deprecated, use Nette\Bridges\FormsLatte\Runtime::renderFormBegin()', E_USER_DEPRECATED);
-		echo Runtime::renderFormBegin($form, $attrs, $withTags);
-	}
-
-
-	/** @deprecated */
-	public static function renderFormEnd(Form $form, $withTags = true)
-	{
-		trigger_error(__METHOD__ . '() is deprecated, use Nette\Bridges\FormsLatte\Runtime::renderFormEnd()', E_USER_DEPRECATED);
-		echo Runtime::renderFormEnd($form, $withTags);
 	}
 }

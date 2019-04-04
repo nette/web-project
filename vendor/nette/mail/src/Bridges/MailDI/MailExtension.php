@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\MailDI;
 
 use Nette;
@@ -23,6 +25,7 @@ class MailExtension extends Nette\DI\CompilerExtension
 		'password' => null,
 		'secure' => null,
 		'timeout' => null,
+		'context' => null,
 		'clientHost' => null,
 		'persistent' => false,
 	];
@@ -34,7 +37,7 @@ class MailExtension extends Nette\DI\CompilerExtension
 		$config = $this->validateConfig($this->defaults);
 
 		$mailer = $builder->addDefinition($this->prefix('mailer'))
-			->setClass(Nette\Mail\IMailer::class);
+			->setType(Nette\Mail\IMailer::class);
 
 		if (empty($config['smtp'])) {
 			$mailer->setFactory(Nette\Mail\SendmailMailer::class);

@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\ApplicationLatte;
 
 use Latte;
@@ -12,9 +14,5 @@ use Latte;
 
 interface ILatteFactory
 {
-
-	/**
-	 * @return Latte\Engine
-	 */
-	function create();
+	function create(): Latte\Engine;
 }

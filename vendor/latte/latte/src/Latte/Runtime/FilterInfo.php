@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte\Runtime;
 
 use Latte;
@@ -21,7 +23,7 @@ class FilterInfo
 	public $contentType;
 
 
-	public function __construct($contentType = null)
+	public function __construct(string $contentType = null)
 	{
 		$this->contentType = $contentType;
 	}

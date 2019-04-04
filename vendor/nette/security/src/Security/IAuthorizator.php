@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Security;
 
 
@@ -15,20 +17,19 @@ namespace Nette\Security;
 interface IAuthorizator
 {
 	/** Set type: all */
-	const ALL = null;
+	public const ALL = null;
 
 	/** Permission type: allow */
-	const ALLOW = true;
+	public const ALLOW = true;
 
 	/** Permission type: deny */
-	const DENY = false;
+	public const DENY = false;
 
 	/**
 	 * Performs a role-based authorization.
-	 * @param  string|null
-	 * @param  string|null
-	 * @param  string|null
-	 * @return bool
+	 * @param  string|null  $role
+	 * @param  string|null  $resource
+	 * @param  string|null  $privilege
 	 */
-	function isAllowed($role, $resource, $privilege);
+	function isAllowed($role, $resource, $privilege): bool;
 }

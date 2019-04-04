@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\Responses;
 
 use Nette;
@@ -13,7 +15,7 @@ use Nette;
 /**
  * Callback response.
  */
-class CallbackResponse implements Nette\Application\IResponse
+final class CallbackResponse implements Nette\Application\IResponse
 {
 	use Nette\SmartObject;
 
@@ -22,7 +24,7 @@ class CallbackResponse implements Nette\Application\IResponse
 
 
 	/**
-	 * @param  callable  function (Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse)
+	 * @param  callable  $callback  function (Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse): void
 	 */
 	public function __construct(callable $callback)
 	{
@@ -32,10 +34,9 @@ class CallbackResponse implements Nette\Application\IResponse
 
 	/**
 	 * Sends response to output.
-	 * @return void
 	 */
-	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse)
+	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse): void
 	{
-		call_user_func($this->callback, $httpRequest, $httpResponse);
+		($this->callback)($httpRequest, $httpResponse);
 	}
 }

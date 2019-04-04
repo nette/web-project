@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Utils;
 
 use Nette;
@@ -13,62 +15,47 @@ use Nette;
 /**
  * PHP reflection helpers.
  */
-class Reflection
+final class Reflection
 {
 	use Nette\StaticClass;
 
-	private static $builtinTypes = [
+	private const BUILTIN_TYPES = [
 		'string' => 1, 'int' => 1, 'float' => 1, 'bool' => 1, 'array' => 1, 'object' => 1,
-		'callable' => 1, 'iterable' => 1, 'void' => 1,
+		'callable' => 1, 'iterable' => 1, 'void' => 1, 'null' => 1,
 	];
 
 
-	/**
-	 * @param  string
-	 * @return bool
-	 */
-	public static function isBuiltinType($type)
+	public static function isBuiltinType(string $type): bool
 	{
-		return isset(self::$builtinTypes[strtolower($type)]);
+		return isset(self::BUILTIN_TYPES[strtolower($type)]);
 	}
 
 
-	/**
-	 * @return string|null
-	 */
-	public static function getReturnType(\ReflectionFunctionAbstract $func)
+	public static function getReturnType(\ReflectionFunctionAbstract $func): ?string
 	{
-		return PHP_VERSION_ID >= 70000 && $func->hasReturnType()
-			? self::normalizeType((string) $func->getReturnType(), $func)
+		return $func->hasReturnType()
+			? self::normalizeType($func->getReturnType()->getName(), $func)
 			: null;
 	}
 
 
-	/**
-	 * @return string|null
-	 */
-	public static function getParameterType(\ReflectionParameter $param)
+	public static function getParameterType(\ReflectionParameter $param): ?string
 	{
-		if (PHP_VERSION_ID >= 70000) {
-			return $param->hasType()
-				? self::normalizeType((string) $param->getType(), $param)
-				: null;
-		} elseif ($param->isArray() || $param->isCallable()) {
-			return $param->isArray() ? 'array' : 'callable';
-		} else {
-			try {
-				return ($ref = $param->getClass()) ? $ref->getName() : null;
-			} catch (\ReflectionException $e) {
-				if (preg_match('#Class (.+) does not exist#', $e->getMessage(), $m)) {
-					return $m[1];
-				}
-				throw $e;
-			}
-		}
+		return $param->hasType()
+			? self::normalizeType($param->getType()->getName(), $param)
+			: null;
 	}
 
 
-	private static function normalizeType($type, $reflection)
+	public static function getPropertyType(\ReflectionProperty $prop): ?string
+	{
+		return PHP_VERSION_ID >= 70400 && $prop->hasType()
+			? self::normalizeType($prop->getType()->getName(), $prop)
+			: null;
+	}
+
+
+	private static function normalizeType(string $type, $reflection): string
 	{
 		$lower = strtolower($type);
 		if ($lower === 'self') {
@@ -90,10 +77,10 @@ class Reflection
 		if ($param->isDefaultValueConstant()) {
 			$const = $orig = $param->getDefaultValueConstantName();
 			$pair = explode('::', $const);
-			if (isset($pair[1]) && strtolower($pair[0]) === 'self') {
-				$pair[0] = $param->getDeclaringClass()->getName();
-			}
-			if (isset($pair[1]) && PHP_VERSION_ID >= 70100) {
+			if (isset($pair[1])) {
+				if (strtolower($pair[0]) === 'self') {
+					$pair[0] = $param->getDeclaringClass()->getName();
+				}
 				try {
 					$rcc = new \ReflectionClassConstant($pair[0], $pair[1]);
 				} catch (\ReflectionException $e) {
@@ -101,11 +88,10 @@ class Reflection
 					throw new \ReflectionException("Unable to resolve constant $orig used as default value of $name.", 0, $e);
 				}
 				return $rcc->getValue();
-			}
-			$const = implode('::', $pair);
-			if (!defined($const)) {
+
+			} elseif (!defined($const)) {
 				$const = substr((string) strrchr($const, '\\'), 1);
-				if (isset($pair[1]) || !defined($const)) {
+				if (!defined($const)) {
 					$name = self::toString($param);
 					throw new \ReflectionException("Unable to resolve constant $orig used as default value of $name.");
 				}
@@ -118,12 +104,13 @@ class Reflection
 
 	/**
 	 * Returns declaring class or trait.
-	 * @return \ReflectionClass
 	 */
-	public static function getPropertyDeclaringClass(\ReflectionProperty $prop)
+	public static function getPropertyDeclaringClass(\ReflectionProperty $prop): \ReflectionClass
 	{
 		foreach ($prop->getDeclaringClass()->getTraits() as $trait) {
-			if ($trait->hasProperty($prop->getName())) {
+			if ($trait->hasProperty($prop->getName())
+				&& $trait->getProperty($prop->getName())->getDocComment() === $prop->getDocComment()
+			) {
 				return self::getPropertyDeclaringClass($trait->getProperty($prop->getName()));
 			}
 		}
@@ -133,9 +120,8 @@ class Reflection
 
 	/**
 	 * Are documentation comments available?
-	 * @return bool
 	 */
-	public static function areCommentsAvailable()
+	public static function areCommentsAvailable(): bool
 	{
 		static $res;
 		return $res === null
@@ -144,10 +130,7 @@ class Reflection
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public static function toString(\Reflector $ref)
+	public static function toString(\Reflector $ref): string
 	{
 		if ($ref instanceof \ReflectionClass) {
 			return $ref->getName();
@@ -167,17 +150,15 @@ class Reflection
 
 	/**
 	 * Expands class name into full name.
-	 * @param  string
-	 * @return string  full name
 	 * @throws Nette\InvalidArgumentException
 	 */
-	public static function expandClassName($name, \ReflectionClass $rc)
+	public static function expandClassName(string $name, \ReflectionClass $rc): string
 	{
 		$lower = strtolower($name);
 		if (empty($name)) {
 			throw new Nette\InvalidArgumentException('Class name must not be empty.');
 
-		} elseif (isset(self::$builtinTypes[$lower])) {
+		} elseif (isset(self::BUILTIN_TYPES[$lower])) {
 			return $lower;
 
 		} elseif ($lower === 'self') {
@@ -205,8 +186,11 @@ class Reflection
 	/**
 	 * @return array of [alias => class]
 	 */
-	public static function getUseStatements(\ReflectionClass $class)
+	public static function getUseStatements(\ReflectionClass $class): array
 	{
+		if ($class->isAnonymous()) {
+			throw new Nette\NotImplementedException('Anonymous classes are not supported.');
+		}
 		static $cache = [];
 		if (!isset($cache[$name = $class->getName()])) {
 			if ($class->isInternal()) {
@@ -221,13 +205,16 @@ class Reflection
 
 
 	/**
-	 * Parses PHP code.
-	 * @param  string
-	 * @return array of [class => [alias => class, ...]]
+	 * Parses PHP code to [class => [alias => class, ...]]
 	 */
-	private static function parseUseStatements($code, $forClass = null)
+	private static function parseUseStatements(string $code, string $forClass = null): array
 	{
-		$tokens = PHP_VERSION_ID >= 70000 ? token_get_all($code, TOKEN_PARSE) : token_get_all($code);
+		try {
+			$tokens = token_get_all($code, TOKEN_PARSE);
+		} catch (\ParseError $e) {
+			trigger_error($e->getMessage(), E_USER_NOTICE);
+			$tokens = [];
+		}
 		$namespace = $class = $classLevel = $level = null;
 		$res = $uses = [];
 
@@ -303,7 +290,7 @@ class Reflection
 	{
 		$res = null;
 		while ($token = current($tokens)) {
-			list($token, $s) = is_array($token) ? $token : [$token, $token];
+			[$token, $s] = is_array($token) ? $token : [$token, $token];
 			if (in_array($token, (array) $take, true)) {
 				$res .= $s;
 			} elseif (!in_array($token, [T_DOC_COMMENT, T_WHITESPACE, T_COMMENT], true)) {

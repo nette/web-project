@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Security;
 
 
@@ -22,7 +24,6 @@ interface IIdentity
 
 	/**
 	 * Returns a list of roles that the user is a member of.
-	 * @return array
 	 */
-	function getRoles();
+	function getRoles(): array;
 }

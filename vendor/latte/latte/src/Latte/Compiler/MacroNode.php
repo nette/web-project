@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte;
 
 
@@ -15,7 +17,8 @@ class MacroNode
 {
 	use Strict;
 
-	const PREFIX_INNER = 'inner',
+	public const
+		PREFIX_INNER = 'inner',
 		PREFIX_TAG = 'tag',
 		PREFIX_NONE = 'none';
 
@@ -27,9 +30,6 @@ class MacroNode
 
 	/** @var bool */
 	public $empty = false;
-
-	/** @deprecated */
-	public $isEmpty;
 
 	/** @var string  raw arguments */
 	public $args;
@@ -86,7 +86,7 @@ class MacroNode
 	public $saved;
 
 
-	public function __construct(IMacro $macro, $name, $args = null, $modifiers = null, self $parentNode = null, HtmlNode $htmlNode = null, $prefix = null)
+	public function __construct(IMacro $macro, string $name, string $args = null, string $modifiers = null, self $parentNode = null, HtmlNode $htmlNode = null, string $prefix = null)
 	{
 		$this->macro = $macro;
 		$this->name = (string) $name;
@@ -95,19 +95,18 @@ class MacroNode
 		$this->htmlNode = $htmlNode;
 		$this->prefix = $prefix;
 		$this->data = new \stdClass;
-		$this->isEmpty = &$this->empty;
 		$this->setArgs($args);
 	}
 
 
-	public function setArgs($args)
+	public function setArgs(?string $args): void
 	{
 		$this->args = (string) $args;
 		$this->tokenizer = new MacroTokens($this->args);
 	}
 
 
-	public function getNotation()
+	public function getNotation(): string
 	{
 		return $this->prefix
 			? Parser::N_PREFIX . ($this->prefix === self::PREFIX_NONE ? '' : $this->prefix . '-') . $this->name

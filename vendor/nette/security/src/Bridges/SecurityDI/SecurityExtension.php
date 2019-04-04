@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\SecurityDI;
 
 use Nette;
@@ -16,18 +18,19 @@ use Nette;
 class SecurityExtension extends Nette\DI\CompilerExtension
 {
 	public $defaults = [
-		'debugger' => true,
+		'debugger' => null,
 		'users' => [], // of [user => password] or [user => ['password' => password, 'roles' => [role]]]
-		'roles' => [], // of [role => parents]
-		'resources' => [], // of [resource => parents]
+		'roles' => [], // of [role => parent(s)]
+		'resources' => [], // of [resource => parent]
 	];
 
 	/** @var bool */
 	private $debugMode;
 
 
-	public function __construct($debugMode = false)
+	public function __construct(bool $debugMode = false)
 	{
+		$this->defaults['debugger'] = interface_exists(\Tracy\IBarPanel::class);
 		$this->debugMode = $debugMode;
 	}
 
@@ -41,7 +44,7 @@ class SecurityExtension extends Nette\DI\CompilerExtension
 			->setFactory(Nette\Security\Passwords::class);
 
 		$builder->addDefinition($this->prefix('userStorage'))
-			->setClass(Nette\Security\IUserStorage::class)
+			->setType(Nette\Security\IUserStorage::class)
 			->setFactory(Nette\Http\UserStorage::class);
 
 		$user = $builder->addDefinition($this->prefix('user'))
@@ -49,7 +52,7 @@ class SecurityExtension extends Nette\DI\CompilerExtension
 
 		if ($this->debugMode && $config['debugger']) {
 			$user->addSetup('@Tracy\Bar::addPanel', [
-				new Nette\DI\Statement(Nette\Bridges\SecurityTracy\UserPanel::class),
+				new Nette\DI\Definitions\Statement(Nette\Bridges\SecurityTracy\UserPanel::class),
 			]);
 		}
 
@@ -59,11 +62,11 @@ class SecurityExtension extends Nette\DI\CompilerExtension
 				$data = is_array($data) ? $data : ['password' => $data];
 				$this->validateConfig(['password' => null, 'roles' => null], $data, $this->prefix("security.users.$username"));
 				$usersList[$username] = $data['password'];
-				$usersRoles[$username] = isset($data['roles']) ? $data['roles'] : null;
+				$usersRoles[$username] = $data['roles'] ?? null;
 			}
 
 			$builder->addDefinition($this->prefix('authenticator'))
-				->setClass(Nette\Security\IAuthenticator::class)
+				->setType(Nette\Security\IAuthenticator::class)
 				->setFactory(Nette\Security\SimpleAuthenticator::class, [$usersList, $usersRoles]);
 
 			if ($this->name === 'security') {
@@ -73,7 +76,7 @@ class SecurityExtension extends Nette\DI\CompilerExtension
 
 		if ($config['roles'] || $config['resources']) {
 			$authorizator = $builder->addDefinition($this->prefix('authorizator'))
-				->setClass(Nette\Security\IAuthorizator::class)
+				->setType(Nette\Security\IAuthorizator::class)
 				->setFactory(Nette\Security\Permission::class);
 
 			foreach ($config['roles'] as $role => $parents) {

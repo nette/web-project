@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\DI\Extensions;
 
 use Nette;
@@ -13,7 +15,7 @@ use Nette;
 /**
  * Constant definitions.
  */
-class ConstantsExtension extends Nette\DI\CompilerExtension
+final class ConstantsExtension extends Nette\DI\CompilerExtension
 {
 	public function afterCompile(Nette\PhpGenerator\ClassType $class)
 	{

@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms\Controls;
 
 use Nette;
@@ -34,7 +36,6 @@ class HiddenField extends BaseControl
 
 	/**
 	 * Sets control's value.
-	 * @param  string
 	 * @return static
 	 * @internal
 	 */
@@ -52,9 +53,8 @@ class HiddenField extends BaseControl
 
 	/**
 	 * Generates control's HTML element.
-	 * @return Nette\Utils\Html
 	 */
-	public function getControl()
+	public function getControl(): Nette\Utils\Html
 	{
 		$this->setOption('rendered', true);
 		$el = clone $this->control;
@@ -68,20 +68,18 @@ class HiddenField extends BaseControl
 
 	/**
 	 * Bypasses label generation.
-	 * @param  string|object
-	 * @return void
+	 * @param  string|object  $caption
 	 */
-	public function getLabel($caption = null)
+	public function getLabel($caption = null): void
 	{
 	}
 
 
 	/**
 	 * Adds error message to the list.
-	 * @param  string|object
-	 * @return void
+	 * @param  string|object  $message
 	 */
-	public function addError($message, $translate = true)
+	public function addError($message, bool $translate = true): void
 	{
 		$this->getForm()->addError($message, $translate);
 	}

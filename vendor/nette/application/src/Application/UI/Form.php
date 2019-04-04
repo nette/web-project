@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\UI;
 
 use Nette;
@@ -15,14 +17,14 @@ use Nette;
  */
 class Form extends Nette\Forms\Form implements ISignalReceiver
 {
-	/** @var callable[]  function (self $sender); Occurs when form is attached to presenter */
+	/** @var callable[]  function (Form $sender): void; Occurs when form is attached to presenter */
 	public $onAnchor;
 
 
 	/**
 	 * Application form constructor.
 	 */
-	public function __construct(Nette\ComponentModel\IContainer $parent = null, $name = null)
+	public function __construct(Nette\ComponentModel\IContainer $parent = null, string $name = null)
 	{
 		parent::__construct();
 		if ($parent !== null) {
@@ -31,36 +33,11 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 	}
 
 
-	/**
-	 * @return void
-	 */
-	protected function validateParent(Nette\ComponentModel\IContainer $parent)
+	protected function validateParent(Nette\ComponentModel\IContainer $parent): void
 	{
 		parent::validateParent($parent);
-		$this->monitor(Presenter::class);
-	}
 
-
-	/**
-	 * Returns the presenter where this component belongs to.
-	 * @param  bool   throw exception if presenter doesn't exist?
-	 * @return Presenter|null
-	 */
-	public function getPresenter($throw = true)
-	{
-		return $this->lookup(Presenter::class, $throw);
-	}
-
-
-	/**
-	 * This method will be called when the component (or component's parent)
-	 * becomes attached to a monitored object. Do not call this method yourself.
-	 * @param  Nette\ComponentModel\IComponent
-	 * @return void
-	 */
-	protected function attached($presenter)
-	{
-		if ($presenter instanceof Presenter) {
+		$this->monitor(Presenter::class, function (Presenter $presenter): void {
 			if (!isset($this->getElementPrototype()->id)) {
 				$this->getElementPrototype()->id = 'frm-' . $this->lookupPath(Presenter::class);
 			}
@@ -78,35 +55,54 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 			}
 
 			$this->onAnchor($this);
+		});
+	}
+
+
+	/**
+	 * Returns the presenter where this component belongs to.
+	 */
+	final public function getPresenter(): ?Presenter
+	{
+		if (func_num_args()) {
+			trigger_error(__METHOD__ . '() parameter $throw is deprecated, use hasPresenter()', E_USER_DEPRECATED);
+			$throw = func_get_arg(0);
 		}
-		parent::attached($presenter);
+		return $this->lookup(Presenter::class, $throw ?? true);
+	}
+
+
+	/**
+	 * Returns whether there is a presenter.
+	 */
+	public function hasPresenter(): bool
+	{
+		return (bool) $this->lookup(Presenter::class, false);
 	}
 
 
 	/**
 	 * Tells if the form is anchored.
-	 * @return bool
 	 */
-	public function isAnchored()
+	public function isAnchored(): bool
 	{
-		return (bool) $this->getPresenter(false);
+		return $this->hasPresenter();
 	}
 
 
 	/**
 	 * Internal: returns submitted HTTP data or null when form was not submitted.
-	 * @return array|null
 	 */
-	protected function receiveHttpData()
+	protected function receiveHttpData(): ?array
 	{
 		$presenter = $this->getPresenter();
 		if (!$presenter->isSignalReceiver($this, 'submit')) {
-			return;
+			return null;
 		}
 
 		$request = $presenter->getRequest();
 		if ($request->isMethod('forward') || $request->isMethod('post') !== $this->isMethod('post')) {
-			return;
+			return null;
 		}
 
 		if ($this->isMethod('post')) {
@@ -123,7 +119,7 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 		$key = ($this->isMethod('post') ? '_' : '') . Presenter::SIGNAL_KEY;
 		if (!isset($this[$key])) {
 			$do = $this->lookupPath(Presenter::class) . self::NAME_SEPARATOR . 'submit';
-			$this[$key] = (new Nette\Forms\Controls\HiddenField($do))->setOmitted()->setHtmlId(false);
+			$this[$key] = (new Nette\Forms\Controls\HiddenField($do))->setOmitted();
 		}
 	}
 
@@ -133,18 +129,18 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 
 	/**
 	 * This method is called by presenter.
-	 * @param  string
-	 * @return void
 	 */
-	public function signalReceived($signal)
+	public function signalReceived(string $signal): void
 	{
-		if ($signal === 'submit') {
-			if (!$this->getPresenter()->getRequest()->hasFlag(Nette\Application\Request::RESTORED)) {
-				$this->fireEvents();
-			}
-		} else {
+		if ($signal !== 'submit') {
 			$class = get_class($this);
 			throw new BadSignalException("Missing handler for signal '$signal' in $class.");
+
+		} elseif (!$this->getPresenter()->getHttpRequest()->isSameSite()) {
+			$this->getPresenter()->detectedCsrf();
+
+		} elseif (!$this->getPresenter()->getRequest()->hasFlag(Nette\Application\Request::RESTORED)) {
+			$this->fireEvents();
 		}
 	}
 }

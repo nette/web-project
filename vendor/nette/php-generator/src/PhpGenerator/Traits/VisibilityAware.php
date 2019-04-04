@@ -5,9 +5,12 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\PhpGenerator\Traits;
 
 use Nette;
+use Nette\PhpGenerator\ClassType;
 
 
 /**
@@ -20,12 +23,12 @@ trait VisibilityAware
 
 
 	/**
-	 * @param  string|null  public|protected|private
+	 * @param  string|null  $val  public|protected|private
 	 * @return static
 	 */
-	public function setVisibility($val)
+	public function setVisibility(?string $val): self
 	{
-		if (!in_array($val, ['public', 'protected', 'private', null], true)) {
+		if (!in_array($val, [ClassType::VISIBILITY_PUBLIC, ClassType::VISIBILITY_PROTECTED, ClassType::VISIBILITY_PRIVATE, null], true)) {
 			throw new Nette\InvalidArgumentException('Argument must be public|protected|private.');
 		}
 		$this->visibility = $val;
@@ -33,10 +36,7 @@ trait VisibilityAware
 	}
 
 
-	/**
-	 * @return string|null
-	 */
-	public function getVisibility()
+	public function getVisibility(): ?string
 	{
 		return $this->visibility;
 	}

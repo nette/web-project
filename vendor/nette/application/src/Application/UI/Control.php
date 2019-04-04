@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\UI;
 
 use Nette;
@@ -33,34 +35,23 @@ abstract class Control extends Component implements IRenderable
 	/********************* template factory ****************d*g**/
 
 
-	public function setTemplateFactory(ITemplateFactory $templateFactory)
+	final public function setTemplateFactory(ITemplateFactory $templateFactory)
 	{
 		$this->templateFactory = $templateFactory;
+		return $this;
 	}
 
 
-	/**
-	 * @return ITemplate
-	 */
-	public function getTemplate()
+	final public function getTemplate(): ITemplate
 	{
 		if ($this->template === null) {
-			$value = $this->createTemplate();
-			if (!$value instanceof ITemplate && $value !== null) {
-				$class2 = get_class($value);
-				$class = get_class($this);
-				throw new Nette\UnexpectedValueException("Object returned by $class::createTemplate() must be instance of Nette\\Application\\UI\\ITemplate, '$class2' given.");
-			}
-			$this->template = $value;
+			$this->template = $this->createTemplate();
 		}
 		return $this->template;
 	}
 
 
-	/**
-	 * @return ITemplate
-	 */
-	protected function createTemplate()
+	protected function createTemplate(): ITemplate
 	{
 		$templateFactory = $this->templateFactory ?: $this->getPresenter()->getTemplateFactory();
 		return $templateFactory->createTemplate($this);
@@ -69,21 +60,16 @@ abstract class Control extends Component implements IRenderable
 
 	/**
 	 * Descendant can override this method to customize template compile-time filters.
-	 * @param  ITemplate
-	 * @return void
 	 */
-	public function templatePrepareFilters($template)
+	public function templatePrepareFilters(ITemplate $template): void
 	{
 	}
 
 
 	/**
 	 * Saves the message to template, that can be displayed after redirect.
-	 * @param  string
-	 * @param  string
-	 * @return \stdClass
 	 */
-	public function flashMessage($message, $type = 'info')
+	public function flashMessage($message, string $type = 'info'): \stdClass
 	{
 		$id = $this->getParameterId('flash');
 		$messages = $this->getPresenter()->getFlashSession()->$id;
@@ -102,9 +88,8 @@ abstract class Control extends Component implements IRenderable
 
 	/**
 	 * Forces control or its snippet to repaint.
-	 * @return void
 	 */
-	public function redrawControl($snippet = null, $redraw = true)
+	public function redrawControl(string $snippet = null, bool $redraw = true): void
 	{
 		if ($redraw) {
 			$this->invalidSnippets[$snippet === null ? "\0" : $snippet] = true;
@@ -118,28 +103,10 @@ abstract class Control extends Component implements IRenderable
 	}
 
 
-	/** @deprecated */
-	public function invalidateControl($snippet = null)
-	{
-		trigger_error(__METHOD__ . '() is deprecated; use $this->redrawControl($snippet) instead.', E_USER_DEPRECATED);
-		$this->redrawControl($snippet);
-	}
-
-
-	/** @deprecated */
-	public function validateControl($snippet = null)
-	{
-		trigger_error(__METHOD__ . '() is deprecated; use $this->redrawControl($snippet, false) instead.', E_USER_DEPRECATED);
-		$this->redrawControl($snippet, false);
-	}
-
-
 	/**
 	 * Is required to repaint the control or its snippet?
-	 * @param  string  snippet name
-	 * @return bool
 	 */
-	public function isControlInvalid($snippet = null)
+	public function isControlInvalid(string $snippet = null): bool
 	{
 		if ($snippet === null) {
 			if (count($this->invalidSnippets) > 0) {
@@ -164,20 +131,16 @@ abstract class Control extends Component implements IRenderable
 				return false;
 			}
 
-		} elseif (isset($this->invalidSnippets[$snippet])) {
-			return $this->invalidSnippets[$snippet];
 		} else {
-			return isset($this->invalidSnippets["\0"]);
+			return $this->invalidSnippets[$snippet] ?? isset($this->invalidSnippets["\0"]);
 		}
 	}
 
 
 	/**
 	 * Returns snippet HTML ID.
-	 * @param  string  snippet name
-	 * @return string
 	 */
-	public function getSnippetId($name = null)
+	public function getSnippetId(string $name): string
 	{
 		// HTML 4 ID & NAME: [A-Za-z][A-Za-z0-9:_.-]*
 		return 'snippet-' . $this->getUniqueId() . '-' . $name;

@@ -5,9 +5,12 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Utils;
 
 use Nette;
+use function is_array, is_int, is_object;
 
 
 /**
@@ -19,9 +22,7 @@ class Arrays
 
 	/**
 	 * Returns item from array or $default if item is not set.
-	 * @param  array
-	 * @param  string|int|array one or more keys
-	 * @param  mixed
+	 * @param  string|int|array $key one or more keys
 	 * @return mixed
 	 * @throws Nette\InvalidArgumentException if item does not exist and default value is not provided
 	 */
@@ -43,8 +44,7 @@ class Arrays
 
 	/**
 	 * Returns reference to array item.
-	 * @param  array
-	 * @param  string|int|array one or more keys
+	 * @param  string|int|array $key one or more keys
 	 * @return mixed
 	 * @throws Nette\InvalidArgumentException if traversed item is not an array
 	 */
@@ -63,9 +63,8 @@ class Arrays
 
 	/**
 	 * Recursively appends elements of remaining keys from the second array to the first.
-	 * @return array
 	 */
-	public static function mergeTree(array $arr1, array $arr2)
+	public static function mergeTree(array $arr1, array $arr2): array
 	{
 		$res = $arr1 + $arr2;
 		foreach (array_intersect_key($arr1, $arr2) as $k => $v) {
@@ -79,20 +78,19 @@ class Arrays
 
 	/**
 	 * Searches the array for a given key and returns the offset if successful.
-	 * @return int|false offset if it is found, false otherwise
+	 * @return int|null offset if it is found, null otherwise
 	 */
-	public static function searchKey(array $arr, $key)
+	public static function searchKey(array $arr, $key): ?int
 	{
 		$foo = [$key => null];
-		return array_search(key($foo), array_keys($arr), true);
+		return ($tmp = array_search(key($foo), array_keys($arr), true)) === false ? null : $tmp;
 	}
 
 
 	/**
 	 * Inserts new array before item specified by key.
-	 * @return void
 	 */
-	public static function insertBefore(array &$arr, $key, array $inserted)
+	public static function insertBefore(array &$arr, $key, array $inserted): void
 	{
 		$offset = (int) self::searchKey($arr, $key);
 		$arr = array_slice($arr, 0, $offset, true) + $inserted + array_slice($arr, $offset, count($arr), true);
@@ -101,24 +99,22 @@ class Arrays
 
 	/**
 	 * Inserts new array after item specified by key.
-	 * @return void
 	 */
-	public static function insertAfter(array &$arr, $key, array $inserted)
+	public static function insertAfter(array &$arr, $key, array $inserted): void
 	{
 		$offset = self::searchKey($arr, $key);
-		$offset = $offset === false ? count($arr) : $offset + 1;
+		$offset = $offset === null ? count($arr) : $offset + 1;
 		$arr = array_slice($arr, 0, $offset, true) + $inserted + array_slice($arr, $offset, count($arr), true);
 	}
 
 
 	/**
 	 * Renames key in array.
-	 * @return void
 	 */
-	public static function renameKey(array &$arr, $oldKey, $newKey)
+	public static function renameKey(array &$arr, $oldKey, $newKey): void
 	{
 		$offset = self::searchKey($arr, $oldKey);
-		if ($offset !== false) {
+		if ($offset !== null) {
 			$keys = array_keys($arr);
 			$keys[$offset] = $newKey;
 			$arr = array_combine($keys, $arr);
@@ -128,9 +124,8 @@ class Arrays
 
 	/**
 	 * Returns array entries that match the pattern.
-	 * @return array
 	 */
-	public static function grep(array $arr, $pattern, $flags = 0)
+	public static function grep(array $arr, string $pattern, int $flags = 0): array
 	{
 		return Strings::pcre('preg_grep', [$pattern, $arr, $flags]);
 	}
@@ -138,14 +133,13 @@ class Arrays
 
 	/**
 	 * Returns flattened array.
-	 * @return array
 	 */
-	public static function flatten(array $arr, $preserveKeys = false)
+	public static function flatten(array $arr, bool $preserveKeys = false): array
 	{
 		$res = [];
 		$cb = $preserveKeys
-			? function ($v, $k) use (&$res) { $res[$k] = $v; }
-		: function ($v) use (&$res) { $res[] = $v; };
+			? function ($v, $k) use (&$res): void { $res[$k] = $v; }
+		: function ($v) use (&$res): void { $res[] = $v; };
 		array_walk_recursive($arr, $cb);
 		return $res;
 	}
@@ -153,9 +147,8 @@ class Arrays
 
 	/**
 	 * Finds whether a variable is a zero-based integer indexed array.
-	 * @return bool
 	 */
-	public static function isList($value)
+	public static function isList($value): bool
 	{
 		return is_array($value) && (!$value || array_keys($value) === range(0, count($value) - 1));
 	}
@@ -215,9 +208,8 @@ class Arrays
 
 	/**
 	 * Normalizes to associative array.
-	 * @return array
 	 */
-	public static function normalize(array $arr, $filling = null)
+	public static function normalize(array $arr, $filling = null): array
 	{
 		$res = [];
 		foreach ($arr as $k => $v) {
@@ -229,9 +221,7 @@ class Arrays
 
 	/**
 	 * Picks element from the array by key and return its value.
-	 * @param  array
-	 * @param  string|int array key
-	 * @param  mixed
+	 * @param  string|int $key array key
 	 * @return mixed
 	 * @throws Nette\InvalidArgumentException if item does not exist and default value is not provided
 	 */
@@ -253,9 +243,8 @@ class Arrays
 
 	/**
 	 * Tests whether some element in the array passes the callback test.
-	 * @return bool
 	 */
-	public static function some(array $arr, callable $callback)
+	public static function some(array $arr, callable $callback): bool
 	{
 		foreach ($arr as $k => $v) {
 			if ($callback($v, $k, $arr)) {
@@ -268,9 +257,8 @@ class Arrays
 
 	/**
 	 * Tests whether all elements in the array pass the callback test.
-	 * @return bool
 	 */
-	public static function every(array $arr, callable $callback)
+	public static function every(array $arr, callable $callback): bool
 	{
 		foreach ($arr as $k => $v) {
 			if (!$callback($v, $k, $arr)) {
@@ -283,14 +271,27 @@ class Arrays
 
 	/**
 	 * Applies the callback to the elements of the array.
-	 * @return array
 	 */
-	public static function map(array $arr, callable $callback)
+	public static function map(array $arr, callable $callback): array
 	{
 		$res = [];
 		foreach ($arr as $k => $v) {
 			$res[$k] = $callback($v, $k, $arr);
 		}
 		return $res;
+	}
+
+
+	/**
+	 * Converts array to object
+	 * @param  object  $obj
+	 * @return object
+	 */
+	public static function toObject(array $arr, $obj)
+	{
+		foreach ($arr as $k => $v) {
+			$obj->$k = $v;
+		}
+		return $obj;
 	}
 }

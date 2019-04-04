@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms\Rendering;
 
 use Nette;
@@ -45,7 +47,7 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 	 *          \---
 	 *
 	 *          /--- control.container [.odd]
-	 *            .... CONTROL [.required .text .password .file .submit .button]
+	 *            .... CONTROL [.required .error .text .password .file .submit .button]
 	 *            .... control.requiredsuffix
 	 *            .... control.description
 	 *            .... control.errorcontainer + control.erroritem
@@ -93,6 +95,7 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 			'erroritem' => '',
 
 			'.required' => 'required',
+			'.error' => null,
 			'.text' => 'text',
 			'.password' => 'text',
 			'.file' => 'text',
@@ -123,11 +126,9 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Provides complete form rendering.
-	 * @param  Nette\Forms\Form
-	 * @param  string 'begin', 'errors', 'ownerrors', 'body', 'end' or empty to render all
-	 * @return string
+	 * @param  string  $mode  'begin', 'errors', 'ownerrors', 'body', 'end' or empty to render all
 	 */
-	public function render(Nette\Forms\Form $form, $mode = null)
+	public function render(Nette\Forms\Form $form, string $mode = null): string
 	{
 		if ($this->form !== $form) {
 			$this->form = $form;
@@ -155,9 +156,8 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Renders form begin.
-	 * @return string
 	 */
-	public function renderBegin()
+	public function renderBegin(): string
 	{
 		$this->counter = 0;
 
@@ -188,9 +188,8 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Renders form end.
-	 * @return string
 	 */
-	public function renderEnd()
+	public function renderEnd(): string
 	{
 		$s = '';
 		foreach ($this->form->getControls() as $control) {
@@ -211,9 +210,8 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Renders validation errors (per form or per control).
-	 * @return string
 	 */
-	public function renderErrors(Nette\Forms\IControl $control = null, $own = true)
+	public function renderErrors(Nette\Forms\IControl $control = null, bool $own = true): string
 	{
 		$errors = $control
 			? $control->getErrors()
@@ -239,9 +237,8 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Renders form body.
-	 * @return string
 	 */
-	public function renderBody()
+	public function renderBody(): string
 	{
 		$s = $remains = '';
 
@@ -304,10 +301,9 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Renders group of controls.
-	 * @param  Nette\Forms\Container|Nette\Forms\ControlGroup
-	 * @return string
+	 * @param  Nette\Forms\Container|Nette\Forms\ControlGroup  $parent
 	 */
-	public function renderControls($parent)
+	public function renderControls($parent): string
 	{
 		if (!($parent instanceof Nette\Forms\Container || $parent instanceof Nette\Forms\ControlGroup)) {
 			throw new Nette\InvalidArgumentException('Argument must be Nette\Forms\Container or Nette\Forms\ControlGroup instance.');
@@ -347,9 +343,8 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Renders single visual row.
-	 * @return string
 	 */
-	public function renderPair(Nette\Forms\IControl $control)
+	public function renderPair(Nette\Forms\IControl $control): string
 	{
 		$pair = $this->getWrapper('pair container');
 		$pair->addHtml($this->renderLabel($control));
@@ -367,10 +362,9 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Renders single visual row of multiple controls.
-	 * @param  Nette\Forms\IControl[]
-	 * @return string
+	 * @param  Nette\Forms\IControl[]  $controls
 	 */
-	public function renderPairMulti(array $controls)
+	public function renderPairMulti(array $controls): string
 	{
 		$s = [];
 		foreach ($controls as $control) {
@@ -393,8 +387,11 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 			$control->setOption('rendered', true);
 			$el = $control->getControl();
-			if ($el instanceof Html && $el->getName() === 'input') {
-				$el->class($this->getValue("control .$el->type"), true);
+			if ($el instanceof Html) {
+				if ($el->getName() === 'input') {
+					$el->class($this->getValue("control .$el->type"), true);
+				}
+				$el->class($this->getValue('control .error'), $control->hasErrors());
 			}
 			$s[] = $el . $description;
 		}
@@ -407,9 +404,8 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 	/**
 	 * Renders 'label' part of visual row of controls.
-	 * @return Html
 	 */
-	public function renderLabel(Nette\Forms\IControl $control)
+	public function renderLabel(Nette\Forms\IControl $control): Html
 	{
 		$suffix = $this->getValue('label suffix') . ($control->isRequired() ? $this->getValue('label requiredsuffix') : '');
 		$label = $control->getLabel();
@@ -421,15 +417,14 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 		} elseif ($label != null) { // @intentionally ==
 			$label .= $suffix;
 		}
-		return $this->getWrapper('label container')->setHtml($label);
+		return $this->getWrapper('label container')->setHtml((string) $label);
 	}
 
 
 	/**
 	 * Renders 'control' part of visual row of controls.
-	 * @return Html
 	 */
-	public function renderControl(Nette\Forms\IControl $control)
+	public function renderControl(Nette\Forms\IControl $control): Html
 	{
 		$body = $this->getWrapper('control container');
 		if ($this->counter % 2) {
@@ -456,18 +451,17 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 		$control->setOption('rendered', true);
 		$el = $control->getControl();
-		if ($el instanceof Html && $el->getName() === 'input') {
-			$el->class($this->getValue("control .$el->type"), true);
+		if ($el instanceof Html) {
+			if ($el->getName() === 'input') {
+				$el->class($this->getValue("control .$el->type"), true);
+			}
+			$el->class($this->getValue('control .error'), $control->hasErrors());
 		}
 		return $body->setHtml($el . $description . $this->renderErrors($control));
 	}
 
 
-	/**
-	 * @param  string
-	 * @return Html
-	 */
-	protected function getWrapper($name)
+	protected function getWrapper(string $name): Html
 	{
 		$data = $this->getValue($name);
 		return $data instanceof Html ? clone $data : Html::el($data);
@@ -475,10 +469,9 @@ class DefaultFormRenderer implements Nette\Forms\IFormRenderer
 
 
 	/**
-	 * @param  string
 	 * @return mixed
 	 */
-	protected function getValue($name)
+	protected function getValue(string $name)
 	{
 		$name = explode(' ', $name);
 		$data = &$this->wrappers[$name[0]][$name[1]];

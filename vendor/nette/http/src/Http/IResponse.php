@@ -5,22 +5,25 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Http;
 
 
 /**
  * IHttpResponse interface.
+ * @method self deleteHeader(string $name)
  */
 interface IResponse
 {
 	/** @var int cookie expiration: forever (23.1.2037) */
-	const PERMANENT = 2116333333;
+	public const PERMANENT = 2116333333;
 
 	/** @var int cookie expiration: until the browser is closed */
-	const BROWSER = 0;
+	public const BROWSER = 0;
 
 	/** HTTP 1.1 response code */
-	const
+	public const
 		S100_CONTINUE = 100,
 		S101_SWITCHING_PROTOCOLS = 101,
 		S102_PROCESSING = 102,
@@ -84,96 +87,68 @@ interface IResponse
 
 	/**
 	 * Sets HTTP response code.
-	 * @param  int
 	 * @return static
 	 */
-	function setCode($code);
+	function setCode(int $code, string $reason = null);
 
 	/**
 	 * Returns HTTP response code.
-	 * @return int
 	 */
-	function getCode();
+	function getCode(): int;
 
 	/**
 	 * Sends a HTTP header and replaces a previous one.
-	 * @param  string  header name
-	 * @param  string  header value
 	 * @return static
 	 */
-	function setHeader($name, $value);
+	function setHeader(string $name, string $value);
 
 	/**
 	 * Adds HTTP header.
-	 * @param  string  header name
-	 * @param  string  header value
 	 * @return static
 	 */
-	function addHeader($name, $value);
+	function addHeader(string $name, string $value);
 
 	/**
 	 * Sends a Content-type HTTP header.
-	 * @param  string  mime-type
-	 * @param  string  charset
 	 * @return static
 	 */
-	function setContentType($type, $charset = null);
+	function setContentType(string $type, string $charset = null);
 
 	/**
 	 * Redirects to a new URL.
-	 * @param  string  URL
-	 * @param  int     HTTP code
-	 * @return void
 	 */
-	function redirect($url, $code = self::S302_FOUND);
+	function redirect(string $url, int $code = self::S302_FOUND): void;
 
 	/**
-	 * Sets the number of seconds before a page cached on a browser expires.
-	 * @param  string|int|\DateTimeInterface  time, value 0 means "until the browser is closed"
+	 * Sets the time (like '20 minutes') before a page cached on a browser expires, null means "must-revalidate".
 	 * @return static
 	 */
-	function setExpiration($seconds);
+	function setExpiration(?string $expire);
 
 	/**
 	 * Checks if headers have been sent.
-	 * @return bool
 	 */
-	function isSent();
+	function isSent(): bool;
 
 	/**
 	 * Returns value of an HTTP header.
-	 * @param  string
-	 * @param  string|null
-	 * @return string|null
 	 */
-	function getHeader($header, $default = null);
+	function getHeader(string $header): ?string;
 
 	/**
-	 * Returns a list of headers to sent.
-	 * @return array (name => value)
+	 * Returns a associative array of headers to sent.
 	 */
-	function getHeaders();
+	function getHeaders(): array;
 
 	/**
 	 * Sends a cookie.
-	 * @param  string name of the cookie
-	 * @param  string value
-	 * @param  string|int|\DateTimeInterface  time, value 0 means "until the browser is closed"
-	 * @param  string
-	 * @param  string
-	 * @param  bool
-	 * @param  bool
+	 * @param  string|int|\DateTimeInterface $expire  time, value 0 means "until the browser is closed"
 	 * @return static
 	 */
-	function setCookie($name, $value, $expire, $path = null, $domain = null, $secure = null, $httpOnly = null);
+	function setCookie(string $name, string $value, $expire, string $path = null, string $domain = null, bool $secure = null, bool $httpOnly = null);
 
 	/**
 	 * Deletes a cookie.
-	 * @param  string name of the cookie.
-	 * @param  string
-	 * @param  string
-	 * @param  bool
-	 * @return void
 	 */
-	function deleteCookie($name, $path = null, $domain = null, $secure = null);
+	function deleteCookie(string $name, string $path = null, string $domain = null, bool $secure = null);
 }

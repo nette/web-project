@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\DITracy;
 
 use Nette;
@@ -38,9 +40,8 @@ class ContainerPanel implements Tracy\IBarPanel
 
 	/**
 	 * Renders tab.
-	 * @return string
 	 */
-	public function getTab()
+	public function getTab(): string
 	{
 		ob_start(function () {});
 		$elapsedTime = $this->elapsedTime;
@@ -51,22 +52,26 @@ class ContainerPanel implements Tracy\IBarPanel
 
 	/**
 	 * Renders panel.
-	 * @return string
 	 */
-	public function getPanel()
+	public function getPanel(): string
 	{
 		$container = $this->container;
-		$registry = $this->getContainerProperty('registry');
-		$file = (new \ReflectionClass($container))->getFileName();
+		$rc = new \ReflectionClass($container);
+		$file = $rc->getFileName();
 		$tags = [];
-		$meta = $this->getContainerProperty('meta');
-		$services = $meta[Container::SERVICES];
-		ksort($services);
-		if (isset($meta[Container::TAGS])) {
-			foreach ($meta[Container::TAGS] as $tag => $tmp) {
-				foreach ($tmp as $service => $val) {
-					$tags[$service][$tag] = $val;
-				}
+		$instances = $this->getContainerProperty('instances');
+		$wiring = $this->getContainerProperty('wiring');
+		$types = [];
+		foreach ($rc->getMethods() as $method) {
+			if (preg_match('#^createService(.+)#', $method->getName(), $m) && $method->getReturnType()) {
+				$types[lcfirst(str_replace('__', '.', $m[1]))] = (string) $method->getReturnType();
+			}
+		}
+		$types = $this->getContainerProperty('types') + $types;
+		ksort($types);
+		foreach ($this->getContainerProperty('tags') as $tag => $tmp) {
+			foreach ($tmp as $service => $val) {
+				$tags[$service][$tag] = $val;
 			}
 		}
 
@@ -76,7 +81,7 @@ class ContainerPanel implements Tracy\IBarPanel
 	}
 
 
-	private function getContainerProperty($name)
+	private function getContainerProperty(string $name)
 	{
 		$prop = (new \ReflectionClass(Nette\DI\Container::class))->getProperty($name);
 		$prop->setAccessible(true);

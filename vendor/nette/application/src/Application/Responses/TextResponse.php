@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\Responses;
 
 use Nette;
@@ -13,7 +15,7 @@ use Nette;
 /**
  * String output response.
  */
-class TextResponse implements Nette\Application\IResponse
+final class TextResponse implements Nette\Application\IResponse
 {
 	use Nette\SmartObject;
 
@@ -22,7 +24,7 @@ class TextResponse implements Nette\Application\IResponse
 
 
 	/**
-	 * @param  mixed  renderable variable
+	 * @param  mixed  $source
 	 */
 	public function __construct($source)
 	{
@@ -41,9 +43,8 @@ class TextResponse implements Nette\Application\IResponse
 
 	/**
 	 * Sends response to output.
-	 * @return void
 	 */
-	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse)
+	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse): void
 	{
 		if ($this->source instanceof Nette\Application\UI\ITemplate) {
 			$this->source->render();

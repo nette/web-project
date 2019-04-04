@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\ComponentModel;
 
 use Nette;
@@ -32,27 +34,11 @@ abstract class Component implements IComponent
 	private $monitors = [];
 
 
-	public function __construct()
-	{
-		list($parent, $name) = func_get_args() + [null, null];
-		if ($parent !== null) {
-			trigger_error(__METHOD__ . '() argument $parent is deprecated, use $parent->addComponent() instead.', E_USER_DEPRECATED);
-			$parent->addComponent($this, $name);
-
-		} elseif ($name !== null) {
-			trigger_error(__METHOD__ . '() argument $name is deprecated, use $parent->setParent(null, $name) instead.', E_USER_DEPRECATED);
-			$this->name = $name;
-		}
-	}
-
-
 	/**
 	 * Finds the closest ancestor specified by class or interface name.
-	 * @param  string|null  $type
-	 * @param  bool  $throw
-	 * @return IComponent|null
+	 * @param  bool  $throw   throw exception if component doesn't exist?
 	 */
-	public function lookup($type, $throw = true)
+	final public function lookup(?string $type, bool $throw = true): ?IComponent
 	{
 		if (!isset($this->monitors[$type])) { // not monitored or not processed yet
 			$obj = $this->parent;
@@ -80,7 +66,10 @@ abstract class Component implements IComponent
 		}
 
 		if ($throw && $this->monitors[$type][0] === null) {
-			throw new Nette\InvalidStateException("Component '$this->name' is not attached to '$type'.");
+			$message = $this->name !== null
+				? "Component '$this->name' is not attached to '$type'."
+				: "Component of type '" . static::class . "' is not attached to '$type'.";
+			throw new Nette\InvalidStateException($message);
 		}
 
 		return $this->monitors[$type][0];
@@ -90,11 +79,8 @@ abstract class Component implements IComponent
 	/**
 	 * Finds the closest ancestor specified by class or interface name and returns backtrace path.
 	 * A path is the concatenation of component names separated by self::NAME_SEPARATOR.
-	 * @param  string|null  $type
-	 * @param  bool  $throw
-	 * @return string|null
 	 */
-	public function lookupPath($type = null, $throw = true)
+	final public function lookupPath(string $type = null, bool $throw = true): ?string
 	{
 		$this->lookup($type, $throw);
 		return $this->monitors[$type][2];
@@ -103,10 +89,8 @@ abstract class Component implements IComponent
 
 	/**
 	 * Starts monitoring of ancestors.
-	 * @param  string  $type
-	 * @return void
 	 */
-	final public function monitor($type, callable $attached = null, callable $detached = null)
+	final public function monitor(string $type, callable $attached = null, callable $detached = null): void
 	{
 		if (func_num_args() === 1) {
 			$attached = [$this, 'attached'];
@@ -121,10 +105,8 @@ abstract class Component implements IComponent
 
 	/**
 	 * Stops monitoring of ancestors.
-	 * @param  string  $type
-	 * @return void
 	 */
-	public function unmonitor($type)
+	final public function unmonitor(string $type): void
 	{
 		unset($this->monitors[$type]);
 	}
@@ -133,11 +115,9 @@ abstract class Component implements IComponent
 	/**
 	 * This method will be called when the component (or component's parent)
 	 * becomes attached to a monitored object. Do not call this method yourself.
-	 * @param  IComponent  $obj
-	 * @return void
 	 * @deprecated  use monitor($type, $attached)
 	 */
-	protected function attached($obj)
+	protected function attached(IComponent $obj): void
 	{
 	}
 
@@ -145,11 +125,9 @@ abstract class Component implements IComponent
 	/**
 	 * This method will be called before the component (or component's parent)
 	 * becomes detached from a monitored object. Do not call this method yourself.
-	 * @param  IComponent  $obj
-	 * @return void
 	 * @deprecated  use monitor($type, null, $detached)
 	 */
-	protected function detached($obj)
+	protected function detached(IComponent $obj): void
 	{
 	}
 
@@ -157,10 +135,7 @@ abstract class Component implements IComponent
 	/********************* interface IComponent ****************d*g**/
 
 
-	/**
-	 * @return string|null
-	 */
-	public function getName()
+	final public function getName(): ?string
 	{
 		return $this->name;
 	}
@@ -168,9 +143,8 @@ abstract class Component implements IComponent
 
 	/**
 	 * Returns the parent container if any.
-	 * @return IContainer|null
 	 */
-	public function getParent()
+	final public function getParent(): ?IContainer
 	{
 		return $this->parent;
 	}
@@ -179,12 +153,11 @@ abstract class Component implements IComponent
 	/**
 	 * Sets or removes the parent of this component. This method is managed by containers and should
 	 * not be called by applications
-	 * @param  string  $name
 	 * @return static
 	 * @throws Nette\InvalidStateException
 	 * @internal
 	 */
-	public function setParent(IContainer $parent = null, $name = null)
+	public function setParent(?IContainer $parent, string $name = null)
 	{
 		if ($parent === null && $this->parent === null && $name !== null) {
 			$this->name = $name; // just rename
@@ -221,22 +194,18 @@ abstract class Component implements IComponent
 	/**
 	 * Is called by a component when it is about to be set new parent. Descendant can
 	 * override this method to disallow a parent change by throwing an Nette\InvalidStateException
-	 * @return void
 	 * @throws Nette\InvalidStateException
 	 */
-	protected function validateParent(IContainer $parent)
+	protected function validateParent(IContainer $parent): void
 	{
 	}
 
 
 	/**
 	 * Refreshes monitors.
-	 * @param  int  $depth
-	 * @param  array|null  $missing (array = attaching, null = detaching)
-	 * @param  array  $listeners
-	 * @return void
+	 * @param  array|null  $missing  (array = attaching, null = detaching)
 	 */
-	private function refreshMonitors($depth, &$missing = null, &$listeners = [])
+	private function refreshMonitors(int $depth, array &$missing = null, array &$listeners = []): void
 	{
 		if ($this instanceof IContainer) {
 			foreach ($this->getComponents() as $component) {
@@ -289,7 +258,7 @@ abstract class Component implements IComponent
 			$prev = [];
 			foreach ($listeners as $item) {
 				if ($item[0] && !in_array($item, $prev, true)) {
-					call_user_func($item[0], $item[1]);
+					$item[0]($item[1]);
 					$prev[] = $item;
 				}
 			}
@@ -324,7 +293,7 @@ abstract class Component implements IComponent
 	/**
 	 * Prevents serialization.
 	 */
-	public function __sleep()
+	final public function __sleep()
 	{
 		throw new Nette\NotImplementedException('Object serialization is not supported by class ' . get_class($this));
 	}
@@ -333,7 +302,7 @@ abstract class Component implements IComponent
 	/**
 	 * Prevents unserialization.
 	 */
-	public function __wakeup()
+	final public function __wakeup()
 	{
 		throw new Nette\NotImplementedException('Object unserialization is not supported by class ' . get_class($this));
 	}

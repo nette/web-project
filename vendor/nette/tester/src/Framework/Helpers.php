@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester;
 
 
@@ -15,30 +17,59 @@ class Helpers
 {
 	/**
 	 * Purges directory.
-	 * @param  string
-	 * @return void
 	 */
-	public static function purge($dir)
+	public static function purge(string $dir): void
 	{
+		if (preg_match('#^(\w:)?[/\\\\]?$#', $dir)) {
+			throw new \InvalidArgumentException('Directory must not be an empty string or root path.');
+		}
 		if (!is_dir($dir)) {
 			mkdir($dir);
 		}
 		foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST) as $entry) {
 			if ($entry->isDir()) {
-				rmdir($entry);
+				rmdir((string) $entry);
 			} else {
-				unlink($entry);
+				unlink((string) $entry);
 			}
 		}
 	}
 
 
 	/**
+	 * Find common directory for given paths. All files or directories must exist.
+	 * @return string  Empty when not found. Slash and back slash chars normalized to DIRECTORY_SEPARATOR.
+	 */
+	public static function findCommonDirectory(array $paths): string
+	{
+		$splitPaths = array_map(function ($s) {
+			$real = realpath($s);
+			if ($s === '') {
+				throw new \RuntimeException('Path must not be empty.');
+			} elseif ($real === false) {
+				throw new \RuntimeException("File or directory '$s' does not exist.");
+			}
+			return explode(DIRECTORY_SEPARATOR, $real);
+		}, $paths);
+
+		$first = (array) array_shift($splitPaths);
+		for ($i = 0; $i < count($first); $i++) {
+			foreach ($splitPaths as $s) {
+				if ($first[$i] !== ($s[$i] ?? null)) {
+					break 2;
+				}
+			}
+		}
+		$common = implode(DIRECTORY_SEPARATOR, array_slice($first, 0, $i));
+		return is_dir($common) ? $common : dirname($common);
+	}
+
+
+	/**
 	 * Parse phpDoc comment.
-	 * @return array
 	 * @internal
 	 */
-	public static function parseDocComment($s)
+	public static function parseDocComment(string $s): array
 	{
 		$options = [];
 		if (!preg_match('#^/\*\*(.*?)\*/#ms', $s, $content)) {
@@ -63,7 +94,7 @@ class Helpers
 	/**
 	 * @internal
 	 */
-	public static function errorTypeToString($type)
+	public static function errorTypeToString(int $type): string
 	{
 		$consts = get_defined_constants(true);
 		foreach ($consts['Core'] as $name => $val) {
@@ -76,9 +107,8 @@ class Helpers
 
 	/**
 	 * Escape a string to be used as a shell argument.
-	 * @return string
 	 */
-	public static function escapeArg($s)
+	public static function escapeArg(string $s): string
 	{
 		if (preg_match('#^[a-z0-9._=/:-]+\z#i', $s)) {
 			return $s;

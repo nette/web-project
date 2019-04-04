@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database;
 
 use Nette;
@@ -37,14 +39,14 @@ class Structure implements IStructure
 	}
 
 
-	public function getTables()
+	public function getTables(): array
 	{
 		$this->needStructure();
 		return $this->structure['tables'];
 	}
 
 
-	public function getColumns($table)
+	public function getColumns(string $table): array
 	{
 		$this->needStructure();
 		$table = $this->resolveFQTableName($table);
@@ -53,20 +55,18 @@ class Structure implements IStructure
 	}
 
 
-	public function getPrimaryKey($table)
+	/**
+	 * @return string|array|null
+	 */
+	public function getPrimaryKey(string $table)
 	{
 		$this->needStructure();
 		$table = $this->resolveFQTableName($table);
-
-		if (!isset($this->structure['primary'][$table])) {
-			return null;
-		}
-
-		return $this->structure['primary'][$table];
+		return $this->structure['primary'][$table] ?? null;
 	}
 
 
-	public function getPrimaryAutoincrementKey($table)
+	public function getPrimaryAutoincrementKey(string $table): ?string
 	{
 		$primaryKey = $this->getPrimaryKey($table);
 		if (!$primaryKey) {
@@ -95,7 +95,7 @@ class Structure implements IStructure
 	}
 
 
-	public function getPrimaryKeySequence($table)
+	public function getPrimaryKeySequence(string $table): ?string
 	{
 		$this->needStructure();
 		$table = $this->resolveFQTableName($table);
@@ -112,7 +112,7 @@ class Structure implements IStructure
 		// Search for sequence from simple primary key
 		foreach ($this->structure['columns'][$table] as $columnMeta) {
 			if ($columnMeta['name'] === $autoincrementPrimaryKeyName) {
-				return isset($columnMeta['vendor']['sequence']) ? $columnMeta['vendor']['sequence'] : null;
+				return $columnMeta['vendor']['sequence'] ?? null;
 			}
 		}
 
@@ -120,7 +120,7 @@ class Structure implements IStructure
 	}
 
 
-	public function getHasManyReference($table, $targetTable = null)
+	public function getHasManyReference(string $table, string $targetTable = null): ?array
 	{
 		$this->needStructure();
 		$table = $this->resolveFQTableName($table);
@@ -136,49 +136,40 @@ class Structure implements IStructure
 			return null;
 
 		} else {
-			if (!isset($this->structure['hasMany'][$table])) {
-				return [];
-			}
-			return $this->structure['hasMany'][$table];
+			return $this->structure['hasMany'][$table] ?? [];
 		}
 	}
 
 
-	public function getBelongsToReference($table, $column = null)
+	public function getBelongsToReference(string $table, string $column = null): ?array
 	{
 		$this->needStructure();
 		$table = $this->resolveFQTableName($table);
 
 		if ($column) {
 			$column = strtolower($column);
-			if (!isset($this->structure['belongsTo'][$table][$column])) {
-				return null;
-			}
-			return $this->structure['belongsTo'][$table][$column];
+			return $this->structure['belongsTo'][$table][$column] ?? null;
 
 		} else {
-			if (!isset($this->structure['belongsTo'][$table])) {
-				return [];
-			}
-			return $this->structure['belongsTo'][$table];
+			return $this->structure['belongsTo'][$table] ?? [];
 		}
 	}
 
 
-	public function rebuild()
+	public function rebuild(): void
 	{
 		$this->structure = $this->loadStructure();
 		$this->cache->save('structure', $this->structure);
 	}
 
 
-	public function isRebuilt()
+	public function isRebuilt(): bool
 	{
 		return $this->isRebuilt;
 	}
 
 
-	protected function needStructure()
+	protected function needStructure(): void
 	{
 		if ($this->structure !== null) {
 			return;
@@ -191,7 +182,7 @@ class Structure implements IStructure
 	/**
 	 * @internal
 	 */
-	public function loadStructure()
+	public function loadStructure(): array
 	{
 		$driver = $this->connection->getSupplementalDriver();
 
@@ -216,8 +207,8 @@ class Structure implements IStructure
 
 		if (isset($structure['hasMany'])) {
 			foreach ($structure['hasMany'] as &$table) {
-				uksort($table, function ($a, $b) {
-					return strlen($a) - strlen($b);
+				uksort($table, function ($a, $b): int {
+					return strlen($a) <=> strlen($b);
 				});
 			}
 		}
@@ -247,7 +238,7 @@ class Structure implements IStructure
 	}
 
 
-	protected function analyzeForeignKeys(&$structure, $table)
+	protected function analyzeForeignKeys(array &$structure, string $table): void
 	{
 		$lowerTable = strtolower($table);
 		foreach ($this->connection->getSupplementalDriver()->getForeignKeys($table) as $row) {
@@ -256,14 +247,14 @@ class Structure implements IStructure
 		}
 
 		if (isset($structure['belongsTo'][$lowerTable])) {
-			uksort($structure['belongsTo'][$lowerTable], function ($a, $b) {
-				return strlen($a) - strlen($b);
+			uksort($structure['belongsTo'][$lowerTable], function ($a, $b): int {
+				return strlen($a) <=> strlen($b);
 			});
 		}
 	}
 
 
-	protected function resolveFQTableName($table)
+	protected function resolveFQTableName(string $table): string
 	{
 		$name = strtolower($table);
 		if (isset($this->structure['columns'][$name])) {

@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester;
 
 
@@ -24,10 +26,9 @@ class Dumper
 
 	/**
 	 * Dumps information about a variable in readable format.
-	 * @param  mixed  variable to dump
-	 * @return string
+	 * @param  mixed  $var  variable to dump
 	 */
-	public static function toLine($var)
+	public static function toLine($var): string
 	{
 		static $table;
 		if ($table === null) {
@@ -50,11 +51,7 @@ class Dumper
 			return "$var";
 
 		} elseif (is_float($var)) {
-			if (!is_finite($var)) {
-				return str_replace('.0', '', var_export($var, true)); // workaround for PHP 7.0.2
-			}
-			$var = str_replace(',', '.', "$var");
-			return strpos($var, '.') === false ? $var . '.0' : $var; // workaround for PHP < 7.0.2
+			return var_export($var, true);
 
 		} elseif (is_string($var)) {
 			if (preg_match('#^(.{' . self::$maxLength . '}).#su', $var, $m)) {
@@ -79,8 +76,11 @@ class Dumper
 			}
 			return "[$out]";
 
-		} elseif ($var instanceof \Exception || $var instanceof \Throwable) {
+		} elseif ($var instanceof \Throwable) {
 			return 'Exception ' . get_class($var) . ': ' . ($var->getCode() ? '#' . $var->getCode() . ' ' : '') . $var->getMessage();
+
+		} elseif ($var instanceof Expect) {
+			return $var->dump();
 
 		} elseif (is_object($var)) {
 			return self::objectToLine($var);
@@ -96,10 +96,9 @@ class Dumper
 
 	/**
 	 * Formats object to line.
-	 * @param  object
-	 * @return string
+	 * @param  object  $object
 	 */
-	private static function objectToLine($object)
+	private static function objectToLine($object): string
 	{
 		$line = get_class($object);
 		if ($object instanceof \DateTime || $object instanceof \DateTimeInterface) {
@@ -112,10 +111,9 @@ class Dumper
 
 	/**
 	 * Dumps variable in PHP format.
-	 * @param  mixed  variable to dump
-	 * @return string
+	 * @param  mixed  $var  variable to dump
 	 */
-	public static function toPhp($var)
+	public static function toPhp($var): string
 	{
 		return self::_toPhp($var);
 	}
@@ -123,19 +121,15 @@ class Dumper
 
 	/**
 	 * Returns object's stripped hash.
-	 * @param  object
-	 * @return string
+	 * @param  object  $object
 	 */
-	private static function hash($object)
+	private static function hash($object): string
 	{
 		return '#' . substr(md5(spl_object_hash($object)), 0, 4);
 	}
 
 
-	/**
-	 * @return string
-	 */
-	private static function _toPhp(&$var, &$list = [], $level = 0, &$line = 1)
+	private static function _toPhp(&$var, array &$list = [], int $level = 0, int &$line = 1): string
 	{
 		if (is_float($var)) {
 			$var = str_replace(',', '.', "$var");
@@ -204,7 +198,7 @@ class Dumper
 			return "/* Closure defined in file {$rc->getFileName()} on line {$rc->getStartLine()} */";
 
 		} elseif (is_object($var)) {
-			if (PHP_VERSION_ID >= 70000 && ($rc = new \ReflectionObject($var)) && $rc->isAnonymous()) {
+			if (($rc = new \ReflectionObject($var))->isAnonymous()) {
 				return "/* Anonymous class defined in file {$rc->getFileName()} on line {$rc->getStartLine()} */";
 			}
 			$arr = (array) $var;
@@ -226,7 +220,7 @@ class Dumper
 				$used = $line;
 				$line++;
 				foreach ($arr as $k => &$v) {
-					if ($k[0] === "\x00") {
+					if (isset($k[0]) && $k[0] === "\x00") {
 						$k = substr($k, strrpos($k, "\x00") + 1);
 					}
 					$out .= "$space\t" . self::_toPhp($k, $list, $level + 1, $line) . ' => ' . self::_toPhp($v, $list, $level + 1, $line) . ",\n";
@@ -251,10 +245,9 @@ class Dumper
 
 
 	/**
-	 * @param  \Exception|\Throwable
 	 * @internal
 	 */
-	public static function dumpException($e)
+	public static function dumpException(\Throwable $e): string
 	{
 		$trace = $e->getTrace();
 		array_splice($trace, 0, $e instanceof \ErrorException ? 1 : 0, [['file' => $e->getFile(), 'line' => $e->getLine()]]);
@@ -321,7 +314,7 @@ class Dumper
 			if ($e instanceof AssertException && $item['file'] === __DIR__ . DIRECTORY_SEPARATOR . 'Assert.php') {
 				continue;
 			}
-			$line = $item['class'] === 'Tester\Assert' && method_exists($item['class'], $item['function'])
+			$line = $item['class'] === Assert::class && method_exists($item['class'], $item['function'])
 				&& strpos($tmp = file($item['file'])[$item['line'] - 1], "::$item[function](") ? $tmp : null;
 
 			$s .= 'in '
@@ -349,10 +342,9 @@ class Dumper
 
 	/**
 	 * Dumps data to folder 'output'.
-	 * @return string
 	 * @internal
 	 */
-	public static function saveOutput($testFile, $content, $suffix = '')
+	public static function saveOutput(string $testFile, $content, string $suffix = ''): string
 	{
 		$path = self::$dumpDir . DIRECTORY_SEPARATOR . pathinfo($testFile, PATHINFO_FILENAME) . $suffix;
 		if (!preg_match('#/|\w:#A', self::$dumpDir)) {
@@ -366,9 +358,8 @@ class Dumper
 
 	/**
 	 * Applies color to string.
-	 * @return string
 	 */
-	public static function color($color = '', $s = null)
+	public static function color(string $color = '', string $s = null): string
 	{
 		static $colors = [
 			'black' => '0;30', 'gray' => '1;30', 'silver' => '0;37', 'white' => '1;37',
@@ -384,7 +375,7 @@ class Dumper
 	}
 
 
-	public static function removeColors($s)
+	public static function removeColors(string $s): string
 	{
 		return preg_replace('#\e\[[\d;]+m#', '', $s);
 	}

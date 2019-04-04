@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database;
 
 use Nette\Database\Conventions\AmbiguousReferenceKeyException;
@@ -15,32 +17,27 @@ interface IConventions
 
 	/**
 	 * Returns primary key for table.
-	 * @param  string
 	 * @return string|array|null
 	 */
-	function getPrimary($table);
+	function getPrimary(string $table);
 
 	/**
 	 * Returns referenced table & referenced column.
 	 * Example:
-	 *     (author, book) returns array(book, author_id)
+	 *     (author, book) returns [book, author_id]
 	 *
-	 * @param  string  source table
-	 * @param  string  referencing key
-	 * @return array|null   array(referenced table, referenced column)
+	 * @return array|null   [referenced table, referenced column]
 	 * @throws AmbiguousReferenceKeyException
 	 */
-	function getHasManyReference($table, $key);
+	function getHasManyReference(string $table, string $key): ?array;
 
 	/**
 	 * Returns referenced table & referencing column.
 	 * Example
-	 *     (book, author)      returns array(author, author_id)
-	 *     (book, translator)  returns array(author, translator_id)
+	 *     (book, author)      returns [author, author_id]
+	 *     (book, translator)  returns [author, translator_id]
 	 *
-	 * @param  string  source table
-	 * @param  string  referencing key
-	 * @return array|null   array(referenced table, referencing column)
+	 * @return array|null   [referenced table, referencing column]
 	 */
-	function getBelongsToReference($table, $key);
+	function getBelongsToReference(string $table, string $key): ?array;
 }

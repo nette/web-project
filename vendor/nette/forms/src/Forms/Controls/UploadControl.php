@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms\Controls;
 
 use Nette;
@@ -18,47 +20,33 @@ use Nette\Http\FileUpload;
 class UploadControl extends BaseControl
 {
 	/** validation rule */
-	const VALID = ':uploadControlValid';
+	public const VALID = ':uploadControlValid';
 
 
 	/**
-	 * @param  string|object
-	 * @param  bool
+	 * @param  string|object  $label
 	 */
-	public function __construct($label = null, $multiple = false)
+	public function __construct($label = null, bool $multiple = false)
 	{
 		parent::__construct($label);
 		$this->control->type = 'file';
-		$this->control->multiple = (bool) $multiple;
+		$this->control->multiple = $multiple;
 		$this->setOption('type', 'file');
-		$this->addCondition(Forms\Form::FILLED)
-			->addRule([$this, 'isOk'], Forms\Validator::$messages[self::VALID]);
-	}
+		$this->addRule([$this, 'isOk'], Forms\Validator::$messages[self::VALID]);
 
-
-	/**
-	 * This method will be called when the component (or component's parent)
-	 * becomes attached to a monitored object. Do not call this method yourself.
-	 * @param  Nette\ComponentModel\IComponent
-	 * @return void
-	 */
-	protected function attached($form)
-	{
-		if ($form instanceof Nette\Forms\Form) {
+		$this->monitor(Forms\Form::class, function (Forms\Form $form): void {
 			if (!$form->isMethod('post')) {
 				throw new Nette\InvalidStateException('File upload requires method POST.');
 			}
 			$form->getElementPrototype()->enctype = 'multipart/form-data';
-		}
-		parent::attached($form);
+		});
 	}
 
 
 	/**
 	 * Loads HTTP data.
-	 * @return void
 	 */
-	public function loadHttpData()
+	public function loadHttpData(): void
 	{
 		$this->value = $this->getHttpData(Nette\Forms\Form::DATA_FILE);
 		if ($this->value === null) {
@@ -69,9 +57,8 @@ class UploadControl extends BaseControl
 
 	/**
 	 * Returns HTML name of control.
-	 * @return string
 	 */
-	public function getHtmlName()
+	public function getHtmlName(): string
 	{
 		return parent::getHtmlName() . ($this->control->multiple ? '[]' : '');
 	}
@@ -89,9 +76,8 @@ class UploadControl extends BaseControl
 
 	/**
 	 * Has been any file uploaded?
-	 * @return bool
 	 */
-	public function isFilled()
+	public function isFilled(): bool
 	{
 		return $this->value instanceof FileUpload
 			? $this->value->getError() !== UPLOAD_ERR_NO_FILE // ignore null object
@@ -101,14 +87,27 @@ class UploadControl extends BaseControl
 
 	/**
 	 * Have been all files succesfully uploaded?
-	 * @return bool
 	 */
-	public function isOk()
+	public function isOk(): bool
 	{
 		return $this->value instanceof FileUpload
 			? $this->value->isOk()
-			: $this->value && array_reduce($this->value, function ($carry, $fileUpload) {
+			: $this->value && array_reduce($this->value, function (bool $carry, FileUpload $fileUpload): bool {
 				return $carry && $fileUpload->isOk();
 			}, true);
+	}
+
+
+	/**
+	 * @return static
+	 */
+	public function addRule($validator, $errorMessage = null, $arg = null)
+	{
+		if ($validator === Forms\Form::IMAGE) {
+			$this->control->accept = implode(FileUpload::IMAGE_MIME_TYPES, ', ');
+		} elseif ($validator === Forms\Form::MIME_TYPE) {
+			$this->control->accept = implode((array) $arg, ', ');
+		}
+		return parent::addRule($validator, $errorMessage, $arg);
 	}
 }

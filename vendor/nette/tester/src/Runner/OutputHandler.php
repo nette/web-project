@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\Runner;
 
 
@@ -13,11 +15,11 @@ namespace Tester\Runner;
  */
 interface OutputHandler
 {
-	function begin();
+	function begin(): void;
 
-	function prepare(Test $test);
+	function prepare(Test $test): void;
 
-	function finish(Test $test);
+	function finish(Test $test): void;
 
-	function end();
+	function end(): void;
 }

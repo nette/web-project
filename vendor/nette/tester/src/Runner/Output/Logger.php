@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\Runner\Output;
 
 use Tester;
@@ -30,14 +32,14 @@ class Logger implements Tester\Runner\OutputHandler
 	private $results;
 
 
-	public function __construct(Runner $runner, $file = 'php://output')
+	public function __construct(Runner $runner, string $file = 'php://output')
 	{
 		$this->runner = $runner;
 		$this->file = fopen($file, 'w');
 	}
 
 
-	public function begin()
+	public function begin(): void
 	{
 		$this->count = 0;
 		$this->results = [
@@ -51,16 +53,16 @@ class Logger implements Tester\Runner\OutputHandler
 	}
 
 
-	public function prepare(Test $test)
+	public function prepare(Test $test): void
 	{
 		$this->count++;
 	}
 
 
-	public function finish(Test $test)
+	public function finish(Test $test): void
 	{
 		$this->results[$test->getResult()]++;
-		$message = '   ' . str_replace("\n", "\n   ", Tester\Dumper::removeColors(trim($test->message)));
+		$message = '   ' . str_replace("\n", "\n   ", Tester\Dumper::removeColors(trim((string) $test->message)));
 		$outputs = [
 			Test::PASSED => "-- OK: {$test->getSignature()}",
 			Test::SKIPPED => "-- Skipped: {$test->getSignature()}\n$message",
@@ -70,7 +72,7 @@ class Logger implements Tester\Runner\OutputHandler
 	}
 
 
-	public function end()
+	public function end(): void
 	{
 		$run = array_sum($this->results);
 		fwrite($this->file,

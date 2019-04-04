@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Utils;
 
 use Nette;
@@ -21,7 +23,7 @@ final class ObjectHelpers
 	/**
 	 * @throws MemberAccessException
 	 */
-	public static function strictGet($class, $name)
+	public static function strictGet(string $class, string $name): void
 	{
 		$rc = new \ReflectionClass($class);
 		$hint = self::getSuggestion(array_merge(
@@ -35,7 +37,7 @@ final class ObjectHelpers
 	/**
 	 * @throws MemberAccessException
 	 */
-	public static function strictSet($class, $name)
+	public static function strictSet(string $class, string $name): void
 	{
 		$rc = new \ReflectionClass($class);
 		$hint = self::getSuggestion(array_merge(
@@ -49,7 +51,7 @@ final class ObjectHelpers
 	/**
 	 * @throws MemberAccessException
 	 */
-	public static function strictCall($class, $method, $additionalMethods = [])
+	public static function strictCall(string $class, string $method, array $additionalMethods = []): void
 	{
 		$hint = self::getSuggestion(array_merge(
 			get_class_methods($class),
@@ -67,7 +69,7 @@ final class ObjectHelpers
 	/**
 	 * @throws MemberAccessException
 	 */
-	public static function strictStaticCall($class, $method)
+	public static function strictStaticCall(string $class, string $method): void
 	{
 		$hint = self::getSuggestion(
 			array_filter((new \ReflectionClass($class))->getMethods(\ReflectionMethod::IS_PUBLIC), function ($m) { return $m->isStatic(); }),
@@ -82,7 +84,7 @@ final class ObjectHelpers
 	 * @return array of [name => bit mask]
 	 * @internal
 	 */
-	public static function getMagicProperties($class)
+	public static function getMagicProperties(string $class): array
 	{
 		static $cache;
 		$props = &$cache[$class];
@@ -97,7 +99,7 @@ final class ObjectHelpers
 		);
 
 		$props = [];
-		foreach ($matches as list(, $type, $name)) {
+		foreach ($matches as [, $type, $name]) {
 			$uname = ucfirst($name);
 			$write = $type !== '-read'
 				&& $rc->hasMethod($nm = 'set' . $uname)
@@ -124,10 +126,10 @@ final class ObjectHelpers
 
 	/**
 	 * Finds the best suggestion (for 8-bit encoding).
-	 * @param  (\ReflectionFunctionAbstract|\ReflectionParameter|\ReflectionClass|\ReflectionProperty|string)[]
+	 * @param  (\ReflectionFunctionAbstract|\ReflectionParameter|\ReflectionClass|\ReflectionProperty|string)[]  $possibilities
 	 * @internal
 	 */
-	public static function getSuggestion(array $possibilities, $value)
+	public static function getSuggestion(array $possibilities, string $value): ?string
 	{
 		$norm = preg_replace($re = '#^(get|set|has|is|add)(?=[A-Z])#', '', $value);
 		$best = null;
@@ -146,7 +148,7 @@ final class ObjectHelpers
 	}
 
 
-	private static function parseFullDoc(\ReflectionClass $rc, $pattern)
+	private static function parseFullDoc(\ReflectionClass $rc, string $pattern): array
 	{
 		do {
 			$doc[] = $rc->getDocComment();
@@ -165,7 +167,7 @@ final class ObjectHelpers
 	 * @return bool|string returns 'event' if the property exists and has event like name
 	 * @internal
 	 */
-	public static function hasProperty($class, $name)
+	public static function hasProperty(string $class, string $name)
 	{
 		static $cache;
 		$prop = &$cache[$class][$name];

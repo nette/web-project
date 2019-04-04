@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\Runner;
 
 use Tester\Helpers;
@@ -15,7 +17,7 @@ use Tester\Helpers;
  */
 class Job
 {
-	const
+	public const
 		CODE_NONE = -1,
 		CODE_OK = 0,
 		CODE_SKIP = 177,
@@ -23,9 +25,9 @@ class Job
 		CODE_ERROR = 255;
 
 	/** waiting time between process activity check in microseconds */
-	const RUN_USLEEP = 10000;
+	public const RUN_USLEEP = 10000;
 
-	const
+	public const
 		RUN_ASYNC = 1,
 		RUN_COLLECT_ERRORS = 2;
 
@@ -38,20 +40,20 @@ class Job
 	/** @var string[]  environment variables for test */
 	private $envVars;
 
-	/** @var resource */
+	/** @var resource|null */
 	private $proc;
 
-	/** @var resource */
+	/** @var resource|null */
 	private $stdout;
 
-	/** @var resource */
+	/** @var resource|null */
 	private $stderr;
 
 	/** @var int */
 	private $exitCode = self::CODE_NONE;
 
 	/** @var string[]  output headers */
-	private $headers;
+	private $headers = [];
 
 
 	public function __construct(Test $test, PhpInterpreter $interpreter, array $envVars = null)
@@ -69,22 +71,13 @@ class Job
 	}
 
 
-	/**
-	 * @param  string
-	 * @param  string
-	 * @return void
-	 */
-	public function setEnvironmentVariable($name, $value)
+	public function setEnvironmentVariable(string $name, string $value): void
 	{
 		$this->envVars[$name] = $value;
 	}
 
 
-	/**
-	 * @param  string
-	 * @return string
-	 */
-	public function getEnvironmentVariable($name)
+	public function getEnvironmentVariable(string $name): string
 	{
 		return $this->envVars[$name];
 	}
@@ -92,10 +85,9 @@ class Job
 
 	/**
 	 * Runs single test.
-	 * @param  int self::RUN_ASYNC | self::RUN_COLLECT_ERRORS
-	 * @return void
+	 * @param  int  $flags  self::RUN_ASYNC | self::RUN_COLLECT_ERRORS
 	 */
-	public function run($flags = 0)
+	public function run(int $flags = 0): void
 	{
 		foreach ($this->envVars as $name => $value) {
 			putenv("$name=$value");
@@ -128,7 +120,7 @@ class Job
 			putenv($name);
 		}
 
-		list($stdin, $this->stdout, $stderr) = $pipes;
+		[$stdin, $this->stdout, $stderr] = $pipes;
 		fclose($stdin);
 		if ($flags & self::RUN_COLLECT_ERRORS) {
 			$this->stderr = $stderr;
@@ -151,9 +143,8 @@ class Job
 
 	/**
 	 * Checks if the test is still running.
-	 * @return bool
 	 */
-	public function isRunning()
+	public function isRunning(): bool
 	{
 		if (!is_resource($this->stdout)) {
 			return false;
@@ -176,11 +167,11 @@ class Job
 		$this->exitCode = $code === self::CODE_NONE ? $status['exitcode'] : $code;
 
 		if ($this->interpreter->isCgi() && count($tmp = explode("\r\n\r\n", $this->test->stdout, 2)) >= 2) {
-			list($headers, $this->test->stdout) = $tmp;
+			[$headers, $this->test->stdout] = $tmp;
 			foreach (explode("\r\n", $headers) as $header) {
 				$pos = strpos($header, ':');
 				if ($pos !== false) {
-					$this->headers[trim(substr($header, 0, $pos))] = (string) trim(substr($header, $pos + 1));
+					$this->headers[trim(substr($header, 0, $pos))] = trim(substr($header, $pos + 1));
 				}
 			}
 		}
@@ -188,10 +179,7 @@ class Job
 	}
 
 
-	/**
-	 * @return Test
-	 */
-	public function getTest()
+	public function getTest(): Test
 	{
 		return $this->test;
 	}
@@ -199,9 +187,8 @@ class Job
 
 	/**
 	 * Returns exit code.
-	 * @return int
 	 */
-	public function getExitCode()
+	public function getExitCode(): int
 	{
 		return $this->exitCode;
 	}
@@ -211,7 +198,7 @@ class Job
 	 * Returns output headers.
 	 * @return string[]
 	 */
-	public function getHeaders()
+	public function getHeaders(): array
 	{
 		return $this->headers;
 	}

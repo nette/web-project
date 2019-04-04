@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\Runner;
 
 
@@ -13,7 +15,7 @@ namespace Tester\Runner;
  */
 class CommandLine
 {
-	const
+	public const
 		ARGUMENT = 'argument',
 		OPTIONAL = 'optional',
 		REPEATABLE = 'repeatable',
@@ -34,7 +36,7 @@ class CommandLine
 	private $help;
 
 
-	public function __construct($help, array $defaults = [])
+	public function __construct(string $help, array $defaults = [])
 	{
 		$this->help = $help;
 		$this->options = $defaults;
@@ -47,13 +49,13 @@ class CommandLine
 			}
 
 			$name = end($m[1]);
-			$opts = isset($this->options[$name]) ? $this->options[$name] : [];
+			$opts = $this->options[$name] ?? [];
 			$this->options[$name] = $opts + [
 				self::ARGUMENT => (bool) end($m[2]),
 				self::OPTIONAL => isset($line[2]) || (substr(end($m[2]), 0, 1) === '[') || isset($opts[self::VALUE]),
 				self::REPEATABLE => (bool) end($m[3]),
 				self::ENUM => count($enums = explode('|', trim(end($m[2]), '<[]>'))) > 1 ? $enums : null,
-				self::VALUE => isset($line[2]) ? $line[2] : null,
+				self::VALUE => $line[2] ?? null,
 			];
 			if ($name !== $m[1][0]) {
 				$this->aliases[$m[1][0]] = $name;
@@ -68,7 +70,7 @@ class CommandLine
 	}
 
 
-	public function parse(array $args = null)
+	public function parse(array $args = null): array
 	{
 		if ($args === null) {
 			$args = isset($_SERVER['argv']) ? array_slice($_SERVER['argv'], 1) : [];
@@ -93,7 +95,7 @@ class CommandLine
 				continue;
 			}
 
-			list($name, $arg) = strpos($arg, '=') ? explode('=', $arg, 2) : [$arg, true];
+			[$name, $arg] = strpos($arg, '=') ? explode('=', $arg, 2) : [$arg, true];
 
 			if (isset($this->aliases[$name])) {
 				$name = $this->aliases[$name];
@@ -145,13 +147,13 @@ class CommandLine
 	}
 
 
-	public function help()
+	public function help(): void
 	{
 		echo $this->help;
 	}
 
 
-	public function checkArg(array $opt, &$arg)
+	public function checkArg(array $opt, &$arg): void
 	{
 		if (!empty($opt[self::REALPATH])) {
 			$path = realpath($arg);
@@ -163,7 +165,7 @@ class CommandLine
 	}
 
 
-	public function isEmpty()
+	public function isEmpty(): bool
 	{
 		return !isset($_SERVER['argv']) || count($_SERVER['argv']) < 2;
 	}

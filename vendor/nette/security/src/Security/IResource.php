@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Security;
 
 
@@ -16,7 +18,6 @@ interface IResource
 
 	/**
 	 * Returns a string identifier of the Resource.
-	 * @return string
 	 */
-	function getResourceId();
+	function getResourceId(): string;
 }

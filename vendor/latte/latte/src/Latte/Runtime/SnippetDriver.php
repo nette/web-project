@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte\Runtime;
 
 use Latte;
@@ -18,7 +20,8 @@ class SnippetDriver
 {
 	use Latte\Strict;
 
-	const TYPE_STATIC = 'static',
+	public const
+		TYPE_STATIC = 'static',
 		TYPE_DYNAMIC = 'dynamic',
 		TYPE_AREA = 'area';
 
@@ -41,7 +44,7 @@ class SnippetDriver
 	}
 
 
-	public function enter($name, $type)
+	public function enter(string $name, string $type): void
 	{
 		if (!$this->renderingSnippets) {
 			return;
@@ -62,12 +65,12 @@ class SnippetDriver
 	}
 
 
-	public function leave()
+	public function leave(): void
 	{
 		if (!$this->renderingSnippets) {
 			return;
 		}
-		list($name, $obStarted) = array_pop($this->stack);
+		[$name, $obStarted] = array_pop($this->stack);
 		if ($this->nestingLevel > 0 && --$this->nestingLevel === 0) {
 			$content = ob_get_clean();
 			$this->bridge->addSnippet($name, $content);
@@ -77,13 +80,13 @@ class SnippetDriver
 	}
 
 
-	public function getHtmlId($name)
+	public function getHtmlId(string $name): string
 	{
 		return $this->bridge->getHtmlId($name);
 	}
 
 
-	public function renderSnippets(array $blocks, array $params)
+	public function renderSnippets(array $blocks, array $params): bool
 	{
 		if ($this->renderingSnippets || !$this->bridge->isSnippetMode()) {
 			return false;

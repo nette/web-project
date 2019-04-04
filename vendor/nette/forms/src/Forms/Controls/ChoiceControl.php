@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms\Controls;
 
 use Nette;
@@ -18,11 +20,8 @@ use Nette;
  */
 abstract class ChoiceControl extends BaseControl
 {
-	/**
-	 * @var bool
-	 * @deprecated use checkDefaultValue()
-	 */
-	public $checkAllowedValues = true;
+	/** @var bool */
+	private $checkDefaultValue = true;
 
 	/** @var array */
 	private $items = [];
@@ -39,9 +38,8 @@ abstract class ChoiceControl extends BaseControl
 
 	/**
 	 * Loads HTTP data.
-	 * @return void
 	 */
-	public function loadHttpData()
+	public function loadHttpData(): void
 	{
 		$this->value = $this->getHttpData(Nette\Forms\Form::DATA_TEXT);
 		if ($this->value !== null) {
@@ -56,13 +54,13 @@ abstract class ChoiceControl extends BaseControl
 
 	/**
 	 * Sets selected item (by key).
-	 * @param  string|int
+	 * @param  string|int  $value
 	 * @return static
 	 * @internal
 	 */
 	public function setValue($value)
 	{
-		if ($this->checkAllowedValues && $value !== null && !array_key_exists((string) $value, $this->items)) {
+		if ($this->checkDefaultValue && $value !== null && !array_key_exists((string) $value, $this->items)) {
 			$set = Nette\Utils\Strings::truncate(implode(', ', array_map(function ($s) { return var_export($s, true); }, array_keys($this->items))), 70, '...');
 			throw new Nette\InvalidArgumentException("Value '$value' is out of allowed set [$set] in field '{$this->name}'.");
 		}
@@ -93,9 +91,8 @@ abstract class ChoiceControl extends BaseControl
 
 	/**
 	 * Is any item selected?
-	 * @return bool
 	 */
-	public function isFilled()
+	public function isFilled(): bool
 	{
 		return $this->getValue() !== null;
 	}
@@ -103,11 +100,9 @@ abstract class ChoiceControl extends BaseControl
 
 	/**
 	 * Sets items from which to choose.
-	 * @param  array
-	 * @param  bool
 	 * @return static
 	 */
-	public function setItems(array $items, $useKeys = true)
+	public function setItems(array $items, bool $useKeys = true)
 	{
 		$this->items = $useKeys ? $items : array_combine($items, $items);
 		return $this;
@@ -116,9 +111,8 @@ abstract class ChoiceControl extends BaseControl
 
 	/**
 	 * Returns items from which to choose.
-	 * @return array
 	 */
-	public function getItems()
+	public function getItems(): array
 	{
 		return $this->items;
 	}
@@ -137,7 +131,7 @@ abstract class ChoiceControl extends BaseControl
 
 	/**
 	 * Disables or enables control or items.
-	 * @param  bool|array
+	 * @param  bool|array  $value
 	 * @return static
 	 */
 	public function setDisabled($value = true)
@@ -158,9 +152,9 @@ abstract class ChoiceControl extends BaseControl
 	/**
 	 * @return static
 	 */
-	public function checkDefaultValue($value = true)
+	public function checkDefaultValue(bool $value = true)
 	{
-		$this->checkAllowedValues = $value;
+		$this->checkDefaultValue = $value;
 		return $this;
 	}
 }

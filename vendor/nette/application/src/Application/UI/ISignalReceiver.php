@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\UI;
 
 
@@ -13,10 +15,5 @@ namespace Nette\Application\UI;
  */
 interface ISignalReceiver
 {
-
-	/**
-	 * @param  string
-	 * @return void
-	 */
-	function signalReceived($signal); // handleSignal
+	function signalReceived(string $signal): void; // handleSignal
 }

@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Mail;
 
 use Nette;
@@ -23,10 +25,9 @@ class SendmailMailer implements IMailer
 
 	/**
 	 * Sends email.
-	 * @return void
 	 * @throws SendException
 	 */
-	public function send(Message $mail)
+	public function send(Message $mail): void
 	{
 		if (!function_exists('mail')) {
 			throw new SendException('Unable to send email: mail() has been disabled.');
@@ -44,9 +45,9 @@ class SendmailMailer implements IMailer
 			str_replace(Message::EOL, PHP_EOL, $parts[0]),
 		];
 		if ($this->commandArgs) {
-			$args[] = (string) $this->commandArgs;
+			$args[] = $this->commandArgs;
 		}
-		$res = Nette\Utils\Callback::invokeSafe('mail', $args, function ($message) use (&$info) {
+		$res = Nette\Utils\Callback::invokeSafe('mail', $args, function (string $message) use (&$info): void {
 			$info = ": $message";
 		});
 		if ($res === false) {

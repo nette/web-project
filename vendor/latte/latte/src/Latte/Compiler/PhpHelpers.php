@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte;
 
 
@@ -17,10 +19,8 @@ class PhpHelpers
 
 	/**
 	 * Optimizes code readability.
-	 * @param  string
-	 * @return string
 	 */
-	public static function reformatCode($source)
+	public static function reformatCode(string $source): string
 	{
 		$res = $php = '';
 		$lastChar = ';';
@@ -30,7 +30,7 @@ class PhpHelpers
 
 		foreach ($tokens as $n => $token) {
 			if (is_array($token)) {
-				list($name, $token) = ($tmp = $token);
+				[$name, $token] = ($tmp = $token);
 				if ($name === T_INLINE_HTML) {
 					$res .= $token;
 
@@ -38,7 +38,7 @@ class PhpHelpers
 					$openLevel = $level;
 
 				} elseif ($name === T_CLOSE_TAG) {
-					$next = isset($tokens[$n + 1]) ? $tokens[$n + 1] : null;
+					$next = $tokens[$n + 1] ?? null;
 					if (is_array($next) && $next[0] === T_OPEN_TAG) { // remove ?)<?php
 						if (!strspn($lastChar, ';{}:/')) {
 							$php = rtrim($php) . ($lastChar = ';') . "\n" . str_repeat("\t", $level);
@@ -95,7 +95,7 @@ class PhpHelpers
 				} elseif ($token === '}' || $token === ']') {
 					$level--;
 					$php .= "\x08";
-				} elseif ($token === ';' && !(isset($tokens[$n + 1]) && $tokens[$n + 1][0] === T_WHITESPACE)) {
+				} elseif ($token === ';' && !(($tokens[$n + 1][0] ?? null) === T_WHITESPACE)) {
 					$token .= "\n" . str_repeat("\t", $level); // indent last line
 				}
 				$lastChar = $token;
@@ -111,13 +111,13 @@ class PhpHelpers
 	}
 
 
-	public static function dump($value)
+	public static function dump($value): string
 	{
 		if (is_array($value)) {
 			$s = "[\n";
 			foreach ($value as $k => $v) {
 				$v = is_array($v) && (!$v || array_keys($v) === range(0, count($v) - 1))
-					? '[' . implode(', ', array_map(function ($s) { return var_export($s, true); }, $v)) . ']'
+					? '[' . implode(', ', array_map(function ($s): string { return var_export($s, true); }, $v)) . ']'
 					: var_export($v, true);
 				$s .= "\t\t" . var_export($k, true) . ' => ' . $v . ",\n";
 			}

@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\ApplicationLatte;
 
 use Latte;
@@ -19,19 +21,19 @@ class TemplateFactory implements UI\ITemplateFactory
 {
 	use Nette\SmartObject;
 
-	/** @var callable[]  function (Template $template); Occurs when a new template is created */
+	/** @var callable[]  function (Template $template): void; Occurs when a new template is created */
 	public $onCreate;
 
 	/** @var ILatteFactory */
 	private $latteFactory;
 
-	/** @var Nette\Http\IRequest */
+	/** @var Nette\Http\IRequest|null */
 	private $httpRequest;
 
-	/** @var Nette\Security\User */
+	/** @var Nette\Security\User|null */
 	private $user;
 
-	/** @var Nette\Caching\IStorage */
+	/** @var Nette\Caching\IStorage|null */
 	private $cacheStorage;
 
 	/** @var string */
@@ -52,14 +54,11 @@ class TemplateFactory implements UI\ITemplateFactory
 	}
 
 
-	/**
-	 * @return Template
-	 */
-	public function createTemplate(UI\Control $control = null)
+	public function createTemplate(UI\Control $control = null): UI\ITemplate
 	{
 		$latte = $this->latteFactory->create();
 		$template = new $this->templateClass($latte);
-		$presenter = $control ? $control->getPresenter(false) : null;
+		$presenter = ($control && $control->hasPresenter()) ? $control->getPresenter() : null;
 
 		if ($control instanceof UI\Presenter) {
 			$latte->setLoader(new Loader($control));
@@ -69,7 +68,7 @@ class TemplateFactory implements UI\ITemplateFactory
 			$latte->onCompile = iterator_to_array($latte->onCompile);
 		}
 
-		array_unshift($latte->onCompile, function ($latte) use ($control, $template) {
+		array_unshift($latte->onCompile, function (Latte\Engine $latte) use ($control, $template): void {
 			if ($this->cacheStorage) {
 				$latte->getCompiler()->addMacro('cache', new Nette\Bridges\CacheLatte\CacheMacro);
 			}
@@ -82,24 +81,32 @@ class TemplateFactory implements UI\ITemplateFactory
 			}
 		});
 
-		$latte->addFilter('url', 'rawurlencode'); // back compatiblity
-		foreach (['normalize', 'toAscii', 'webalize', 'reverse'] as $name) {
-			$latte->addFilter($name, 'Nette\Utils\Strings::' . $name);
+		$latte->addFilter('url', function (string $s): string {
+			trigger_error('Filter |url is deprecated, use |escapeUrl.', E_USER_DEPRECATED);
+			return rawurlencode($s);
+		});
+		foreach (['normalize', 'toAscii'] as $name) {
+			$latte->addFilter($name, function (string $s) use ($name): string {
+				trigger_error("Filter |$name is deprecated.", E_USER_DEPRECATED);
+				return [Nette\Utils\Strings::class, $name]($s);
+			});
 		}
-		$latte->addFilter('null', function () {});
+		$latte->addFilter('null', function (): void {
+			trigger_error('Filter |null is deprecated.', E_USER_DEPRECATED);
+		});
 		$latte->addFilter('modifyDate', function ($time, $delta, $unit = null) {
 			return $time == null ? null : Nette\Utils\DateTime::from($time)->modify($delta . $unit); // intentionally ==
 		});
 
 		if (!isset($latte->getFilters()['translate'])) {
-			$latte->addFilter('translate', function (Latte\Runtime\FilterInfo $fi) {
+			$latte->addFilter('translate', function (Latte\Runtime\FilterInfo $fi): void {
 				throw new Nette\InvalidStateException('Translator has not been set. Set translator using $template->setTranslator().');
 			});
 		}
 
 		// default parameters
 		$template->user = $this->user;
-		$template->baseUri = $template->baseUrl = $this->httpRequest ? rtrim($this->httpRequest->getUrl()->getBaseUrl(), '/') : null;
+		$template->baseUrl = $this->httpRequest ? rtrim($this->httpRequest->getUrl()->getBaseUrl(), '/') : null;
 		$template->basePath = preg_replace('#https?://[^/]+#A', '', $template->baseUrl);
 		$template->flashes = [];
 		if ($control) {
@@ -116,11 +123,6 @@ class TemplateFactory implements UI\ITemplateFactory
 			$latte->addProvider('uiNonce', $nonce);
 		}
 		$latte->addProvider('cacheStorage', $this->cacheStorage);
-
-		// back compatibility
-		$template->_control = $control;
-		$template->_presenter = $presenter;
-		$template->netteCacheStorage = $this->cacheStorage;
 
 		if ($presenter instanceof UI\Presenter && $presenter->hasFlashSession()) {
 			$id = $control->getParameterId('flash');

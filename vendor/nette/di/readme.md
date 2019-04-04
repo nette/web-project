@@ -7,9 +7,33 @@ Nette Dependency Injection (DI)
 [![Latest Stable Version](https://poser.pugx.org/nette/di/v/stable)](https://github.com/nette/di/releases)
 [![License](https://img.shields.io/badge/license-New%20BSD-blue.svg)](https://github.com/nette/di/blob/master/license.md)
 
+
+Introduction
+------------
+
 Purpose of the Dependecy Injection (DI) is to free classes from the responsibility for obtaining objects that they need for its operation (these objects are called **services**). To pass them these services on their instantiation instead.
 
 Nette DI is one of the most interesting part of framework. It is compiled DI container, extremely fast and easy to configure.
+
+Documentation can be found on the [website](https://doc.nette.org/dependency-injection).
+
+If you like Nette, **[please make a donation now](https://nette.org/donate)**. Thank you!
+
+
+Installation
+------------
+
+The recommended way to install is via Composer:
+
+```
+composer require nette/di
+```
+
+It requires PHP version 7.1 and supports PHP up to 7.3.
+
+
+Usage
+-----
 
 Let's have an application for sending newsletters. The code is maximally simplified and is available on the [GitHub](https://github.com/dg/di-example).
 
@@ -159,13 +183,7 @@ The big advantage is the shortness of configuration.
 
 Nette DI actually generates PHP code of container. Therefore it is extremely fast. Developer can see the code, so he knows exactly what it is doing. He can even trace it.
 
-Usage of Nette DI is very easy. In first, install it using Composer:
-
-```
-composer require nette/di
-```
-
-Save the (above) configuration to the file `config.neon` and let's create a container:
+Usage of Nette DI is very easy. Save the (above) configuration to the file `config.neon` and let's create a container:
 
 ```php
 $loader = new Nette\DI\ContainerLoader(__DIR__ . '/temp');

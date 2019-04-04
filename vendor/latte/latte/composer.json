@@ -15,12 +15,12 @@
 		}
 	],
 	"require": {
-		"php": ">=5.4.4",
+		"php": ">=7.1",
 		"ext-json": "*",
 		"ext-tokenizer": "*"
 	},
 	"require-dev": {
-		"nette/tester": "~1.7",
+		"nette/tester": "~2.0",
 		"tracy/tracy": "^2.3"
 	},
 	"suggest": {
@@ -37,7 +37,7 @@
 	"minimum-stability": "dev",
 	"extra": {
 		"branch-alias": {
-			"dev-master": "2.4-dev"
+			"dev-master": "2.5-dev"
 		}
 	}
 }

@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\CodeCoverage;
 
 
@@ -19,9 +21,6 @@ namespace Tester\CodeCoverage;
 class PhpParser
 {
 	/**
-	 * @param  string  PHP code to analyze
-	 * @return \stdClass
-	 *
 	 * Returned structure is:
 	 *     stdClass {
 	 *         linesOfCode: int,
@@ -52,9 +51,9 @@ class PhpParser
 	 *         visibility: public|protected|private
 	 *     }
 	 */
-	public function parse($code)
+	public function parse(string $code): \stdClass
 	{
-		$tokens = @token_get_all($code); // @ - source code can be written in newer PHP
+		$tokens = token_get_all($code, TOKEN_PARSE);
 
 		$level = $classLevel = $functionLevel = null;
 		$namespace = '';
@@ -118,7 +117,7 @@ class PhpParser
 							$function = (object) [
 								'start' => $line,
 								'end' => null,
-								'visibility' => isset($visibility) ? $visibility : 'public',
+								'visibility' => $visibility ?? 'public',
 							];
 
 						} else {
@@ -167,11 +166,11 @@ class PhpParser
 	}
 
 
-	private static function fetch(&$tokens, $take)
+	private static function fetch(array &$tokens, $take): ?string
 	{
 		$res = null;
 		while ($token = current($tokens)) {
-			list($token, $s) = is_array($token) ? $token : [$token, $token];
+			[$token, $s] = is_array($token) ? $token : [$token, $token];
 			if (in_array($token, (array) $take, true)) {
 				$res .= $s;
 			} elseif (!in_array($token, [T_DOC_COMMENT, T_WHITESPACE, T_COMMENT], true)) {

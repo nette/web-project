@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database;
 
 
@@ -13,7 +15,7 @@ namespace Nette\Database;
  */
 interface IStructure
 {
-	const
+	public const
 		FIELD_TEXT = 'string',
 		FIELD_BINARY = 'bin',
 		FIELD_BOOL = 'bool',
@@ -27,65 +29,49 @@ interface IStructure
 
 	/**
 	 * Returns tables list.
-	 * @return array
 	 */
-	function getTables();
+	function getTables(): array;
 
 	/**
 	 * Returns table columns list.
-	 * @param  string
-	 * @return array
 	 */
-	function getColumns($table);
+	function getColumns(string $table): array;
 
 	/**
 	 * Returns table primary key.
-	 * @param  string
 	 * @return string|array|null
 	 */
-	function getPrimaryKey($table);
+	function getPrimaryKey(string $table);
 
 	/**
 	 * Returns autoincrement primary key name.
-	 * @param  string
-	 * @return string|null
 	 */
-	//function getPrimaryAutoincrementKey($table);
+	function getPrimaryAutoincrementKey(string $table): ?string;
 
 	/**
 	 * Returns table primary key sequence.
-	 * @param  string
-	 * @return string|null
 	 */
-	function getPrimaryKeySequence($table);
+	function getPrimaryKeySequence(string $table): ?string;
 
 	/**
 	 * Returns hasMany reference.
 	 * If a targetTable is not provided, returns references for all tables.
-	 * @param  string
-	 * @param  string|null
-	 * @return array|null
 	 */
-	function getHasManyReference($table, $targetTable = null);
+	function getHasManyReference(string $table, string $targetTable = null): ?array;
 
 	/**
 	 * Returns belongsTo reference.
 	 * If a column is not provided, returns references for all columns.
-	 * @param  string
-	 * @param  string|null
-	 * @return array|null
 	 */
-	function getBelongsToReference($table, $column = null);
+	function getBelongsToReference(string $table, string $column = null): ?array;
 
 	/**
 	 * Rebuilds database structure cache.
-	 * @return void
 	 */
-	function rebuild();
+	function rebuild(): void;
 
 	/**
 	 * Returns true if database cached structure has been rebuilt.
-	 * @return bool
 	 */
-	function isRebuilt();
+	function isRebuilt(): bool;
 }

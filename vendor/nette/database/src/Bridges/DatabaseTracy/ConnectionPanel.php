@@ -5,9 +5,12 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\DatabaseTracy;
 
 use Nette;
+use Nette\Database\Connection;
 use Nette\Database\Helpers;
 use Tracy;
 
@@ -41,13 +44,13 @@ class ConnectionPanel implements Tracy\IBarPanel
 	private $queries = [];
 
 
-	public function __construct(Nette\Database\Connection $connection)
+	public function __construct(Connection $connection)
 	{
 		$connection->onQuery[] = [$this, 'logQuery'];
 	}
 
 
-	public function logQuery(Nette\Database\Connection $connection, $result)
+	public function logQuery(Connection $connection, $result): void
 	{
 		if ($this->disabled) {
 			return;
@@ -57,12 +60,11 @@ class ConnectionPanel implements Tracy\IBarPanel
 		$source = null;
 		$trace = $result instanceof \PDOException ? $result->getTrace() : debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
 		foreach ($trace as $row) {
-			if (isset($row['file']) && is_file($row['file']) && !Tracy\Debugger::getBluescreen()->isCollapsed($row['file'])) {
-				if ((isset($row['function']) && strpos($row['function'], 'call_user_func') === 0)
-					|| (isset($row['class']) && is_subclass_of($row['class'], '\\Nette\\Database\\Connection'))
-				) {
-					continue;
-				}
+			if (
+				(isset($row['file']) && is_file($row['file']) && !Tracy\Debugger::getBluescreen()->isCollapsed($row['file']))
+				&& ($row['class'] ?? '') !== self::class
+				&& !is_a($row['class'] ?? '', Connection::class, true)
+			) {
 				$source = [$row['file'], (int) $row['line']];
 				break;
 			}
@@ -79,10 +81,10 @@ class ConnectionPanel implements Tracy\IBarPanel
 	}
 
 
-	public static function renderException($e)
+	public static function renderException(?\Throwable $e): ?array
 	{
 		if (!$e instanceof \PDOException) {
-			return;
+			return null;
 		}
 		if (isset($e->queryString)) {
 			$sql = $e->queryString;
@@ -97,7 +99,7 @@ class ConnectionPanel implements Tracy\IBarPanel
 	}
 
 
-	public function getTab()
+	public function getTab(): string
 	{
 		$name = $this->name;
 		$count = $this->count;
@@ -108,11 +110,11 @@ class ConnectionPanel implements Tracy\IBarPanel
 	}
 
 
-	public function getPanel()
+	public function getPanel(): ?string
 	{
 		$this->disabled = true;
 		if (!$this->count) {
-			return;
+			return null;
 		}
 
 		$name = $this->name;
@@ -120,7 +122,7 @@ class ConnectionPanel implements Tracy\IBarPanel
 		$totalTime = $this->totalTime;
 		$queries = [];
 		foreach ($this->queries as $query) {
-			list($connection, $sql, $params, $source, $time, $rows, $error) = $query;
+			[$connection, $sql, $params, $source, $time, $rows, $error] = $query;
 			$explain = null;
 			if (!$error && $this->explain && preg_match('#\s*\(?\s*SELECT\s#iA', $sql)) {
 				try {

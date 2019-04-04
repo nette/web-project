@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\UI;
 
 
@@ -16,13 +18,11 @@ interface IRenderable
 
 	/**
 	 * Forces control to repaint.
-	 * @return void
 	 */
-	function redrawControl();
+	function redrawControl(): void;
 
 	/**
 	 * Is required to repaint the control?
-	 * @return bool
 	 */
-	function isControlInvalid();
+	function isControlInvalid(): bool;
 }

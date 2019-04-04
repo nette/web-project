@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\SecurityTracy;
 
 use Nette;
@@ -30,12 +32,11 @@ class UserPanel implements Tracy\IBarPanel
 
 	/**
 	 * Renders tab.
-	 * @return string
 	 */
-	public function getTab()
+	public function getTab(): ?string
 	{
 		if (headers_sent() && !session_id()) {
-			return;
+			return null;
 		}
 
 		ob_start(function () {});
@@ -47,9 +48,8 @@ class UserPanel implements Tracy\IBarPanel
 
 	/**
 	 * Renders panel.
-	 * @return string
 	 */
-	public function getPanel()
+	public function getPanel(): string
 	{
 		ob_start(function () {});
 		$user = $this->user;

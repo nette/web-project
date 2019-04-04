@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Caching\Storages;
 
 use Nette;
@@ -25,10 +27,7 @@ class SQLiteJournal implements IJournal
 	private $pdo;
 
 
-	/**
-	 * @param  string  $path
-	 */
-	public function __construct($path)
+	public function __construct(string $path)
 	{
 		if (!extension_loaded('pdo_sqlite')) {
 			throw new Nette\NotSupportedException('SQLiteJournal requires PHP extension pdo_sqlite which is not loaded.');
@@ -37,7 +36,7 @@ class SQLiteJournal implements IJournal
 	}
 
 
-	private function open()
+	private function open(): void
 	{
 		if ($this->path !== ':memory:' && !is_file($this->path)) {
 			touch($this->path); // ensures ordinary file permissions
@@ -64,7 +63,7 @@ class SQLiteJournal implements IJournal
 	}
 
 
-	public function write($key, array $dependencies)
+	public function write(string $key, array $dependencies): void
 	{
 		if (!$this->pdo) {
 			$this->open();
@@ -74,7 +73,7 @@ class SQLiteJournal implements IJournal
 		if (!empty($dependencies[Cache::TAGS])) {
 			$this->pdo->prepare('DELETE FROM tags WHERE key = ?')->execute([$key]);
 
-			foreach ((array) $dependencies[Cache::TAGS] as $tag) {
+			foreach ($dependencies[Cache::TAGS] as $tag) {
 				$arr[] = $key;
 				$arr[] = $tag;
 			}
@@ -91,7 +90,7 @@ class SQLiteJournal implements IJournal
 	}
 
 
-	public function clean(array $conditions)
+	public function clean(array $conditions): ?array
 	{
 		if (!$this->pdo) {
 			$this->open();

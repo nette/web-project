@@ -4,6 +4,8 @@
  * Nette Forms custom control example.
  */
 
+declare(strict_types=1);
+
 
 if (@!include __DIR__ . '/../vendor/autoload.php') {
 	die('Install packages using `composer install`');
@@ -27,8 +29,7 @@ class DateInput extends Nette\Forms\Controls\BaseControl
 	public function __construct($label = null)
 	{
 		parent::__construct($label);
-		$this->setRequired(false)
-			->addRule([__CLASS__, 'validateDate'], 'Date is invalid.');
+		$this->addRule([__CLASS__, 'validateDate'], 'Date is invalid.');
 	}
 
 
@@ -46,10 +47,7 @@ class DateInput extends Nette\Forms\Controls\BaseControl
 	}
 
 
-	/**
-	 * @return DateTimeImmutable|null
-	 */
-	public function getValue()
+	public function getValue(): ?DateTimeImmutable
 	{
 		return self::validateDate($this)
 			? (new DateTimeImmutable)->setDate((int) $this->year, (int) $this->month, (int) $this->day)->setTime(0, 0)
@@ -57,16 +55,13 @@ class DateInput extends Nette\Forms\Controls\BaseControl
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public function isFilled()
+	public function isFilled(): bool
 	{
 		return $this->day !== '' || $this->year !== '';
 	}
 
 
-	public function loadHttpData()
+	public function loadHttpData(): void
 	{
 		$this->day = $this->getHttpData(Form::DATA_LINE, '[day]');
 		$this->month = $this->getHttpData(Form::DATA_LINE, '[month]');
@@ -104,10 +99,7 @@ class DateInput extends Nette\Forms\Controls\BaseControl
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public static function validateDate(Nette\Forms\IControl $control)
+	public static function validateDate(Nette\Forms\IControl $control): bool
 	{
 		return ctype_digit($control->day)
 			&& ctype_digit($control->month)
@@ -139,7 +131,7 @@ if ($form->isSuccess()) {
 <meta charset="utf-8">
 <title>Nette Forms custom control example</title>
 <link rel="stylesheet" media="screen" href="assets/style.css" />
-<script src="https://nette.github.io/resources/js/netteForms.js"></script>
+<script src="https://nette.github.io/resources/js/3/netteForms.js"></script>
 
 <h1>Nette Forms custom control example</h1>
 

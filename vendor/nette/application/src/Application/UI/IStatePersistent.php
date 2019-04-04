@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\UI;
 
 
@@ -16,13 +18,11 @@ interface IStatePersistent
 
 	/**
 	 * Loads state informations.
-	 * @return void
 	 */
-	function loadState(array $params);
+	function loadState(array $params): void;
 
 	/**
 	 * Saves state informations for next request.
-	 * @return void
 	 */
-	function saveState(array &$params);
+	function saveState(array &$params): void;
 }

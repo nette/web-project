@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte\Macros;
 
 use Latte;
@@ -26,7 +28,6 @@ use Latte\PhpWriter;
  * - {=expression} echo with escaping
  * - {php expression} evaluate PHP statement
  * - {_expression} echo translation with escaping
- * - {attr ?} HTML element attributes
  * - {capture ?} ... {/capture} capture block to parameter
  * - {spaceless} ... {/spaceless} compress whitespaces
  * - {var var => value} set template parameter
@@ -34,7 +35,6 @@ use Latte\PhpWriter;
  * - {dump $var}
  * - {debugbreak}
  * - {contentType ...} HTTP Content-Type header
- * - {status ...} HTTP status
  * - {l} {r} to display { }
  */
 class CoreMacros extends MacroSet
@@ -43,7 +43,7 @@ class CoreMacros extends MacroSet
 	private $overwrittenVars;
 
 
-	public static function install(Latte\Compiler $compiler)
+	public static function install(Latte\Compiler $compiler): void
 	{
 		$me = new static($compiler);
 
@@ -54,7 +54,7 @@ class CoreMacros extends MacroSet
 		$me->addMacro('elseifset', '} elseif (isset(%node.args)) {');
 		$me->addMacro('ifcontent', [$me, 'macroIfContent'], [$me, 'macroEndIfContent']);
 
-		$me->addMacro('switch', '$this->global->switch[] = (%node.args); if (FALSE) {', '} array_pop($this->global->switch)');
+		$me->addMacro('switch', '$this->global->switch[] = (%node.args); if (false) {', '} array_pop($this->global->switch)');
 		$me->addMacro('case', '} elseif (end($this->global->switch) === (%node.args)) {');
 
 		$me->addMacro('foreach', '', [$me, 'macroEndForeach']);
@@ -75,14 +75,11 @@ class CoreMacros extends MacroSet
 
 		$me->addMacro('_', [$me, 'macroTranslate'], [$me, 'macroTranslate']);
 		$me->addMacro('=', [$me, 'macroExpr']);
-		$me->addMacro('?', [$me, 'macroExpr']);
 
 		$me->addMacro('capture', [$me, 'macroCapture'], [$me, 'macroCaptureEnd']);
 		$me->addMacro('spaceless', [$me, 'macroSpaceless'], [$me, 'macroSpaceless']);
 		$me->addMacro('include', [$me, 'macroInclude']);
-		$me->addMacro('use', [$me, 'macroUse']);
 		$me->addMacro('contentType', [$me, 'macroContentType'], null, null, self::ALLOWED_IN_HEAD);
-		$me->addMacro('status', [$me, 'macroStatus']);
 		$me->addMacro('php', [$me, 'macroExpr']);
 
 		$me->addMacro('class', null, null, [$me, 'macroClass']);
@@ -112,6 +109,7 @@ class CoreMacros extends MacroSet
 			$code .= 'if (isset($this->params[' . var_export($var, true)
 			. "])) trigger_error('Variable $" . addcslashes($var, "'") . ' overwritten in foreach on line ' . implode(', ', $lines) . "'); ";
 		}
+		$code = $code ? 'if (!$this->getReferringTemplate() || $this->getReferenceType() === "extends") { ' . $code . '}' : '';
 		return [$code];
 	}
 
@@ -218,7 +216,7 @@ class CoreMacros extends MacroSet
 			return $writer->write('$_fi = new LR\FilterInfo(%var); echo %modifyContent($this->filters->filterContent("translate", $_fi, %raw))', $node->context[0], $value);
 
 		} elseif ($node->empty = ($node->args !== '')) {
-			return $writer->write('echo %modify(call_user_func($this->filters->translate, %node.args))');
+			return $writer->write('echo %modify(($this->filters->translate)(%node.args))');
 		}
 	}
 
@@ -243,20 +241,6 @@ class CoreMacros extends MacroSet
 				? $writer->write('function ($s, $type) { $_fi = new LR\FilterInfo($type); return %modifyContent($s); }')
 				: var_export($noEscape ? null : implode($node->context), true)
 		);
-	}
-
-
-	/**
-	 * {use class MacroSet}
-	 */
-	public function macroUse(MacroNode $node, PhpWriter $writer)
-	{
-		trigger_error('Macro {use} is deprecated.', E_USER_DEPRECATED);
-		if ($node->modifiers) {
-			throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
-		}
-		call_user_func(Helpers::checkCallback([$node->tokenizer->fetchWord(), 'install']), $this->getCompiler())
-			->initialize();
 	}
 
 
@@ -460,7 +444,7 @@ class CoreMacros extends MacroSet
 
 			} elseif ($tokens->isCurrent(',') && $tokens->depth === 0) {
 				if ($var === null) {
-					$res->append($node->name === 'default' ? '=>NULL' : '=NULL');
+					$res->append($node->name === 'default' ? '=>null' : '=null');
 				}
 				$res->append($node->name === 'default' ? ',' : ';');
 				$var = true;
@@ -473,7 +457,7 @@ class CoreMacros extends MacroSet
 			}
 		}
 		if ($var === null) {
-			$res->append($node->name === 'default' ? '=>NULL' : '=NULL');
+			$res->append($node->name === 'default' ? '=>null' : '=null');
 		}
 		$out = $writer->quotingPass($res)->joinAll();
 		return $node->name === 'default' ? "extract([$out], EXTR_SKIP)" : "$out;";
@@ -486,9 +470,6 @@ class CoreMacros extends MacroSet
 	 */
 	public function macroExpr(MacroNode $node, PhpWriter $writer)
 	{
-		if ($node->name === '?') {
-			trigger_error('Macro {? ...} is deprecated, use {php ...}.', E_USER_DEPRECATED);
-		}
 		return $writer->write($node->name === '='
 			? "echo %modify(%node.args) /* line $node->startLine */"
 			: '%modify(%node.args);'
@@ -528,22 +509,7 @@ class CoreMacros extends MacroSet
 		$compiler->setContentType($type);
 
 		if (strpos($node->args, '/') && !$node->htmlNode) {
-			return $writer->write('if (empty($this->global->coreCaptured) && in_array($this->getReferenceType(), ["extends", NULL], TRUE)) header(%var);', "Content-Type: $node->args");
+			return $writer->write('if (empty($this->global->coreCaptured) && in_array($this->getReferenceType(), ["extends", null], true)) header(%var);', "Content-Type: $node->args");
 		}
-	}
-
-
-	/**
-	 * {status ...}
-	 */
-	public function macroStatus(MacroNode $node, PhpWriter $writer)
-	{
-		trigger_error('Macro {status} is deprecated.', E_USER_DEPRECATED);
-		if ($node->modifiers) {
-			throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
-		}
-		return $writer->write((substr($node->args, -1) === '?' ? 'if (!headers_sent()) ' : '') .
-			'http_response_code(%0.var);', (int) $node->args
-		);
 	}
 }

@@ -5,12 +5,13 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\PhpGenerator\Traits;
 
 use Nette;
 use Nette\PhpGenerator\Helpers;
 use Nette\PhpGenerator\Parameter;
-use Nette\PhpGenerator\PhpNamespace;
 
 
 /**
@@ -36,46 +37,38 @@ trait FunctionLike
 	/** @var bool */
 	private $returnNullable = false;
 
-	/** @var PhpNamespace|null */
-	private $namespace;
-
 
 	/**
-	 * @param  string
 	 * @return static
 	 */
-	public function setBody($code, array $args = null)
+	public function setBody(string $code, array $args = null): self
 	{
-		$this->body = $args === null ? $code : Helpers::formatArgs($code, $args);
+		$this->body = $args === null ? $code : Helpers::format($code, ...$args);
 		return $this;
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public function getBody()
+	public function getBody(): string
 	{
 		return $this->body;
 	}
 
 
 	/**
-	 * @param  string
 	 * @return static
 	 */
-	public function addBody($code, array $args = null)
+	public function addBody(string $code, array $args = null): self
 	{
-		$this->body .= ($args === null ? $code : Helpers::formatArgs($code, $args)) . "\n";
+		$this->body .= ($args === null ? $code : Helpers::format($code, ...$args)) . "\n";
 		return $this;
 	}
 
 
 	/**
-	 * @param  Parameter[]
+	 * @param  Parameter[]  $val
 	 * @return static
 	 */
-	public function setParameters(array $val)
+	public function setParameters(array $val): self
 	{
 		$this->parameters = [];
 		foreach ($val as $v) {
@@ -91,145 +84,106 @@ trait FunctionLike
 	/**
 	 * @return Parameter[]
 	 */
-	public function getParameters()
+	public function getParameters(): array
 	{
 		return $this->parameters;
 	}
 
 
 	/**
-	 * @param  string  without $
-	 * @return Parameter
+	 * @param  string  $name without $
 	 */
-	public function addParameter($name, $defaultValue = null)
+	public function addParameter(string $name, $defaultValue = null): Parameter
 	{
 		$param = new Parameter($name);
 		if (func_num_args() > 1) {
-			$param->setOptional(true)->setDefaultValue($defaultValue);
+			$param->setDefaultValue($defaultValue);
 		}
 		return $this->parameters[$name] = $param;
 	}
 
 
 	/**
-	 * @param  bool
+	 * @param  string  $name without $
 	 * @return static
 	 */
-	public function setVariadic($state = true)
+	public function removeParameter(string $name): self
 	{
-		$this->variadic = (bool) $state;
+		unset($this->parameters[$name]);
 		return $this;
 	}
 
 
 	/**
-	 * @return bool
+	 * @return static
 	 */
-	public function isVariadic()
+	public function setVariadic(bool $state = true): self
+	{
+		$this->variadic = $state;
+		return $this;
+	}
+
+
+	public function isVariadic(): bool
 	{
 		return $this->variadic;
 	}
 
 
 	/**
-	 * @param  string|null
 	 * @return static
 	 */
-	public function setReturnType($val)
+	public function setReturnType(?string $val): self
 	{
-		$this->returnType = $val ? (string) $val : null;
+		$this->returnType = $val;
 		return $this;
 	}
 
 
-	/**
-	 * @return string|null
-	 */
-	public function getReturnType()
+	public function getReturnType(): ?string
 	{
 		return $this->returnType;
 	}
 
 
 	/**
-	 * @param  bool
 	 * @return static
 	 */
-	public function setReturnReference($state = true)
+	public function setReturnReference(bool $state = true): self
 	{
-		$this->returnReference = (bool) $state;
+		$this->returnReference = $state;
 		return $this;
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public function getReturnReference()
+	public function getReturnReference(): bool
 	{
 		return $this->returnReference;
 	}
 
 
 	/**
-	 * @param  bool
 	 * @return static
 	 */
-	public function setReturnNullable($state = true)
+	public function setReturnNullable(bool $state = true): self
 	{
-		$this->returnNullable = (bool) $state;
+		$this->returnNullable = $state;
 		return $this;
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public function getReturnNullable()
+	public function getReturnNullable(): bool
 	{
 		return $this->returnNullable;
 	}
 
 
 	/**
-	 * @return static
+	 * @deprecated
 	 */
-	public function setNamespace(PhpNamespace $val = null)
+	public function setNamespace(PhpNamespace $val = null): self
 	{
-		$this->namespace = $val;
+		trigger_error(__METHOD__ . '() is deprecated', E_USER_DEPRECATED);
 		return $this;
-	}
-
-
-	/**
-	 * @return string
-	 */
-	protected function parametersToString()
-	{
-		$params = [];
-		foreach ($this->parameters as $param) {
-			$variadic = $this->variadic && $param === end($this->parameters);
-			$hint = $param->getTypeHint();
-			$params[] = ($hint ? ($param->isNullable() ? '?' : '') . ($this->namespace ? $this->namespace->unresolveName($hint) : $hint) . ' ' : '')
-				. ($param->isReference() ? '&' : '')
-				. ($variadic ? '...' : '')
-				. '$' . $param->getName()
-				. ($param->hasDefaultValue() && !$variadic ? ' = ' . Helpers::dump($param->defaultValue) : '');
-		}
-
-		return strlen($tmp = implode(', ', $params)) > Helpers::WRAP_LENGTH && count($params) > 1
-			? "(\n\t" . implode(",\n\t", $params) . "\n)"
-			: "($tmp)";
-	}
-
-
-	/**
-	 * @return string
-	 */
-	protected function returnTypeToString()
-	{
-		return $this->returnType
-			? ': ' . ($this->returnNullable ? '?' : '') . ($this->namespace ? $this->namespace->unresolveName($this->returnType) : $this->returnType)
-			: '';
 	}
 }

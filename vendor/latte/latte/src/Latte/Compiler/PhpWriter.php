@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte;
 
 
@@ -25,7 +27,7 @@ class PhpWriter
 	private $context;
 
 
-	public static function using(MacroNode $node)
+	public static function using(MacroNode $node): self
 	{
 		$me = new static($node->tokenizer, null, $node->context);
 		$me->modifiers = &$node->modifiers;
@@ -33,7 +35,7 @@ class PhpWriter
 	}
 
 
-	public function __construct(MacroTokens $tokens, $modifiers = null, array $context = null)
+	public function __construct(MacroTokens $tokens, string $modifiers = null, array $context = null)
 	{
 		$this->tokens = $tokens;
 		$this->modifiers = $modifiers;
@@ -43,10 +45,8 @@ class PhpWriter
 
 	/**
 	 * Expands %node.word, %node.array, %node.args, %escape(), %modify(), %var, %raw, %word in code.
-	 * @param  string
-	 * @return string
 	 */
-	public function write($mask)
+	public function write(string $mask, ...$args): string
 	{
 		$mask = preg_replace('#%(node|\d+)\.#', '%$1_', $mask);
 		$mask = preg_replace_callback('#%escape(\(([^()]*+|(?1))+\))#', function ($m) {
@@ -56,21 +56,26 @@ class PhpWriter
 			return $this->formatModifiers(substr($m[2], 1, -1), (bool) $m[1]);
 		}, $mask);
 
-		$args = func_get_args();
 		$pos = $this->tokens->position;
-		$word = strpos($mask, '%node_word') === false ? null : $this->tokens->fetchWord();
+		$word = null;
+		if (strpos($mask, '%node_word') !== false) {
+			$word = $this->tokens->fetchWord();
+			if ($word === null) {
+				throw new CompileException('Invalid content of macro');
+			}
+		}
 
 		$code = preg_replace_callback('#([,+]\s*)?%(node_|\d+_|)(word|var|raw|array|args)(\?)?(\s*\+\s*)?()#',
 		function ($m) use ($word, &$args) {
-			list(, $l, $source, $format, $cond, $r) = $m;
+			[, $l, $source, $format, $cond, $r] = $m;
 
 			switch ($source) {
 				case 'node_':
 					$arg = $word; break;
 				case '':
-					$arg = next($args); break;
+					$arg = current($args); next($args); break;
 				default:
-					$arg = $args[(int) $source + 1]; break;
+					$arg = $args[(int) $source]; break;
 			}
 
 			switch ($format) {
@@ -101,10 +106,8 @@ class PhpWriter
 
 	/**
 	 * Formats modifiers calling.
-	 * @param  string
-	 * @return string
 	 */
-	public function formatModifiers($var, $isContent = false)
+	public function formatModifiers(string $var, bool $isContent = false): string
 	{
 		$tokens = new MacroTokens(ltrim($this->modifiers, '|'));
 		$tokens = $this->preprocess($tokens);
@@ -116,9 +119,8 @@ class PhpWriter
 
 	/**
 	 * Formats macro arguments to PHP code. (It advances tokenizer to the end as a side effect.)
-	 * @return string
 	 */
-	public function formatArgs(MacroTokens $tokens = null)
+	public function formatArgs(MacroTokens $tokens = null): string
 	{
 		$tokens = $this->preprocess($tokens);
 		$tokens = $this->quotingPass($tokens);
@@ -128,9 +130,8 @@ class PhpWriter
 
 	/**
 	 * Formats macro arguments to PHP array. (It advances tokenizer to the end as a side effect.)
-	 * @return string
 	 */
-	public function formatArray(MacroTokens $tokens = null)
+	public function formatArray(MacroTokens $tokens = null): string
 	{
 		$tokens = $this->preprocess($tokens);
 		$tokens = $this->expandCastPass($tokens);
@@ -141,10 +142,8 @@ class PhpWriter
 
 	/**
 	 * Formats parameter to PHP string.
-	 * @param  string
-	 * @return string
 	 */
-	public function formatWord($s)
+	public function formatWord(string $s): string
 	{
 		return (is_numeric($s) || preg_match('#^\$|[\'"]|^(true|TRUE)\z|^(false|FALSE)\z|^(null|NULL)\z|^[\w\\\\]{3,}::[A-Z0-9_]{2,}\z#', $s))
 			? $this->formatArgs(new MacroTokens($s))
@@ -154,9 +153,8 @@ class PhpWriter
 
 	/**
 	 * Preprocessor for tokens. (It advances tokenizer to the end as a side effect.)
-	 * @return MacroTokens
 	 */
-	public function preprocess(MacroTokens $tokens = null)
+	public function preprocess(MacroTokens $tokens = null): MacroTokens
 	{
 		$tokens = $tokens === null ? $this->tokens : $tokens;
 		$this->validateTokens($tokens);
@@ -170,25 +168,14 @@ class PhpWriter
 
 	/**
 	 * @throws CompileException
-	 * @return void
 	 */
-	public function validateTokens(MacroTokens $tokens)
+	public function validateTokens(MacroTokens $tokens): void
 	{
-		$deprecatedVars = array_flip(['$template', '$_b', '$_l', '$_g', '$_args', '$_fi', '$_control', '$_presenter', '$_form', '$_input', '$_label', '$_snippetMode']);
 		$brackets = [];
 		$pos = $tokens->position;
 		while ($tokens->nextToken()) {
 			if ($tokens->isCurrent('?>')) {
 				throw new CompileException('Forbidden ?> inside macro');
-
-			} elseif ($tokens->isCurrent($tokens::T_VARIABLE) && isset($deprecatedVars[$tokens->currentValue()])) {
-				trigger_error("Variable {$tokens->currentValue()} is deprecated.", E_USER_DEPRECATED);
-
-			} elseif ($tokens->isCurrent($tokens::T_SYMBOL)
-				&& !$tokens->isPrev('::') && !$tokens->isNext('::') && !$tokens->isPrev('->') && !$tokens->isNext('\\')
-				&& preg_match('#^[A-Z0-9]{3,}$#', $val = $tokens->currentValue())
-			) {
-				trigger_error("Replace literal $val with constant('$val')", E_USER_DEPRECATED);
 
 			} elseif ($tokens->isCurrent('(', '[', '{')) {
 				static $counterpart = ['(' => ')', '[' => ']', '{' => '}'];
@@ -215,9 +202,8 @@ class PhpWriter
 
 	/**
 	 * Removes PHP comments.
-	 * @return MacroTokens
 	 */
-	public function removeCommentsPass(MacroTokens $tokens)
+	public function removeCommentsPass(MacroTokens $tokens): MacroTokens
 	{
 		$res = new MacroTokens;
 		while ($tokens->nextToken()) {
@@ -231,9 +217,8 @@ class PhpWriter
 
 	/**
 	 * Simplified ternary expressions without third part.
-	 * @return MacroTokens
 	 */
-	public function shortTernaryPass(MacroTokens $tokens)
+	public function shortTernaryPass(MacroTokens $tokens): MacroTokens
 	{
 		$res = new MacroTokens;
 		$inTernary = [];
@@ -245,14 +230,14 @@ class PhpWriter
 				array_pop($inTernary);
 
 			} elseif ($tokens->isCurrent(',', ')', ']', '|') && end($inTernary) === $tokens->depth + $tokens->isCurrent(')', ']')) {
-				$res->append(' : NULL');
+				$res->append(' : null');
 				array_pop($inTernary);
 			}
 			$res->append($tokens->currentToken());
 		}
 
 		if ($inTernary) {
-			$res->append(' : NULL');
+			$res->append(' : null');
 		}
 		return $res;
 	}
@@ -260,9 +245,8 @@ class PhpWriter
 
 	/**
 	 * Pseudocast (expand).
-	 * @return MacroTokens
 	 */
-	public function expandCastPass(MacroTokens $tokens)
+	public function expandCastPass(MacroTokens $tokens): MacroTokens
 	{
 		$res = new MacroTokens('[');
 		$expand = null;
@@ -289,9 +273,8 @@ class PhpWriter
 
 	/**
 	 * Quotes symbols to strings.
-	 * @return MacroTokens
 	 */
-	public function quotingPass(MacroTokens $tokens)
+	public function quotingPass(MacroTokens $tokens): MacroTokens
 	{
 		$res = new MacroTokens;
 		while ($tokens->nextToken()) {
@@ -309,9 +292,8 @@ class PhpWriter
 
 	/**
 	 * Syntax $entry in [item1, item2].
-	 * @return MacroTokens
 	 */
-	public function inOperatorPass(MacroTokens $tokens)
+	public function inOperatorPass(MacroTokens $tokens): MacroTokens
 	{
 		while ($tokens->nextToken()) {
 			if ($tokens->isCurrent($tokens::T_VARIABLE)) {
@@ -329,7 +311,7 @@ class PhpWriter
 					while ($tokens->isNext()) {
 						$arr[] = $tokens->nextToken();
 						if ($tokens->isCurrent(']') && $tokens->depth === $depth) {
-							$new = array_merge($tokens->parse('in_array('), $expr, $tokens->parse(', '), $arr, $tokens->parse(', TRUE)'));
+							$new = array_merge($tokens->parse('in_array('), $expr, $tokens->parse(', '), $arr, $tokens->parse(', true)'));
 							array_splice($tokens->tokens, $start, $tokens->position - $start + 1, $new);
 							$tokens->position = $start + count($new) - 1;
 							continue 2;
@@ -345,9 +327,8 @@ class PhpWriter
 
 	/**
 	 * Process inline filters ($var|filter)
-	 * @return MacroTokens
 	 */
-	public function inlineModifierPass(MacroTokens $tokens)
+	public function inlineModifierPass(MacroTokens $tokens): MacroTokens
 	{
 		$result = new MacroTokens;
 		while ($tokens->nextToken()) {
@@ -361,7 +342,7 @@ class PhpWriter
 	}
 
 
-	private function inlineModifierInner(MacroTokens $tokens)
+	private function inlineModifierInner(MacroTokens $tokens): array
 	{
 		$isFunctionOrArray = $tokens->isPrev($tokens::T_VARIABLE, $tokens::T_SYMBOL) || $tokens->isCurrent('[');
 		$result = new MacroTokens;
@@ -407,12 +388,10 @@ class PhpWriter
 
 	/**
 	 * Formats modifiers calling.
-	 * @param  MacroTokens
-	 * @param  string|array
+	 * @param  string|array  $var
 	 * @throws CompileException
-	 * @return MacroTokens
 	 */
-	public function modifierPass(MacroTokens $tokens, $var, $isContent = false)
+	public function modifierPass(MacroTokens $tokens, $var, bool $isContent = false): MacroTokens
 	{
 		$inside = false;
 		$res = new MacroTokens($var);
@@ -449,7 +428,7 @@ class PhpWriter
 						$name = strtolower($tokens->currentValue());
 						$res->prepend($isContent
 							? '$this->filters->filterContent(' . var_export($name, true) . ', $_fi, '
-							: 'call_user_func($this->filters->' . $name . ', '
+							: '($this->filters->' . $name . ')('
 						);
 						$inside = true;
 					}
@@ -467,12 +446,11 @@ class PhpWriter
 
 	/**
 	 * Escapes expression in tokens.
-	 * @return MacroTokens
 	 */
-	public function escapePass(MacroTokens $tokens)
+	public function escapePass(MacroTokens $tokens): MacroTokens
 	{
 		$tokens = clone $tokens;
-		list($contentType, $context) = $this->context;
+		[$contentType, $context] = $this->context;
 		switch ($contentType) {
 			case Compiler::CONTENT_XHTML:
 			case Compiler::CONTENT_HTML:
@@ -521,7 +499,7 @@ class PhpWriter
 			case Compiler::CONTENT_TEXT:
 				return $tokens;
 			case null:
-				return $tokens->prepend('call_user_func($this->filters->escape, ')->append(')');
+				return $tokens->prepend('($this->filters->escape)(')->append(')');
 			default:
 				throw new CompileException("Unknown context $contentType.");
 		}

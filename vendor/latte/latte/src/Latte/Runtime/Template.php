@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte\Runtime;
 
 use Latte;
@@ -55,7 +57,7 @@ class Template
 	private $referenceType;
 
 
-	public function __construct(Engine $engine, array $params, FilterExecutor $filters, array $providers, $name)
+	public function __construct(Engine $engine, array $params, FilterExecutor $filters, array $providers, string $name)
 	{
 		$this->engine = $engine;
 		$this->params = $params;
@@ -65,23 +67,16 @@ class Template
 		foreach ($this->blocks as $nm => $method) {
 			$this->blockQueue[$nm][] = [$this, $method];
 		}
-		$this->params['template'] = $this; // back compatibility
 	}
 
 
-	/**
-	 * @return Engine
-	 */
-	public function getEngine()
+	public function getEngine(): Engine
 	{
 		return $this->engine;
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public function getName()
+	public function getName(): string
 	{
 		return $this->name;
 	}
@@ -89,9 +84,8 @@ class Template
 
 	/**
 	 * Returns array of all parameters.
-	 * @return array
 	 */
-	public function getParameters()
+	public function getParameters(): array
 	{
 		return $this->params;
 	}
@@ -101,7 +95,7 @@ class Template
 	 * Returns parameter.
 	 * @return mixed
 	 */
-	public function getParameter($name)
+	public function getParameter(string $name)
 	{
 		if (!array_key_exists($name, $this->params)) {
 			trigger_error("The variable '$name' does not exist in template.", E_USER_NOTICE);
@@ -110,37 +104,25 @@ class Template
 	}
 
 
-	/**
-	 * @return string
-	 */
-	public function getContentType()
+	public function getContentType(): string
 	{
 		return $this->contentType;
 	}
 
 
-	/**
-	 * @return string|null
-	 */
-	public function getParentName()
+	public function getParentName(): ?string
 	{
 		return $this->parentName ?: null;
 	}
 
 
-	/**
-	 * @return Template|null
-	 */
-	public function getReferringTemplate()
+	public function getReferringTemplate(): ?self
 	{
 		return $this->referringTemplate;
 	}
 
 
-	/**
-	 * @return string|null
-	 */
-	public function getReferenceType()
+	public function getReferenceType(): ?string
 	{
 		return $this->referenceType;
 	}
@@ -148,15 +130,14 @@ class Template
 
 	/**
 	 * Renders template.
-	 * @return void
 	 * @internal
 	 */
-	public function render()
+	public function render(): void
 	{
 		$this->prepare();
 
 		if ($this->parentName === null && isset($this->global->coreParentFinder)) {
-			$this->parentName = call_user_func($this->global->coreParentFinder, $this);
+			$this->parentName = ($this->global->coreParentFinder)($this);
 		}
 		if (isset($this->global->snippetBridge) && !isset($this->global->snippetDriver)) {
 			$this->global->snippetDriver = new SnippetDriver($this->global->snippetBridge);
@@ -201,10 +182,9 @@ class Template
 
 	/**
 	 * Renders template.
-	 * @return Template
 	 * @internal
 	 */
-	protected function createTemplate($name, array $params, $referenceType)
+	public function createTemplate(string $name, array $params, string $referenceType): self
 	{
 		$name = $this->engine->getLoader()->getReferredName($name, $this->name);
 		$child = $this->engine->createTemplate($name, $params);
@@ -224,11 +204,10 @@ class Template
 
 
 	/**
-	 * @param  string|\Closure content-type name or modifier closure
-	 * @return void
+	 * @param  string|\Closure  $mod  content-type name or modifier closure
 	 * @internal
 	 */
-	protected function renderToContentType($mod)
+	public function renderToContentType($mod): void
 	{
 		if ($mod instanceof \Closure) {
 			echo $mod($this->capture([$this, 'render']), $this->contentType);
@@ -258,13 +237,10 @@ class Template
 
 	/**
 	 * Renders block.
-	 * @param  string
-	 * @param  array
-	 * @param  string|\Closure content-type name or modifier closure
-	 * @return void
+	 * @param  string|\Closure  $mod  content-type name or modifier closure
 	 * @internal
 	 */
-	protected function renderBlock($name, array $params, $mod = null)
+	public function renderBlock(string $name, array $params, $mod = null): void
 	{
 		if (empty($this->blockQueue[$name])) {
 			$hint = isset($this->blockQueue) && ($t = Latte\Helpers::getSuggestion(array_keys($this->blockQueue), $name)) ? ", did you mean '$t'?" : '.';
@@ -274,7 +250,7 @@ class Template
 		$block = reset($this->blockQueue[$name]);
 		if ($mod && $mod !== ($blockType = $this->blockTypes[$name])) {
 			if ($filter = (is_string($mod) ? Filters::getConvertor($blockType, $mod) : $mod)) {
-				echo $filter($this->capture(function () use ($block, $params) { $block($params); }), $blockType);
+				echo $filter($this->capture(function () use ($block, $params): void { $block($params); }), $blockType);
 				return;
 			}
 			trigger_error("Including block $name with content type " . strtoupper($blockType) . ' into incompatible type ' . strtoupper($mod) . '.', E_USER_WARNING);
@@ -285,10 +261,9 @@ class Template
 
 	/**
 	 * Renders parent block.
-	 * @return void
 	 * @internal
 	 */
-	protected function renderBlockParent($name, array $params)
+	public function renderBlockParent(string $name, array $params): void
 	{
 		if (empty($this->blockQueue[$name]) || ($block = next($this->blockQueue[$name])) === false) {
 			throw new \RuntimeException("Cannot include undefined parent block '$name'.");
@@ -299,10 +274,9 @@ class Template
 
 
 	/**
-	 * @return void
 	 * @internal
 	 */
-	protected function checkBlockContentType($current, $name)
+	protected function checkBlockContentType(string $current, string $name): void
 	{
 		$expected = &$this->blockTypes[$name];
 		if ($expected === null) {
@@ -315,78 +289,20 @@ class Template
 
 	/**
 	 * Captures output to string.
-	 * @return string
 	 * @internal
 	 */
-	public function capture(callable $function)
+	public function capture(callable $function): string
 	{
-		ob_start(function () {});
 		try {
+			ob_start(function () {});
 			$this->global->coreCaptured = true;
 			$function();
-		} catch (\Exception $e) {
+			return ob_get_clean();
 		} catch (\Throwable $e) {
-		}
-		$this->global->coreCaptured = false;
-		if (isset($e)) {
 			ob_end_clean();
 			throw $e;
+		} finally {
+			$this->global->coreCaptured = false;
 		}
-		return ob_get_clean();
-	}
-
-
-	/** @deprecated */
-	public function setParameters(array $params)
-	{
-		trigger_error(__METHOD__ . ' is deprecated.', E_USER_DEPRECATED);
-		$this->params = $params;
-		return $this;
-	}
-
-
-	/********************* deprecated ****************d*g**/
-
-
-	/** @deprecated */
-	public function __call($name, $args)
-	{
-		trigger_error("Invoking filters via \$template->$name(\$vars) is deprecated, use (\$vars|$name)", E_USER_DEPRECATED);
-		return call_user_func_array($this->filters->$name, $args);
-	}
-
-
-	/** @deprecated */
-	public function __set($name, $value)
-	{
-		trigger_error("Access to parameters via \$template->$name is deprecated", E_USER_DEPRECATED);
-		$this->params[$name] = $value;
-	}
-
-
-	/** @deprecated */
-	public function &__get($name)
-	{
-		trigger_error("Access to parameters via \$template->$name is deprecated, use \$this->getParameter('$name')", E_USER_DEPRECATED);
-		if (!array_key_exists($name, $this->params)) {
-			trigger_error("The variable '$name' does not exist in template.");
-		}
-		return $this->params[$name];
-	}
-
-
-	/** @deprecated */
-	public function __isset($name)
-	{
-		trigger_error("Access to parameters via \$template->$name is deprecated, use isset(\$this->getParameters()['$name'])", E_USER_DEPRECATED);
-		return isset($this->params[$name]);
-	}
-
-
-	/** @deprecated */
-	public function __unset($name)
-	{
-		trigger_error("Access to parameters via \$template->$name is deprecated.", E_USER_DEPRECATED);
-		unset($this->params[$name]);
 	}
 }

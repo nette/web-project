@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Mail;
 
 use Nette;
@@ -14,7 +16,7 @@ class FallbackMailer implements IMailer
 {
 	use Nette\SmartObject;
 
-	/** @var callable[]  function (FallbackMailer $sender, SendException $e, IMailer $mailer, Message $mail) */
+	/** @var callable[]  function (FallbackMailer $sender, SendException $e, IMailer $mailer, Message $mail): void */
 	public $onFailure;
 
 	/** @var IMailer[] */
@@ -28,11 +30,10 @@ class FallbackMailer implements IMailer
 
 
 	/**
-	 * @param IMailer[]
-	 * @param int
-	 * @param int in miliseconds
+	 * @param IMailer[]  $mailers
+	 * @param int  $retryWaitTime in miliseconds
 	 */
-	public function __construct(array $mailers, $retryCount = 3, $retryWaitTime = 1000)
+	public function __construct(array $mailers, int $retryCount = 3, int $retryWaitTime = 1000)
 	{
 		$this->mailers = $mailers;
 		$this->retryCount = $retryCount;
@@ -42,10 +43,9 @@ class FallbackMailer implements IMailer
 
 	/**
 	 * Sends email.
-	 * @return void
 	 * @throws FallbackMailerException
 	 */
-	public function send(Message $mail)
+	public function send(Message $mail): void
 	{
 		if (!$this->mailers) {
 			throw new Nette\InvalidArgumentException('At least one mailer must be provided.');

@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Http;
 
 use Nette;
@@ -33,11 +35,9 @@ class Context
 
 	/**
 	 * Attempts to cache the sent entity by its last modification date.
-	 * @param  string|int|\DateTimeInterface  last modified time
-	 * @param  string  strong entity tag validator
-	 * @return bool
+	 * @param  string|int|\DateTimeInterface  $lastModified
 	 */
-	public function isModified($lastModified = null, $etag = null)
+	public function isModified($lastModified = null, string $etag = null): bool
 	{
 		if ($lastModified) {
 			$this->response->setHeader('Last-Modified', Helpers::formatDate($lastModified));
@@ -81,19 +81,13 @@ class Context
 	}
 
 
-	/**
-	 * @return IRequest
-	 */
-	public function getRequest()
+	public function getRequest(): IRequest
 	{
 		return $this->request;
 	}
 
 
-	/**
-	 * @return IResponse
-	 */
-	public function getResponse()
+	public function getResponse(): IResponse
 	{
 		return $this->response;
 	}

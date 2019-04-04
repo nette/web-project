@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms\Controls;
 
 use Nette;
@@ -34,7 +36,7 @@ class RadioList extends ChoiceControl
 
 
 	/**
-	 * @param  string|object
+	 * @param  string|object  $label
 	 */
 	public function __construct($label = null, array $items = null)
 	{
@@ -49,9 +51,8 @@ class RadioList extends ChoiceControl
 
 	/**
 	 * Generates control's HTML element.
-	 * @return Html
 	 */
-	public function getControl()
+	public function getControl(): Html
 	{
 		$input = parent::getControl();
 		$items = $this->getItems();
@@ -80,19 +81,15 @@ class RadioList extends ChoiceControl
 
 	/**
 	 * Generates label's HTML element.
-	 * @param  string|object
-	 * @return Html
+	 * @param  string|object  $caption
 	 */
-	public function getLabel($caption = null)
+	public function getLabel($caption = null): Html
 	{
 		return parent::getLabel($caption)->for(null);
 	}
 
 
-	/**
-	 * @return Html
-	 */
-	public function getControlPart($key = null)
+	public function getControlPart($key = null): Html
 	{
 		$key = key([(string) $key => null]);
 		return parent::getControl()->addAttributes([
@@ -104,10 +101,7 @@ class RadioList extends ChoiceControl
 	}
 
 
-	/**
-	 * @return Html
-	 */
-	public function getLabelPart($key = null)
+	public function getLabelPart($key = null): Html
 	{
 		$itemLabel = clone $this->itemLabel;
 		return func_num_args()
@@ -118,9 +112,8 @@ class RadioList extends ChoiceControl
 
 	/**
 	 * Returns separator HTML element template.
-	 * @return Html
 	 */
-	public function getSeparatorPrototype()
+	public function getSeparatorPrototype(): Html
 	{
 		return $this->separator;
 	}
@@ -128,9 +121,8 @@ class RadioList extends ChoiceControl
 
 	/**
 	 * Returns container HTML element template.
-	 * @return Html
 	 */
-	public function getContainerPrototype()
+	public function getContainerPrototype(): Html
 	{
 		return $this->container;
 	}
@@ -138,9 +130,8 @@ class RadioList extends ChoiceControl
 
 	/**
 	 * Returns item label HTML element template.
-	 * @return Html
 	 */
-	public function getItemLabelPrototype()
+	public function getItemLabelPrototype(): Html
 	{
 		return $this->itemLabel;
 	}

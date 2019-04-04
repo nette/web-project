@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester;
 
 
@@ -14,21 +16,18 @@ namespace Tester;
 class DataProvider
 {
 	/**
-	 * @param  string  path to data provider file
-	 * @param  string  filtering condition
-	 * @return array
 	 * @throws \Exception
 	 */
-	public static function load($file, $query = '')
+	public static function load(string $file, string $query = ''): array
 	{
 		if (!is_file($file)) {
 			throw new \Exception("Missing data-provider file '$file'.");
 		}
 
 		if (pathinfo($file, PATHINFO_EXTENSION) === 'php') {
-			$data = call_user_func(function () {
+			$data = (function () {
 				return require func_get_arg(0);
-			}, realpath($file));
+			})(realpath($file));
 
 			if ($data instanceof \Traversable) {
 				$data = iterator_to_array($data);
@@ -56,18 +55,13 @@ class DataProvider
 	}
 
 
-	/**
-	 * @param  string  tested subject
-	 * @param  string  condition
-	 * @return bool
-	 */
-	public static function testQuery($input, $query)
+	public static function testQuery(string $input, string $query): bool
 	{
 		static $replaces = ['' => '=', '=>' => '>=', '=<' => '<='];
 		$tokens = preg_split('#\s+#', $input);
 		preg_match_all('#\s*,?\s*(<=|=<|<|==|=|!=|<>|>=|=>|>)?\s*([^\s,]+)#A', $query, $queryParts, PREG_SET_ORDER);
-		foreach ($queryParts as list(, $operator, $operand)) {
-			$operator = isset($replaces[$operator]) ? $replaces[$operator] : $operator;
+		foreach ($queryParts as [, $operator, $operand]) {
+			$operator = $replaces[$operator] ?? $operator;
 			$token = (string) array_shift($tokens);
 			$res = preg_match('#^[0-9.]+\z#', $token)
 				? version_compare($token, $operand, $operator)
@@ -80,26 +74,26 @@ class DataProvider
 	}
 
 
-	private static function compare($l, $operator, $r)
+	private static function compare($l, string $operator, $r): bool
 	{
 		switch ($operator) {
-		case '>':
-			return $l > $r;
-		case '=>':
-		case '>=':
-			return $l >= $r;
-		case '<':
-			return $l < $r;
-		case '=<':
-		case '<=':
-			return $l <= $r;
-		case '=':
-		case '==':
-			return $l == $r;
-		case '!':
-		case '!=':
-		case '<>':
-			return $l != $r;
+			case '>':
+				return $l > $r;
+			case '=>':
+			case '>=':
+				return $l >= $r;
+			case '<':
+				return $l < $r;
+			case '=<':
+			case '<=':
+				return $l <= $r;
+			case '=':
+			case '==':
+				return $l == $r;
+			case '!':
+			case '!=':
+			case '<>':
+				return $l != $r;
 		}
 		throw new \InvalidArgumentException("Unknown operator $operator.");
 	}
@@ -107,12 +101,9 @@ class DataProvider
 
 	/**
 	 * @internal
-	 * @param  string
-	 * @param  string
-	 * @return array
 	 * @throws \Exception
 	 */
-	public static function parseAnnotation($annotation, $file)
+	public static function parseAnnotation(string $annotation, string $file): array
 	{
 		if (!preg_match('#^(\??)\s*([^,\s]+)\s*,?\s*(\S.*)?()#', $annotation, $m)) {
 			throw new \Exception("Invalid @dataProvider value '$annotation'.");

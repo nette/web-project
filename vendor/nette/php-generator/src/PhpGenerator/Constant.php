@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\PhpGenerator;
 
 use Nette;
@@ -13,7 +15,7 @@ use Nette;
 /**
  * Class constant.
  */
-class Constant
+final class Constant
 {
 	use Nette\SmartObject;
 	use Traits\NameAware;
@@ -27,16 +29,13 @@ class Constant
 	/**
 	 * @return static
 	 */
-	public function setValue($val)
+	public function setValue($val): self
 	{
 		$this->value = $val;
 		return $this;
 	}
 
 
-	/**
-	 * @return mixed
-	 */
 	public function getValue()
 	{
 		return $this->value;

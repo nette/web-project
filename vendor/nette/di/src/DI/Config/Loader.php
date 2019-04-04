@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\DI\Config;
 
 use Nette;
@@ -18,12 +20,10 @@ class Loader
 {
 	use Nette\SmartObject;
 
-	/** @internal */
-	const INCLUDES_KEY = 'includes';
+	private const INCLUDES_KEY = 'includes';
 
 	private $adapters = [
 		'php' => Adapters\PhpAdapter::class,
-		'ini' => Adapters\IniAdapter::class,
 		'neon' => Adapters\NeonAdapter::class,
 	];
 
@@ -31,14 +31,13 @@ class Loader
 
 	private $loadedFiles = [];
 
+	private $parameters = [];
+
 
 	/**
 	 * Reads configuration from file.
-	 * @param  string  file name
-	 * @param  string  optional section to load
-	 * @return array
 	 */
-	public function load($file, $section = null)
+	public function load(string $file, ?bool $merge = true): array
 	{
 		if (!is_file($file) || !is_readable($file)) {
 			throw new Nette\FileNotFoundException("File '$file' is missing or is not readable.");
@@ -52,38 +51,30 @@ class Loader
 		$this->dependencies[] = $file;
 		$data = $this->getAdapter($file)->load($file);
 
-		if ($section) {
-			if (isset($data[self::INCLUDES_KEY])) {
-				throw new Nette\InvalidStateException("Section 'includes' must be placed under some top section in file '$file'.");
-			}
-			$data = $this->getSection($data, $section, $file);
-		}
-
-		// include child files
-		$merged = [];
+		$res = [];
 		if (isset($data[self::INCLUDES_KEY])) {
 			Validators::assert($data[self::INCLUDES_KEY], 'list', "section 'includes' in file '$file'");
-			foreach ($data[self::INCLUDES_KEY] as $include) {
-				if (!preg_match('#([a-z]+:)?[/\\\\]#Ai', $include)) {
-					$include = dirname($file) . '/' . $include;
-				}
-				$merged = Helpers::merge($this->load($include), $merged);
+			$includes = Nette\DI\Helpers::expand($data[self::INCLUDES_KEY], $this->parameters);
+			foreach ($includes as $include) {
+				$include = $this->expandIncludedFile($include, $file);
+				$res = Nette\Schema\Helpers::merge($this->load($include, $merge), $res);
 			}
 		}
 		unset($data[self::INCLUDES_KEY], $this->loadedFiles[$file]);
 
-
-		return Helpers::merge($data, $merged);
+		if ($merge === false) {
+			$res[] = $data;
+		} else {
+			$res = Nette\Schema\Helpers::merge($data, $res);
+		}
+		return $res;
 	}
 
 
 	/**
 	 * Save configuration to file.
-	 * @param  array
-	 * @param  string  file
-	 * @return void
 	 */
-	public function save($data, $file)
+	public function save(array $data, string $file): void
 	{
 		if (file_put_contents($file, $this->getAdapter($file)->dump($data)) === false) {
 			throw new Nette\IOException("Cannot write file '$file'.");
@@ -93,29 +84,37 @@ class Loader
 
 	/**
 	 * Returns configuration files.
-	 * @return array
 	 */
-	public function getDependencies()
+	public function getDependencies(): array
 	{
 		return array_unique($this->dependencies);
 	}
 
 
 	/**
+	 * Expands included file name.
+	 */
+	public function expandIncludedFile(string $includedFile, string $mainFile): string
+	{
+		return preg_match('#([a-z]+:)?[/\\\\]#Ai', $includedFile) // is absolute
+			? $includedFile
+			: dirname($mainFile) . '/' . $includedFile;
+	}
+
+
+	/**
 	 * Registers adapter for given file extension.
-	 * @param  string  file extension
-	 * @param  string|IAdapter
+	 * @param  string|Adapter  $adapter
 	 * @return static
 	 */
-	public function addAdapter($extension, $adapter)
+	public function addAdapter(string $extension, $adapter)
 	{
 		$this->adapters[strtolower($extension)] = $adapter;
 		return $this;
 	}
 
 
-	/** @return IAdapter */
-	private function getAdapter($file)
+	private function getAdapter(string $file): Adapter
 	{
 		$extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 		if (!isset($this->adapters[$extension])) {
@@ -125,13 +124,12 @@ class Loader
 	}
 
 
-	private function getSection(array $data, $key, $file)
+	/**
+	 * @return static
+	 */
+	public function setParameters(array $params)
 	{
-		Validators::assertField($data, $key, 'array|null', "section '%' in file '$file'");
-		$item = $data[$key];
-		if ($parent = Helpers::takeParent($item)) {
-			$item = Helpers::merge($item, $this->getSection($data, $parent, $file));
-		}
-		return $item;
+		$this->parameters = $params;
+		return $this;
 	}
 }

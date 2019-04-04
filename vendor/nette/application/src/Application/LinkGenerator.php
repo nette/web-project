@@ -5,29 +5,32 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application;
 
 use Nette;
+use Nette\Routing\Router;
 
 
 /**
  * Link generator.
  */
-class LinkGenerator
+final class LinkGenerator
 {
 	use Nette\SmartObject;
 
-	/** @var IRouter */
+	/** @var Router */
 	private $router;
 
-	/** @var Nette\Http\Url */
+	/** @var Nette\Http\UrlScript */
 	private $refUrl;
 
 	/** @var IPresenterFactory|null */
 	private $presenterFactory;
 
 
-	public function __construct(IRouter $router, Nette\Http\Url $refUrl, IPresenterFactory $presenterFactory = null)
+	public function __construct(Router $router, Nette\Http\UrlScript $refUrl, IPresenterFactory $presenterFactory = null)
 	{
 		$this->router = $router;
 		$this->refUrl = $refUrl;
@@ -37,16 +40,15 @@ class LinkGenerator
 
 	/**
 	 * Generates URL to presenter.
-	 * @param  string   destination in format "[[[module:]presenter:]action] [#fragment]"
-	 * @return string
+	 * @param  string   $dest in format "[[[module:]presenter:]action] [#fragment]"
 	 * @throws UI\InvalidLinkException
 	 */
-	public function link($dest, array $params = [])
+	public function link(string $dest, array $params = []): string
 	{
 		if (!preg_match('~^([\w:]+):(\w*+)(#.*)?()\z~', $dest, $m)) {
 			throw new UI\InvalidLinkException("Invalid link destination '$dest'.");
 		}
-		list(, $presenter, $action, $frag) = $m;
+		[, $presenter, $action, $frag] = $m;
 
 		try {
 			$class = $this->presenterFactory ? $this->presenterFactory->getPresenterClass($presenter) : null;
@@ -76,11 +78,12 @@ class LinkGenerator
 		if ($action !== '') {
 			$params[UI\Presenter::ACTION_KEY] = $action;
 		}
+		$params[UI\Presenter::PRESENTER_KEY] = $presenter;
 
-		$url = $this->router->constructUrl(new Request($presenter, null, $params), $this->refUrl);
+		$url = $this->router->constructUrl($params, $this->refUrl);
 		if ($url === null) {
-			unset($params[UI\Presenter::ACTION_KEY]);
-			$params = urldecode(http_build_query($params, null, ', '));
+			unset($params[UI\Presenter::ACTION_KEY], $params[UI\Presenter::PRESENTER_KEY]);
+			$params = urldecode(http_build_query($params, '', ', '));
 			throw new UI\InvalidLinkException("No route for $dest($params)");
 		}
 		return $url . $frag;

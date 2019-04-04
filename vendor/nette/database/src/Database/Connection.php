@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database;
 
 use Nette;
@@ -44,12 +46,8 @@ class Connection
 	private $sql;
 
 
-	public function __construct($dsn, $user = null, $password = null, array $options = null)
+	public function __construct(string $dsn, string $user = null, string $password = null, array $options = null)
 	{
-		if (func_num_args() > 4) { // compatibility
-			trigger_error(__METHOD__ . " fifth argument is deprecated, use \$options['driverClass'].", E_USER_DEPRECATED);
-			$options['driverClass'] = func_get_arg(4);
-		}
 		$this->params = [$dsn, $user, $password];
 		$this->options = (array) $options;
 
@@ -59,8 +57,7 @@ class Connection
 	}
 
 
-	/** @return void */
-	public function connect()
+	public function connect(): void
 	{
 		if ($this->pdo) {
 			return;
@@ -76,58 +73,50 @@ class Connection
 		$class = empty($this->options['driverClass'])
 			? 'Nette\Database\Drivers\\' . ucfirst(str_replace('sql', 'Sql', $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME))) . 'Driver'
 			: $this->options['driverClass'];
-		$this->driver = new $class($this, $this->options);
+		$this->driver = new $class;
 		$this->preprocessor = new SqlPreprocessor($this);
+		$this->driver->initialize($this, $this->options);
 		$this->onConnect($this);
 	}
 
 
-	/** @return void */
-	public function reconnect()
+	public function reconnect(): void
 	{
 		$this->disconnect();
 		$this->connect();
 	}
 
 
-	/** @return void */
-	public function disconnect()
+	public function disconnect(): void
 	{
 		$this->pdo = null;
 	}
 
 
-	/** @return string */
-	public function getDsn()
+	public function getDsn(): string
 	{
 		return $this->params[0];
 	}
 
 
-	/** @return PDO */
-	public function getPdo()
+	public function getPdo(): PDO
 	{
 		$this->connect();
 		return $this->pdo;
 	}
 
 
-	/** @return ISupplementalDriver */
-	public function getSupplementalDriver()
+	public function getSupplementalDriver(): ISupplementalDriver
 	{
 		$this->connect();
 		return $this->driver;
 	}
 
 
-	/**
-	 * @param  string  sequence object
-	 * @return string
-	 */
-	public function getInsertId($name = null)
+	public function getInsertId(string $sequence = null): string
 	{
 		try {
-			$res = $this->getPdo()->lastInsertId($name);
+			$res = $this->getPdo()->lastInsertId($sequence);
 			return $res === false ? '0' : $res;
 		} catch (PDOException $e) {
 			throw $this->driver->convertException($e);
@@ -135,41 +124,29 @@ class Connection
 	}
 
 
-	/**
-	 * @param  string  string to be quoted
-	 * @param  int     data type hint
-	 * @return string
-	 */
-	public function quote($string, $type = PDO::PARAM_STR)
+	public function quote(string $string, int $type = PDO::PARAM_STR): string
 	{
 		try {
-			$res = $this->getPdo()->quote($string, $type);
+			return $this->getPdo()->quote($string, $type);
 		} catch (PDOException $e) {
 			throw DriverException::from($e);
 		}
-		if (!is_string($res)) {
-			throw new DriverException('PDO driver is unable to quote string.');
-		}
-		return $res;
 	}
 
 
-	/** @return void */
-	public function beginTransaction()
+	public function beginTransaction(): void
 	{
 		$this->query('::beginTransaction');
 	}
 
 
-	/** @return void */
-	public function commit()
+	public function commit(): void
 	{
 		$this->query('::commit');
 	}
 
 
-	/** @return void */
-	public function rollBack()
+	public function rollBack(): void
 	{
 		$this->query('::rollBack');
 	}
@@ -177,12 +154,10 @@ class Connection
 
 	/**
 	 * Generates and executes SQL query.
-	 * @param  string
-	 * @return ResultSet
 	 */
-	public function query($sql, ...$params)
+	public function query(string $sql, ...$params): ResultSet
 	{
-		list($this->sql, $params) = $this->preprocess($sql, ...$params);
+		[$this->sql, $params] = $this->preprocess($sql, ...$params);
 		try {
 			$result = new ResultSet($this, $this->sql, $params);
 		} catch (PDOException $e) {
@@ -194,20 +169,16 @@ class Connection
 	}
 
 
-	/**
-	 * @param  string
-	 * @return ResultSet
-	 */
-	public function queryArgs($sql, array $params)
+	public function queryArgs(string $sql, array $params): ResultSet
 	{
 		return $this->query($sql, ...$params);
 	}
 
 
 	/**
-	 * @return [string, array]
+	 * @return array  [string, array]
 	 */
-	public function preprocess($sql, ...$params)
+	public function preprocess(string $sql, ...$params): array
 	{
 		$this->connect();
 		return $params
@@ -216,10 +187,7 @@ class Connection
 	}
 
 
-	/**
-	 * @return string|null
-	 */
-	public function getLastQueryString()
+	public function getLastQueryString(): ?string
 	{
 		return $this->sql;
 	}
@@ -230,10 +198,8 @@ class Connection
 
 	/**
 	 * Shortcut for query()->fetch()
-	 * @param  string
-	 * @return Row
 	 */
-	public function fetch($sql, ...$params)
+	public function fetch(string $sql, ...$params): ?Row
 	{
 		return $this->query($sql, ...$params)->fetch();
 	}
@@ -241,10 +207,9 @@ class Connection
 
 	/**
 	 * Shortcut for query()->fetchField()
-	 * @param  string
 	 * @return mixed
 	 */
-	public function fetchField($sql, ...$params)
+	public function fetchField(string $sql, ...$params)
 	{
 		return $this->query($sql, ...$params)->fetchField();
 	}
@@ -252,10 +217,8 @@ class Connection
 
 	/**
 	 * Shortcut for query()->fetchFields()
-	 * @param  string
-	 * @return array|null
 	 */
-	public function fetchFields($sql, ...$params)
+	public function fetchFields(string $sql, ...$params): ?array
 	{
 		return $this->query($sql, ...$params)->fetchFields();
 	}
@@ -263,10 +226,8 @@ class Connection
 
 	/**
 	 * Shortcut for query()->fetchPairs()
-	 * @param  string
-	 * @return array
 	 */
-	public function fetchPairs($sql, ...$params)
+	public function fetchPairs(string $sql, ...$params): array
 	{
 		return $this->query($sql, ...$params)->fetchPairs();
 	}
@@ -274,19 +235,14 @@ class Connection
 
 	/**
 	 * Shortcut for query()->fetchAll()
-	 * @param  string
-	 * @return array
 	 */
-	public function fetchAll($sql, ...$params)
+	public function fetchAll(string $sql, ...$params): array
 	{
 		return $this->query($sql, ...$params)->fetchAll();
 	}
 
 
-	/**
-	 * @return SqlLiteral
-	 */
-	public static function literal($value, ...$params)
+	public static function literal(string $value, ...$params): SqlLiteral
 	{
 		return new SqlLiteral($value, $params);
 	}

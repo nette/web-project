@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\DI\Extensions;
 
 use Nette;
@@ -13,15 +15,21 @@ use Nette;
 /**
  * Enables registration of other extensions in $config file
  */
-class ExtensionsExtension extends Nette\DI\CompilerExtension
+final class ExtensionsExtension extends Nette\DI\CompilerExtension
 {
+	public function getConfigSchema(): Nette\Schema\Schema
+	{
+		return Nette\Schema\Expect::arrayOf('string|Nette\DI\Definitions\Statement');
+	}
+
+
 	public function loadConfiguration()
 	{
 		foreach ($this->getConfig() as $name => $class) {
 			if (is_int($name)) {
 				$name = null;
 			}
-			if ($class instanceof Nette\DI\Statement) {
+			if ($class instanceof Nette\DI\Definitions\Statement) {
 				$rc = new \ReflectionClass($class->getEntity());
 				$this->compiler->addExtension($name, $rc->newInstanceArgs($class->arguments));
 			} else {

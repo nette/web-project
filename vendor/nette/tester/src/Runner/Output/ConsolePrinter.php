@@ -5,6 +5,8 @@
  * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Tester\Runner\Output;
 
 use Tester;
@@ -42,16 +44,24 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 	/** @var string */
 	private $baseDir;
 
+	/** @var array */
+	private $symbols;
 
-	public function __construct(Runner $runner, $displaySkipped = false, $file = 'php://output')
+
+	public function __construct(Runner $runner, bool $displaySkipped = false, string $file = 'php://output', bool $ciderMode = false)
 	{
 		$this->runner = $runner;
 		$this->displaySkipped = $displaySkipped;
 		$this->file = fopen($file, 'w');
+		$this->symbols = [
+			Test::PASSED => $ciderMode ? Dumper::color('green', '🍎') : '.',
+			Test::SKIPPED => 's',
+			Test::FAILED => $ciderMode ? Dumper::color('red', '🍎') : Dumper::color('white/red', 'F'),
+		];
 	}
 
 
-	public function begin()
+	public function begin(): void
 	{
 		$this->count = 0;
 		$this->baseDir = null;
@@ -67,7 +77,7 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 	}
 
 
-	public function prepare(Test $test)
+	public function prepare(Test $test): void
 	{
 		if ($this->baseDir === null) {
 			$this->baseDir = dirname($test->getFile()) . DIRECTORY_SEPARATOR;
@@ -90,18 +100,13 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 	}
 
 
-	public function finish(Test $test)
+	public function finish(Test $test): void
 	{
 		$this->results[$test->getResult()]++;
-		$outputs = [
-			Test::PASSED => '.',
-			Test::SKIPPED => 's',
-			Test::FAILED => Dumper::color('white/red', 'F'),
-		];
-		fwrite($this->file, $outputs[$test->getResult()]);
+		fwrite($this->file, $this->symbols[$test->getResult()]);
 
 		$title = ($test->title ? "$test->title | " : '') . substr($test->getSignature(), strlen($this->baseDir));
-		$message = '   ' . str_replace("\n", "\n   ", trim($test->message)) . "\n\n";
+		$message = '   ' . str_replace("\n", "\n   ", trim((string) $test->message)) . "\n\n";
 		if ($test->getResult() === Test::FAILED) {
 			$this->buffer .= Dumper::color('red', "-- FAILED: $title") . "\n$message";
 		} elseif ($test->getResult() === Test::SKIPPED && $this->displaySkipped) {
@@ -110,7 +115,7 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 	}
 
 
-	public function end()
+	public function end(): void
 	{
 		$run = array_sum($this->results);
 		fwrite($this->file, !$this->count ? "No tests found\n" :

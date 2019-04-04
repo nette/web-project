@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte;
 
 
@@ -23,9 +25,8 @@ class Helpers
 
 	/**
 	 * Checks callback.
-	 * @return callable
 	 */
-	public static function checkCallback($callable)
+	public static function checkCallback($callable): callable
 	{
 		if (!is_callable($callable, false, $text)) {
 			throw new \InvalidArgumentException("Callback '$text' is not callable.");
@@ -36,9 +37,8 @@ class Helpers
 
 	/**
 	 * Finds the best suggestion.
-	 * @return string|null
 	 */
-	public static function getSuggestion(array $items, $value)
+	public static function getSuggestion(array $items, $value): ?string
 	{
 		$best = null;
 		$min = (strlen($value) / 4 + 1) * 10 + .1;
@@ -53,10 +53,7 @@ class Helpers
 	}
 
 
-	/**
-	 * @return bool
-	 */
-	public static function removeFilter(&$modifier, $filter)
+	public static function removeFilter(string &$modifier, string $filter): bool
 	{
 		$modifier = preg_replace('#\|(' . $filter . ')\s?(?=\||\z)#i', '', $modifier, -1, $found);
 		return (bool) $found;
@@ -65,9 +62,8 @@ class Helpers
 
 	/**
 	 * Starts the $haystack string with the prefix $needle?
-	 * @return bool
 	 */
-	public static function startsWith($haystack, $needle)
+	public static function startsWith(string $haystack, string $needle): bool
 	{
 		return strncmp($haystack, $needle, strlen($needle)) === 0;
 	}

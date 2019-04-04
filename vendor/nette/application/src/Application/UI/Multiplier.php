@@ -5,14 +5,17 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application\UI;
 
+use Nette;
 
 
 /**
  * Component multiplier.
  */
-class Multiplier extends Component
+final class Multiplier extends Component
 {
 	/** @var callable */
 	private $factory;
@@ -20,13 +23,12 @@ class Multiplier extends Component
 
 	public function __construct(callable $factory)
 	{
-		parent::__construct();
 		$this->factory = $factory;
 	}
 
 
-	protected function createComponent($name)
+	protected function createComponent(string $name): Nette\ComponentModel\IComponent
 	{
-		return call_user_func($this->factory, $name, $this);
+		return ($this->factory)($name, $this);
 	}
 }

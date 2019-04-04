@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Neon;
 
 
@@ -12,7 +14,7 @@ namespace Nette\Neon;
  * Parser for Nette Object Notation.
  * @internal
  */
-class Decoder
+final class Decoder
 {
 	const PATTERNS = [
 		'
@@ -52,7 +54,7 @@ class Decoder
 	];
 
 	const ESCAPE_SEQUENCES = [
-		't' => "\t", 'n' => "\n", 'r' => "\r", 'f' => "\x0C", 'b' => "\x08", '"' => '"', '\\' => '\\', '/' => '/', '_' => "\xc2\xa0",
+		't' => "\t", 'n' => "\n", 'r' => "\r", 'f' => "\x0C", 'b' => "\x08", '"' => '"', '\\' => '\\', '/' => '/', '_' => "\u{A0}",
 	];
 
 	const BRACKETS = [
@@ -60,9 +62,6 @@ class Decoder
 		'{' => '}',
 		'(' => ')',
 	];
-
-	/** @deprecated */
-	public static $patterns = self::PATTERNS;
 
 	/** @var string */
 	private $input;
@@ -76,15 +75,14 @@ class Decoder
 
 	/**
 	 * Decodes a NEON string.
-	 * @param  string  $input
 	 * @return mixed
 	 */
-	public function decode($input)
+	public function decode(string $input)
 	{
 		if (!is_string($input)) {
 			throw new \InvalidArgumentException(sprintf('Argument must be a string, %s given.', gettype($input)));
 
-		} elseif (substr($input, 0, 3) === "\xEF\xBB\xBF") { // BOM
+		} elseif (substr($input, 0, 3) === "\u{FEFF}") { // BOM
 			$input = substr($input, 3);
 		}
 		$this->input = "\n" . str_replace("\r", '', $input); // \n forces indent detection
@@ -116,7 +114,7 @@ class Decoder
 	 * @param  string|bool|null  $indent  indentation (for block-parser)
 	 * @return mixed
 	 */
-	private function parse($indent, $result = null, $key = null, $hasKey = false)
+	private function parse($indent, array $result = null, $key = null, bool $hasKey = false)
 	{
 		$inlineParser = $indent === false;
 		$value = null;
@@ -169,7 +167,7 @@ class Decoder
 				$key = null;
 				$hasKey = true;
 
-			} elseif (($tmp = self::BRACKETS) && isset($tmp[$t])) { // Opening bracket [ ( {
+			} elseif (isset(self::BRACKETS[$t])) { // Opening bracket [ ( {
 				if ($hasValue) {
 					if ($t !== '(') {
 						$this->error();
@@ -325,7 +323,7 @@ class Decoder
 	}
 
 
-	private function cbString($m)
+	private function cbString(array $m): string
 	{
 		$sq = $m[0];
 		if (($fix56 = self::ESCAPE_SEQUENCES) && isset($fix56[$sq[1]])) { // workaround for PHP 5.6
@@ -342,11 +340,12 @@ class Decoder
 			return chr(hexdec(substr($sq, 2)));
 		} else {
 			$this->error("Invalid escaping sequence $sq");
+			return '';
 		}
 	}
 
 
-	private function error($message = "Unexpected '%s'")
+	private function error(string $message = "Unexpected '%s'")
 	{
 		$last = isset($this->tokens[$this->pos]) ? $this->tokens[$this->pos] : null;
 		$offset = $last ? $last[1] : strlen($this->input);

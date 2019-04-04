@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte\Runtime;
 
 use Latte\Engine;
@@ -22,51 +24,47 @@ class FilterExecutor
 
 	/** @var array [name => [callback, FilterInfo aware] */
 	private $_static = [
-		'breaklines' => ['Latte\Runtime\Filters::breaklines', false],
-		'bytes' => ['Latte\Runtime\Filters::bytes', false],
-		'capitalize' => ['Latte\Runtime\Filters::capitalize', false],
-		'datastream' => ['Latte\Runtime\Filters::dataStream', false],
-		'date' => ['Latte\Runtime\Filters::date', false],
-		'escapecss' => ['Latte\Runtime\Filters::escapeCss', false],
-		'escapehtml' => ['Latte\Runtime\Filters::escapeHtml', false],
-		'escapehtmlcomment' => ['Latte\Runtime\Filters::escapeHtmlComment', false],
-		'escapeical' => ['Latte\Runtime\Filters::escapeICal', false],
-		'escapejs' => ['Latte\Runtime\Filters::escapeJs', false],
+		'breaklines' => [[Filters::class, 'breaklines'], false],
+		'bytes' => [[Filters::class, 'bytes'], false],
+		'capitalize' => [[Filters::class, 'capitalize'], false],
+		'datastream' => [[Filters::class, 'dataStream'], false],
+		'date' => [[Filters::class, 'date'], false],
+		'escapecss' => [[Filters::class, 'escapeCss'], false],
+		'escapehtml' => [[Filters::class, 'escapeHtml'], false],
+		'escapehtmlcomment' => [[Filters::class, 'escapeHtmlComment'], false],
+		'escapeical' => [[Filters::class, 'escapeICal'], false],
+		'escapejs' => [[Filters::class, 'escapeJs'], false],
 		'escapeurl' => ['rawurlencode', false],
-		'escapexml' => ['Latte\Runtime\Filters::escapeXml', false],
-		'firstupper' => ['Latte\Runtime\Filters::firstUpper', false],
-		'checkurl' => ['Latte\Runtime\Filters::safeUrl', false],
+		'escapexml' => [[Filters::class, 'escapeXml'], false],
+		'firstupper' => [[Filters::class, 'firstUpper'], false],
+		'checkurl' => [[Filters::class, 'safeUrl'], false],
 		'implode' => ['implode', false],
-		'indent' => ['Latte\Runtime\Filters::indent', true],
-		'length' => ['Latte\Runtime\Filters::length', false],
-		'lower' => ['Latte\Runtime\Filters::lower', false],
-		'nl2br' => ['Latte\Runtime\Filters::nl2br', false],
+		'indent' => [[Filters::class, 'indent'], true],
+		'length' => [[Filters::class, 'length'], false],
+		'lower' => [[Filters::class, 'lower'], false],
 		'number' => ['number_format', false],
-		'padleft' => ['Latte\Runtime\Filters::padLeft', false],
-		'padright' => ['Latte\Runtime\Filters::padRight', false],
-		'repeat' => ['Latte\Runtime\Filters::repeat', true],
-		'replace' => ['Latte\Runtime\Filters::replace', true],
-		'replacere' => ['Latte\Runtime\Filters::replaceRe', false],
-		'reverse' => ['Latte\Runtime\Filters::reverse', false],
-		'safeurl' => ['Latte\Runtime\Filters::safeUrl', false],
-		'strip' => ['Latte\Runtime\Filters::strip', true],
-		'striphtml' => ['Latte\Runtime\Filters::stripHtml', true],
-		'striptags' => ['Latte\Runtime\Filters::stripTags', true],
-		'substr' => ['Latte\Runtime\Filters::substring', false],
-		'trim' => ['Latte\Runtime\Filters::trim', true],
-		'truncate' => ['Latte\Runtime\Filters::truncate', false],
-		'upper' => ['Latte\Runtime\Filters::upper', false],
-		'webalize' => ['Nette\Utils\Strings::webalize', false],
+		'padleft' => [[Filters::class, 'padLeft'], false],
+		'padright' => [[Filters::class, 'padRight'], false],
+		'repeat' => [[Filters::class, 'repeat'], true],
+		'replace' => [[Filters::class, 'replace'], true],
+		'replacere' => [[Filters::class, 'replaceRe'], false],
+		'reverse' => [[Filters::class, 'reverse'], false],
+		'strip' => [[Filters::class, 'strip'], true],
+		'striphtml' => [[Filters::class, 'stripHtml'], true],
+		'striptags' => [[Filters::class, 'stripTags'], true],
+		'substr' => [[Filters::class, 'substring'], false],
+		'trim' => [[Filters::class, 'trim'], true],
+		'truncate' => [[Filters::class, 'truncate'], false],
+		'upper' => [[Filters::class, 'upper'], false],
+		'webalize' => [[\Nette\Utils\Strings::class, 'webalize'], false],
 	];
 
 
 	/**
 	 * Registers run-time filter.
-	 * @param  string|null
-	 * @param  callable
 	 * @return static
 	 */
-	public function add($name, $callback)
+	public function add(?string $name, callable $callback)
 	{
 		if ($name == null) { // intentionally ==
 			array_unshift($this->_dynamic, $callback);
@@ -83,7 +81,7 @@ class FilterExecutor
 	 * Returns all run-time filters.
 	 * @return string[]
 	 */
-	public function getAll()
+	public function getAll(): array
 	{
 		return array_combine($tmp = array_keys($this->_static), $tmp);
 	}
@@ -91,25 +89,23 @@ class FilterExecutor
 
 	/**
 	 * Returns filter for classic calling.
-	 * @return callable
 	 */
-	public function __get($name)
+	public function __get($name): callable
 	{
 		$lname = strtolower($name);
 		if (isset($this->$lname)) { // case mismatch
 			return $this->$lname;
 
 		} elseif (isset($this->_static[$lname])) {
-			list($callback, $aware) = $this->prepareFilter($lname);
+			[$callback, $aware] = $this->prepareFilter($lname);
 			if ($aware) { // FilterInfo aware filter
-				return $this->$lname = function ($arg) use ($callback) {
-					$args = func_get_args();
+				return $this->$lname = function (...$args) use ($callback) {
 					array_unshift($args, $info = new FilterInfo);
-					if ($arg instanceof IHtmlString) {
-						$args[1] = $arg->__toString();
+					if ($args[1] instanceof IHtmlString) {
+						$args[1] = $args[1]->__toString();
 						$info->contentType = Engine::CONTENT_HTML;
 					}
-					$res = call_user_func_array($callback, $args);
+					$res = $callback(...$args);
 					return $info->contentType === Engine::CONTENT_HTML
 						? new Html($res)
 						: $res;
@@ -119,16 +115,15 @@ class FilterExecutor
 			}
 		}
 
-		return $this->$lname = function ($arg) use ($lname, $name) { // dynamic filter
-			$args = func_get_args();
+		return $this->$lname = function (...$args) use ($lname, $name) { // dynamic filter
 			array_unshift($args, $lname);
 			foreach ($this->_dynamic as $filter) {
-				$res = call_user_func_array(Helpers::checkCallback($filter), $args);
+				$res = (Helpers::checkCallback($filter))(...$args);
 				if ($res !== null) {
 					return $res;
 				} elseif (isset($this->_static[$lname])) { // dynamic converted to classic
 					$this->$name = Helpers::checkCallback($this->_static[$lname][0]);
-					return call_user_func_array($this->$name, func_get_args());
+					return ($this->$name)(...func_get_args());
 				}
 			}
 			$hint = ($t = Helpers::getSuggestion(array_keys($this->_static), $name)) ? ", did you mean '$t'?" : '.';
@@ -141,28 +136,25 @@ class FilterExecutor
 	 * Calls filter with FilterInfo.
 	 * @return mixed
 	 */
-	public function filterContent($name, FilterInfo $info, $arg)
+	public function filterContent(string $name, FilterInfo $info, ...$args)
 	{
 		$lname = strtolower($name);
-		$args = func_get_args();
-		array_shift($args);
-
 		if (!isset($this->_static[$lname])) {
 			$hint = ($t = Helpers::getSuggestion(array_keys($this->_static), $name)) ? ", did you mean '$t'?" : '.';
 			throw new \LogicException("Filter |$name is not defined$hint");
 		}
 
-		list($callback, $aware) = $this->prepareFilter($lname);
+		[$callback, $aware] = $this->prepareFilter($lname);
 		if ($aware) { // FilterInfo aware filter
-			return call_user_func_array($callback, $args);
+			array_unshift($args, $info);
+			return $callback(...$args);
 
 		} else { // classic filter
-			array_shift($args);
 			if ($info->contentType !== Engine::CONTENT_TEXT) {
 				trigger_error("Filter |$name is called with incompatible content type " . strtoupper($info->contentType)
 					. ($info->contentType === Engine::CONTENT_HTML ? ', try to prepend |stripHtml.' : '.'), E_USER_WARNING);
 			}
-			$res = call_user_func_array($this->$name, $args);
+			$res = ($this->$name)(...$args);
 			if ($res instanceof IHtmlString) {
 				trigger_error("Filter |$name should be changed to content-aware filter.");
 				$info->contentType = Engine::CONTENT_HTML;
@@ -173,7 +165,7 @@ class FilterExecutor
 	}
 
 
-	private function prepareFilter($name)
+	private function prepareFilter(string $name): array
 	{
 		if (!isset($this->_static[$name][1])) {
 			$callback = Helpers::checkCallback($this->_static[$name][0]);
@@ -186,7 +178,7 @@ class FilterExecutor
 				? new \ReflectionMethod($callback[0], $callback[1])
 				: new \ReflectionFunction($callback);
 			$this->_static[$name][1] = ($tmp = $ref->getParameters())
-				&& $tmp[0]->getClass() && $tmp[0]->getClass()->getName() === 'Latte\Runtime\FilterInfo';
+				&& (string) $tmp[0]->getType() === FilterInfo::class;
 		}
 		return $this->_static[$name];
 	}

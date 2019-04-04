@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Bridges\CacheLatte;
 
 use Latte;
@@ -15,7 +17,7 @@ use Nette\Caching\Cache;
 /**
  * Macro {cache} ... {/cache}
  */
-class CacheMacro implements Latte\IMacro
+final class CacheMacro implements Latte\IMacro
 {
 	use Nette\SmartObject;
 
@@ -77,10 +79,7 @@ class CacheMacro implements Latte\IMacro
 	/********************* run-time helpers ****************d*g**/
 
 
-	/**
-	 * @return void
-	 */
-	public static function initRuntime(Latte\Runtime\Template $template)
+	public static function initRuntime(Latte\Runtime\Template $template): void
 	{
 		if (!empty($template->global->cacheStack)) {
 			$file = (new \ReflectionClass($template))->getFileName();
@@ -93,11 +92,9 @@ class CacheMacro implements Latte\IMacro
 
 	/**
 	 * Starts the output cache. Returns Nette\Caching\OutputHelper object if buffering was started.
-	 * @param  string  $key
-	 * @param  Nette\Caching\OutputHelper[]  $parents
 	 * @return Nette\Caching\OutputHelper|\stdClass
 	 */
-	public static function createCache(Nette\Caching\IStorage $cacheStorage, $key, &$parents, array $args = null)
+	public static function createCache(Nette\Caching\IStorage $cacheStorage, string $key, ?array &$parents, array $args = null)
 	{
 		if ($args) {
 			if (array_key_exists('if', $args) && !$args['if']) {
@@ -120,20 +117,19 @@ class CacheMacro implements Latte\IMacro
 	/**
 	 * Ends the output cache.
 	 * @param  Nette\Caching\OutputHelper[]  $parents
-	 * @return void
 	 */
-	public static function endCache(&$parents, array $args = null)
+	public static function endCache(array &$parents, array $args = null): void
 	{
 		$helper = array_pop($parents);
 		if ($helper instanceof Nette\Caching\OutputHelper) {
 			if (isset($args['dependencies'])) {
-				$args += call_user_func($args['dependencies']);
+				$args += $args['dependencies']();
 			}
 			if (isset($args['expire'])) {
 				$args['expiration'] = $args['expire']; // back compatibility
 			}
-			$helper->dependencies[Cache::TAGS] = isset($args['tags']) ? $args['tags'] : null;
-			$helper->dependencies[Cache::EXPIRATION] = isset($args['expiration']) ? $args['expiration'] : '+ 7 days';
+			$helper->dependencies[Cache::TAGS] = $args['tags'] ?? null;
+			$helper->dependencies[Cache::EXPIRATION] = $args['expiration'] ?? '+ 7 days';
 			$helper->end();
 		}
 	}

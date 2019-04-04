@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 // creates tester.phar
 if (!class_exists('Phar') || ini_get('phar.readonly')) {
 	echo "Enable Phar extension and set directive 'phar.readonly=off'.\n";
@@ -27,7 +29,7 @@ __HALT_COMPILER();
 $phar->startBuffering();
 foreach ($iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(__DIR__ . '/../../src', RecursiveDirectoryIterator::SKIP_DOTS)) as $file) {
 	echo "adding: {$iterator->getSubPathname()}\n";
-	$phar[$iterator->getSubPathname()] = php_strip_whitespace($file);
+	$phar[$iterator->getSubPathname()] = php_strip_whitespace((string) $file);
 }
 
 $phar->stopBuffering();

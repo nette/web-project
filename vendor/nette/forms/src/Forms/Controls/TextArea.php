@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Forms\Controls;
 
 use Nette;
@@ -17,7 +19,7 @@ class TextArea extends TextBase
 {
 
 	/**
-	 * @param  string|object
+	 * @param  string|object  $label
 	 */
 	public function __construct($label = null)
 	{
@@ -29,11 +31,10 @@ class TextArea extends TextBase
 
 	/**
 	 * Generates control's HTML element.
-	 * @return Nette\Utils\Html
 	 */
-	public function getControl()
+	public function getControl(): Nette\Utils\Html
 	{
 		return parent::getControl()
-			->setText($this->getRenderedValue());
+			->setText((string) $this->getRenderedValue());
 	}
 }

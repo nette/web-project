@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Database\Table;
 
 use Nette\Database;
@@ -17,38 +19,26 @@ interface IRow extends Database\IRow
 {
 	function setTable(Selection $name);
 
-	/**
-	 * @return Selection
-	 */
-	function getTable();
+	function getTable(): Selection;
 
 	/**
 	 * Returns primary key value.
-	 * @param  bool
 	 * @return mixed
 	 */
-	function getPrimary($throw = true);
+	function getPrimary(bool $throw = true);
 
 	/**
 	 * Returns row signature (composition of primary keys)
-	 * @param  bool
-	 * @return string
 	 */
-	function getSignature($throw = true);
+	function getSignature(bool $throw = true): string;
 
 	/**
 	 * Returns referencing rows.
-	 * @param  string
-	 * @param  string
-	 * @return GroupedSelection
 	 */
-	function related($key, $throughColumn = null);
+	function related(string $key, string $throughColumn = null): GroupedSelection;
 
 	/**
 	 * Returns referenced row.
-	 * @param  string
-	 * @param  string
-	 * @return IRow|null if the row does not exist
 	 */
-	function ref($key, $throughColumn = null);
+	function ref(string $key, string $throughColumn = null): ?self;
 }

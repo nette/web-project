@@ -5,6 +5,8 @@
  * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Latte\Macros;
 
 use Latte;
@@ -32,7 +34,7 @@ class MacroSet implements Latte\IMacro
 	}
 
 
-	public function addMacro($name, $begin, $end = null, $attr = null, $flags = null)
+	public function addMacro(string $name, $begin, $end = null, $attr = null, int $flags = null)
 	{
 		if (!$begin && !$end && !$attr) {
 			throw new \InvalidArgumentException("At least one argument must be specified for macro '$name'.");
@@ -73,7 +75,7 @@ class MacroSet implements Latte\IMacro
 	 */
 	public function nodeOpened(MacroNode $node)
 	{
-		list($begin, $end, $attr) = $this->macros[$node->name];
+		[$begin, $end, $attr] = $this->macros[$node->name];
 		$node->empty = !$end;
 
 		if (
@@ -144,21 +146,18 @@ class MacroSet implements Latte\IMacro
 		$writer = Latte\PhpWriter::using($node);
 		return is_string($def)
 			? $writer->write($def)
-			: call_user_func($def, $node, $writer);
+			: $def($node, $writer);
 	}
 
 
-	/**
-	 * @return Latte\Compiler
-	 */
-	public function getCompiler()
+	public function getCompiler(): Latte\Compiler
 	{
 		return $this->compiler;
 	}
 
 
 	/** @internal */
-	protected function checkExtraArgs(MacroNode $node)
+	protected function checkExtraArgs(MacroNode $node): void
 	{
 		if ($node->tokenizer->isNext()) {
 			$args = Latte\Runtime\Filters::truncate($node->tokenizer->joinAll(), 20);

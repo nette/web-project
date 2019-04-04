@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application;
 
 
@@ -16,16 +18,12 @@ interface IPresenterFactory
 
 	/**
 	 * Generates and checks presenter class name.
-	 * @param  string  presenter name
-	 * @return string  class name
 	 * @throws InvalidPresenterException
 	 */
-	function getPresenterClass(&$name);
+	function getPresenterClass(string &$name): string;
 
 	/**
 	 * Creates new presenter instance.
-	 * @param  string  presenter name
-	 * @return IPresenter
 	 */
-	function createPresenter($name);
+	function createPresenter(string $name): IPresenter;
 }

@@ -4,6 +4,8 @@
  * Nette Forms custom rendering example.
  */
 
+declare(strict_types=1);
+
 
 if (@!include __DIR__ . '/../vendor/autoload.php') {
 	die('Install packages using `composer install`');
@@ -29,7 +31,7 @@ $renderer->wrappers['control']['container'] = 'dd';
 $renderer->wrappers['control']['.odd'] = 'odd';
 $renderer->wrappers['label']['container'] = 'dt';
 $renderer->wrappers['label']['suffix'] = ':';
-$renderer->wrappers['control']['requiredsuffix'] = " \xE2\x80\xA2";
+$renderer->wrappers['control']['requiredsuffix'] = " \u{2022}";
 
 
 $form->addGroup('Personal data');
@@ -116,7 +118,7 @@ if ($form->isSuccess()) {
 		background: #EEE;
 	}
 </style>
-<script src="https://nette.github.io/resources/js/netteForms.js"></script>
+<script src="https://nette.github.io/resources/js/3/netteForms.js"></script>
 
 <h1>Nette Forms custom rendering example</h1>
 

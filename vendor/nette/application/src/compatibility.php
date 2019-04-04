@@ -5,5 +5,7 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
-class_alias('Nette\Application\UI\Component', 'Nette\Application\UI\PresenterComponent');
-class_alias('Nette\Application\UI\ComponentReflection', 'Nette\Application\UI\PresenterComponentReflection');
+declare(strict_types=1);
+
+class_alias(Nette\Application\UI\Component::class, Nette\Application\UI\PresenterComponent::class);
+class_alias(Nette\Application\UI\ComponentReflection::class, Nette\Application\UI\PresenterComponentReflection::class);

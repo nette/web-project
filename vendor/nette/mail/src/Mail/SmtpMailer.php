@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Mail;
 
 use Nette;
@@ -57,9 +59,9 @@ class SmtpMailer implements IMailer
 			$this->host = ini_get('SMTP');
 			$this->port = (int) ini_get('smtp_port');
 		}
-		$this->username = isset($options['username']) ? $options['username'] : '';
-		$this->password = isset($options['password']) ? $options['password'] : '';
-		$this->secure = isset($options['secure']) ? $options['secure'] : '';
+		$this->username = $options['username'] ?? '';
+		$this->password = $options['password'] ?? '';
+		$this->secure = $options['secure'] ?? '';
 		$this->timeout = isset($options['timeout']) ? (int) $options['timeout'] : 20;
 		$this->context = isset($options['context']) ? stream_context_create($options['context']) : stream_context_get_default();
 		if (!$this->port) {
@@ -78,10 +80,9 @@ class SmtpMailer implements IMailer
 
 	/**
 	 * Sends email.
-	 * @return void
 	 * @throws SmtpException
 	 */
-	public function send(Message $mail)
+	public function send(Message $mail): void
 	{
 		$tmp = clone $mail;
 		$tmp->setHeader('Bcc', null);
@@ -92,8 +93,9 @@ class SmtpMailer implements IMailer
 				$this->connect();
 			}
 
-			if (($from = $mail->getHeader('Return-Path'))
-				|| ($from = key($mail->getHeader('From')))
+			if (
+				($from = $mail->getHeader('Return-Path'))
+				|| ($from = array_keys((array) $mail->getHeader('From'))[0])
 			) {
 				$this->write("MAIL FROM:<$from>", 250);
 			}
@@ -126,9 +128,8 @@ class SmtpMailer implements IMailer
 
 	/**
 	 * Connects and authenticates to SMTP server.
-	 * @return void
 	 */
-	protected function connect()
+	protected function connect(): void
 	{
 		$this->connection = @stream_socket_client(// @ is escalated to exception
 			($this->secure === 'ssl' ? 'ssl://' : '') . $this->host . ':' . $this->port,
@@ -148,7 +149,11 @@ class SmtpMailer implements IMailer
 
 		if ($this->secure === 'tls') {
 			$this->write('STARTTLS', 220);
-			if (!stream_socket_enable_crypto($this->connection, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+			if (!stream_socket_enable_crypto(
+				$this->connection,
+				true,
+				STREAM_CRYPTO_METHOD_TLS_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT
+			)) {
 				throw new SmtpException('Unable to connect via TLS.');
 			}
 			$this->write("EHLO $this->clientHost", 250);
@@ -174,9 +179,8 @@ class SmtpMailer implements IMailer
 
 	/**
 	 * Disconnects from SMTP server.
-	 * @return void
 	 */
-	protected function disconnect()
+	protected function disconnect(): void
 	{
 		fclose($this->connection);
 		$this->connection = null;
@@ -185,12 +189,9 @@ class SmtpMailer implements IMailer
 
 	/**
 	 * Writes data to server and checks response against expected code if some provided.
-	 * @param  string
-	 * @param  int|int[] response code
-	 * @param  string  error message
-	 * @return void
+	 * @param  int|int[]  $expectedCode
 	 */
-	protected function write($line, $expectedCode = null, $message = null)
+	protected function write(string $line, $expectedCode = null, string $message = null): void
 	{
 		fwrite($this->connection, $line . Message::EOL);
 		if ($expectedCode) {
@@ -204,9 +205,8 @@ class SmtpMailer implements IMailer
 
 	/**
 	 * Reads response from server.
-	 * @return string
 	 */
-	protected function read()
+	protected function read(): string
 	{
 		$s = '';
 		while (($line = fgets($this->connection, 1000)) != null) { // intentionally ==

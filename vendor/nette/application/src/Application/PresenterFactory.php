@@ -5,6 +5,8 @@
  * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
  */
 
+declare(strict_types=1);
+
 namespace Nette\Application;
 
 use Nette;
@@ -31,38 +33,34 @@ class PresenterFactory implements IPresenterFactory
 
 
 	/**
-	 * @param  callable  function (string $class): IPresenter
+	 * @param  callable  $factory  function (string $class): IPresenter
 	 */
 	public function __construct(callable $factory = null)
 	{
-		$this->factory = $factory ?: function ($class) { return new $class; };
+		$this->factory = $factory ?: function (string $class): IPresenter { return new $class; };
 	}
 
 
 	/**
 	 * Creates new presenter instance.
-	 * @param  string  presenter name
-	 * @return IPresenter
 	 */
-	public function createPresenter($name)
+	public function createPresenter(string $name): IPresenter
 	{
-		return call_user_func($this->factory, $this->getPresenterClass($name));
+		return ($this->factory)($this->getPresenterClass($name));
 	}
 
 
 	/**
 	 * Generates and checks presenter class name.
-	 * @param  string  presenter name
-	 * @return string  class name
 	 * @throws InvalidPresenterException
 	 */
-	public function getPresenterClass(&$name)
+	public function getPresenterClass(string &$name): string
 	{
 		if (isset($this->cache[$name])) {
 			return $this->cache[$name];
 		}
 
-		if (!is_string($name) || !Nette\Utils\Strings::match($name, '#^[a-zA-Z\x7f-\xff][a-zA-Z0-9\x7f-\xff:]*\z#')) {
+		if (!Nette\Utils\Strings::match($name, '#^[a-zA-Z\x7f-\xff][a-zA-Z0-9\x7f-\xff:]*\z#')) {
 			throw new InvalidPresenterException("Presenter name must be alphanumeric string, '$name' is invalid.");
 		}
 
@@ -115,11 +113,9 @@ class PresenterFactory implements IPresenterFactory
 
 	/**
 	 * Formats presenter class name from its name.
-	 * @param  string
-	 * @return string
 	 * @internal
 	 */
-	public function formatPresenterClass($presenter)
+	public function formatPresenterClass(string $presenter): string
 	{
 		$parts = explode(':', $presenter);
 		$mapping = isset($parts[1], $this->mapping[$parts[0]])
@@ -135,11 +131,9 @@ class PresenterFactory implements IPresenterFactory
 
 	/**
 	 * Formats presenter name from class name.
-	 * @param  string
-	 * @return string|null
 	 * @internal
 	 */
-	public function unformatPresenterClass($class)
+	public function unformatPresenterClass(string $class): ?string
 	{
 		foreach ($this->mapping as $module => $mapping) {
 			$mapping = str_replace(['\\', '*'], ['\\\\', '(\w+)'], $mapping);
