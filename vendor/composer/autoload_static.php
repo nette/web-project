@@ -13,7 +13,7 @@ class ComposerStaticInit091ed5d24b4127ffc48411e34be2086f
     );
 
     public static $classMap = array (
-        'App\\Booting' => __DIR__ . '/../..' . '/app/Booting.php',
+        'App\\Bootstrap' => __DIR__ . '/../..' . '/app/Bootstrap.php',
         'Latte\\CompileException' => __DIR__ . '/..' . '/latte/latte/src/Latte/exceptions.php',
         'Latte\\Compiler' => __DIR__ . '/..' . '/latte/latte/src/Latte/Compiler/Compiler.php',
         'Latte\\Engine' => __DIR__ . '/..' . '/latte/latte/src/Latte/Engine.php',

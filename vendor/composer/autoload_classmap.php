@@ -6,7 +6,7 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
-    'App\\Booting' => $baseDir . '/app/Booting.php',
+    'App\\Bootstrap' => $baseDir . '/app/Bootstrap.php',
     'Latte\\CompileException' => $vendorDir . '/latte/latte/src/Latte/exceptions.php',
     'Latte\\Compiler' => $vendorDir . '/latte/latte/src/Latte/Compiler/Compiler.php',
     'Latte\\Engine' => $vendorDir . '/latte/latte/src/Latte/Engine.php',
