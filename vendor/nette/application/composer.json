@@ -17,7 +17,7 @@
 	"require": {
 		"php": ">=7.1",
 		"nette/component-model": "^3.0",
-		"nette/http": "^3.0",
+		"nette/http": "^3.0.2",
 		"nette/routing": "~3.0.0",
 		"nette/utils": "^3.0"
 	},
@@ -36,9 +36,10 @@
 		"mockery/mockery": "^1.0"
 	},
 	"conflict": {
-		"nette/di": "<3.0",
+		"nette/di": "<3.0-stable",
 		"nette/forms": "<3.0",
-		"nette/latte": "<3.0"
+		"latte/latte": "<2.4",
+		"tracy/tracy": "<2.5"
 	},
 	"autoload": {
 		"classmap": ["src/"],

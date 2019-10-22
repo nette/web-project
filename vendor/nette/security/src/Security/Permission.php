@@ -15,7 +15,7 @@ use Nette;
 /**
  * Access control list (ACL) functionality and privileges management.
  *
- * This solution is mostly based on Zend_Acl (c) Zend Technologies USA Inc. (http://www.zend.com), new BSD license
+ * This solution is mostly based on Zend_Acl (c) Zend Technologies USA Inc. (https://www.zend.com), new BSD license
  *
  * @copyright  Copyright (c) 2005, 2007 Zend Technologies USA Inc.
  */
@@ -107,7 +107,7 @@ class Permission implements IAuthorizator
 	 */
 	private function checkRole(string $role, bool $throw = true): void
 	{
-		if (!is_string($role) || $role === '') {
+		if ($role === '') {
 			throw new Nette\InvalidArgumentException('Role must be a non-empty string.');
 
 		} elseif ($throw && !isset($this->roles[$role])) {
@@ -272,7 +272,7 @@ class Permission implements IAuthorizator
 	 */
 	private function checkResource(string $resource, bool $throw = true): void
 	{
-		if (!is_string($resource) || $resource === '') {
+		if ($resource === '') {
 			throw new Nette\InvalidArgumentException('Resource must be a non-empty string.');
 
 		} elseif ($throw && !isset($this->resources[$resource])) {

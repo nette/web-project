@@ -366,6 +366,7 @@ class Image
 		[$r['x'], $r['y'], $r['width'], $r['height']]
 			= static::calculateCutout($this->getWidth(), $this->getHeight(), $left, $top, $width, $height);
 		$this->image = imagecrop($this->image, $r);
+		imagesavealpha($this->image, true);
 		return $this;
 	}
 
@@ -515,10 +516,11 @@ class Image
 		try {
 			return $this->toString();
 		} catch (\Throwable $e) {
-			if (func_num_args()) {
+			if (func_num_args() || PHP_VERSION_ID >= 70400) {
 				throw $e;
 			}
 			trigger_error('Exception in ' . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
+			return '';
 		}
 	}
 
@@ -614,7 +616,7 @@ class Image
 	/**
 	 * Prevents serialization.
 	 */
-	public function __sleep()
+	public function __sleep(): array
 	{
 		throw new Nette\NotSupportedException('You cannot serialize or unserialize ' . self::class . ' instances.');
 	}

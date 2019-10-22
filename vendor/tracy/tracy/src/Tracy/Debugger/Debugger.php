@@ -17,7 +17,7 @@ use ErrorException;
  */
 class Debugger
 {
-	public const VERSION = '2.6.2';
+	public const VERSION = '2.7.0';
 
 	/** server modes for Debugger::enable() */
 	public const
@@ -35,6 +35,9 @@ class Debugger
 
 	/** @var bool whether to send data to FireLogger in development mode */
 	public static $showFireLogger = true;
+
+	/** @var int size of reserved memory */
+	public static $reservedMemorySize = 500000;
 
 	/** @var bool */
 	private static $enabled = false;
@@ -152,7 +155,7 @@ class Debugger
 			self::$productionMode = is_bool($mode) ? $mode : !self::detectDebugMode($mode);
 		}
 
-		self::$reserved = str_repeat('t', 30000);
+		self::$reserved = str_repeat('t', self::$reservedMemorySize);
 		self::$time = $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true);
 		self::$obLevel = ob_get_level();
 		self::$cpuUsage = !self::$productionMode && function_exists('getrusage') ? getrusage() : null;
@@ -253,13 +256,13 @@ class Debugger
 	 */
 	public static function shutdownHandler(): void
 	{
-		if (!self::$reserved) {
+		if (self::$reserved === null) {
 			return;
 		}
 		self::$reserved = null;
 
 		$error = error_get_last();
-		if (in_array($error['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE, E_RECOVERABLE_ERROR, E_USER_ERROR], true)) {
+		if (in_array($error['type'] ?? null, [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE, E_RECOVERABLE_ERROR, E_USER_ERROR], true)) {
 			self::exceptionHandler(
 				Helpers::fixStack(new ErrorException($error['message'], 0, $error['type'], $error['file'], $error['line'])),
 				false
@@ -283,7 +286,7 @@ class Debugger
 	 */
 	public static function exceptionHandler(\Throwable $exception, bool $exit = true): void
 	{
-		if (!self::$reserved && $exit) {
+		if (self::$reserved === null && $exit) {
 			return;
 		}
 		self::$reserved = null;
@@ -358,7 +361,7 @@ class Debugger
 	 * @throws ErrorException
 	 * @internal
 	 */
-	public static function errorHandler(int $severity, string $message, string $file, int $line, array $context = []): ?bool
+	public static function errorHandler(int $severity, string $message, string $file, int $line, array $context = null): ?bool
 	{
 		if (self::$scream) {
 			error_reporting(E_ALL);
@@ -400,7 +403,7 @@ class Debugger
 			self::exceptionHandler($e);
 		}
 
-		$message = 'PHP ' . Helpers::errorTypeToString($severity) . ': ' . Helpers::improveError($message, $context);
+		$message = 'PHP ' . Helpers::errorTypeToString($severity) . ': ' . Helpers::improveError($message, (array) $context);
 		$count = &self::getBar()->getPanel('Tracy:errors')->data["$file|$line|$message"];
 
 		if ($count++) { // repeated error
@@ -565,9 +568,9 @@ class Debugger
 	 * @param  mixed  $message
 	 * @return mixed
 	 */
-	public static function log($message, string $priority = ILogger::INFO)
+	public static function log($message, string $level = ILogger::INFO)
 	{
-		return self::getLogger()->log($message, $priority);
+		return self::getLogger()->log($message, $level);
 	}
 
 
@@ -599,6 +602,7 @@ class Debugger
 		if (!isset($_SERVER['HTTP_X_FORWARDED_FOR']) && !isset($_SERVER['HTTP_FORWARDED'])) {
 			$list[] = '127.0.0.1';
 			$list[] = '::1';
+			$list[] = '[::1]'; // workaround for PHP < 7.3.4
 		}
 		return in_array($addr, $list, true) || in_array("$secret@$addr", $list, true);
 	}

@@ -64,7 +64,7 @@ class ContainerBuilder
 			for ($i = 1; isset($this->definitions['0' . $i]) || isset($this->aliases['0' . $i]); $i++);
 			$name = '0' . $i; // prevents converting to integer in array key
 
-		} elseif (is_int(key([$name => 1])) || !preg_match('#^\w+(\.\w+)*\z#', $name)) {
+		} elseif (is_int(key([$name => 1])) || !preg_match('#^\w+(\.\w+)*$#D', $name)) {
 			throw new Nette\InvalidArgumentException(sprintf('Service name must be a alpha-numeric string and not a number, %s given.', gettype($name)));
 
 		} else {
@@ -208,7 +208,7 @@ class ContainerBuilder
 	/**
 	 * Resolves autowired service name by type.
 	 * @param  bool  $throw exception if service doesn't exist?
-	 * @throws ServiceCreationException
+	 * @throws MissingServiceException
 	 */
 	public function getByType(string $type, bool $throw = false): ?string
 	{
@@ -219,6 +219,7 @@ class ContainerBuilder
 
 	/**
 	 * Gets autowired service definition of the specified type.
+	 * @throws MissingServiceException
 	 */
 	public function getDefinitionByType(string $type): Definition
 	{

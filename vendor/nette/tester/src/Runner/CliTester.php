@@ -79,7 +79,7 @@ class CliTester
 
 		$result = $runner->run();
 
-		if (isset($coverageFile) && preg_match('#\.(?:html?|xml)\z#', $coverageFile)) {
+		if (isset($coverageFile) && preg_match('#\.(?:html?|xml)$#D', $coverageFile)) {
 			$this->finishCodeCoverage($coverageFile);
 		}
 
@@ -92,7 +92,7 @@ class CliTester
 		echo <<<'XX'
  _____ ___  ___ _____ ___  ___
 |_   _/ __)( __/_   _/ __)| _ )
-  |_| \___ /___) |_| \___ |_|_\  v2.2.0
+  |_| \___ /___) |_| \___ |_|_\  v2.3.0
 
 
 XX;
@@ -276,7 +276,7 @@ XX
 			foreach ($this->options['--watch'] as $directory) {
 				foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory)) as $file) {
 					if (substr($file->getExtension(), 0, 3) === 'php' && substr($file->getBasename(), 0, 1) !== '.') {
-						$state[(string) $file] = @md5_file((string) $file); // @ file could be deleted in the meantime
+						$state[(string) $file] = @filemtime((string) $file); // @ file could be deleted in the meantime
 					}
 				}
 			}

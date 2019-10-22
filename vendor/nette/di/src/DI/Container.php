@@ -73,11 +73,10 @@ class Container
 		}
 
 		$type = $service instanceof \Closure
-			? (string) (new \ReflectionFunction($service))->getReturnType()
+			? (($tmp = (new \ReflectionFunction($service))->getReturnType()) ? $tmp->getName() : '')
 			: get_class($service);
 
 		if (!isset($this->methods[self::getMethodName($name)])) {
-			trigger_error(__METHOD__ . "() service '$name' should be defined as 'imported'", E_USER_NOTICE);
 			$this->types[$name] = $type;
 
 		} elseif (($expectedType = $this->getServiceType($name)) && !is_a($type, $expectedType, true)) {
@@ -136,7 +135,8 @@ class Container
 			return $this->types[$name];
 
 		} elseif (isset($this->methods[$method])) {
-			return (string) (new \ReflectionMethod($this, $method))->getReturnType();
+			$type = (new \ReflectionMethod($this, $method))->getReturnType();
+			return $type ? $type->getName() : '';
 
 		} else {
 			throw new MissingServiceException("Service '$name' not found.");

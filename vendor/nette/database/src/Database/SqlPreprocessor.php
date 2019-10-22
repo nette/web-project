@@ -96,7 +96,7 @@ class SqlPreprocessor
 				$this->arrayMode = null;
 				$res[] = Nette\Utils\Strings::replace(
 					$param,
-					'~\'[^\']*+\'|"[^"]*+"|\?[a-z]*|^\s*+(?:SELECT|INSERT|UPDATE|DELETE|REPLACE|EXPLAIN)\b|\b(?:SET|WHERE|HAVING|ORDER BY|GROUP BY|KEY UPDATE)(?=\s*\z|\s*\?)|/\*.*?\*/|--[^\n]*~si',
+					'~\'[^\']*+\'|"[^"]*+"|\?[a-z]*|^\s*+(?:SELECT|INSERT|UPDATE|DELETE|REPLACE|EXPLAIN)\b|\b(?:SET|WHERE|HAVING|ORDER BY|GROUP BY|KEY UPDATE)(?=\s*$|\s*\?)|/\*.*?\*/|--[^\n]*~Dsi',
 					[$this, 'callback']
 				);
 			} else {
@@ -141,7 +141,7 @@ class SqlPreprocessor
 					if (is_resource($value)) {
 						$value = stream_get_contents($value);
 					}
-					return $this->connection->quote($value);
+					return $this->connection->quote((string) $value);
 				}
 
 			} elseif ($value === null) {
@@ -242,7 +242,10 @@ class SqlPreprocessor
 						}
 					} else {
 						$v = $this->formatValue($v);
-						$vx[] = $k . ' ' . ($operator ?: ($v === 'NULL' ? 'IS' : '=')) . ' ' . $v;
+						$operator = $v === 'NULL'
+							? ($operator === 'NOT' ? 'IS NOT' : ($operator ?: 'IS'))
+							: ($operator ?: '=');
+						$vx[] = $k . ' ' . $operator . ' ' . $v;
 					}
 				}
 				return $value ? '(' . implode(') ' . strtoupper($mode) . ' (', $vx) . ')' : '1=1';

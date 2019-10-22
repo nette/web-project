@@ -28,7 +28,7 @@ class BlockMacros extends MacroSet
 	/** @var array */
 	private $blockTypes = [];
 
-	/** @var bool */
+	/** @var string|bool|null */
 	private $extends;
 
 	/** @var string[] */
@@ -101,7 +101,7 @@ class BlockMacros extends MacroSet
 	{
 		$node->replaced = false;
 		$destination = $node->tokenizer->fetchWord(); // destination [,] [params]
-		if (!preg_match('~#|[\w-]+\z~A', $destination)) {
+		if (!preg_match('~#|[\w-]+$~DA', $destination)) {
 			return false;
 		}
 
@@ -268,6 +268,9 @@ class BlockMacros extends MacroSet
 				return "\$this->checkBlockContentType($blockType, $fname);"
 					. "\$this->blockQueue[$fname][] = [\$this, '{$node->data->func}'];";
 			}
+
+		} elseif ($name[0] === '_') {
+			throw new CompileException("Block name '$name' must not start with an underscore.");
 		}
 
 		// static snippet/snippetArea
@@ -350,14 +353,14 @@ class BlockMacros extends MacroSet
 				$node->content = '<?php $this->global->snippetDriver->enter('
 					. $writer->formatWord(substr($node->data->name, 1))
 					. ', "' . $type . '"); ?>'
-					. preg_replace('#(?<=\n)[ \t]+\z#', '', $node->content) . '<?php $this->global->snippetDriver->leave(); ?>';
+					. preg_replace('#(?<=\n)[ \t]+$#D', '', $node->content) . '<?php $this->global->snippetDriver->leave(); ?>';
 			}
 			if (empty($node->data->leave)) {
 				if (preg_match('#\$|n:#', $node->content)) {
 					$node->content = '<?php ' . (isset($node->data->args) ? 'extract($this->params); ' . $node->data->args : 'extract($_args);') . ' ?>'
 						. $node->content;
 				}
-				$this->namedBlocks[$node->data->name] = $tmp = preg_replace('#^\n+|(?<=\n)[ \t]+\z#', '', $node->content);
+				$this->namedBlocks[$node->data->name] = $tmp = preg_replace('#^\n+|(?<=\n)[ \t]+$#D', '', $node->content);
 				$node->content = substr_replace($node->content, $node->openingCode . "\n", strspn($node->content, "\n"), strlen($tmp));
 				$node->openingCode = '<?php ?>';
 
@@ -393,12 +396,12 @@ class BlockMacros extends MacroSet
 		if ($node->modifiers) {
 			throw new CompileException('Modifiers are not allowed in ' . $node->getNotation());
 		}
-		if (!preg_match('~#|[\w-]+\z~A', $node->args)) {
+		if (!preg_match('~#|[\w-]+$~DA', $node->args)) {
 			return false;
 		}
 		$list = [];
 		while (($name = $node->tokenizer->fetchWord()) !== null) {
-			$list[] = preg_match('~#|[\w-]+\z~A', $name)
+			$list[] = preg_match('~#|[\w-]+$~DA', $name)
 				? '$this->blockQueue["' . ltrim($name, '#') . '"]'
 				: $writer->formatArgs(new Latte\MacroTokens($name));
 		}

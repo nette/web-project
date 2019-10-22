@@ -26,7 +26,7 @@ abstract class Component extends Nette\ComponentModel\Container implements ISign
 {
 	use Nette\ComponentModel\ArrayAccess;
 
-	/** @var callable[]  function (Component $sender): void; Occurs when component is attached to presenter */
+	/** @var callable[]&(callable(Component $sender): void)[]; Occurs when component is attached to presenter */
 	public $onAnchor;
 
 	/** @var array */
@@ -39,7 +39,7 @@ abstract class Component extends Nette\ComponentModel\Container implements ISign
 	public function getPresenter(): ?Presenter
 	{
 		if (func_num_args()) {
-			trigger_error(__METHOD__ . '() parameter $throw is deprecated, use hasPresenter()', E_USER_DEPRECATED);
+			trigger_error(__METHOD__ . '() parameter $throw is deprecated, use getPresenterIfExists()', E_USER_DEPRECATED);
 			$throw = func_get_arg(0);
 		}
 		return $this->lookup(Presenter::class, $throw ?? true);
@@ -47,8 +47,15 @@ abstract class Component extends Nette\ComponentModel\Container implements ISign
 
 
 	/**
-	 * Returns whether there is a presenter.
+	 * Returns the presenter where this component belongs to.
 	 */
+	public function getPresenterIfExists(): ?Presenter
+	{
+		return $this->lookup(Presenter::class, false);
+	}
+
+
+	/** @deprecated */
 	public function hasPresenter(): bool
 	{
 		return (bool) $this->lookup(Presenter::class, false);
@@ -135,13 +142,12 @@ abstract class Component extends Nette\ComponentModel\Container implements ISign
 		$reflection = $this->getReflection();
 		foreach ($reflection->getPersistentParams() as $name => $meta) {
 			if (isset($params[$name])) { // nulls are ignored
-				$type = gettype($meta['def']);
-				if (!$reflection->convertType($params[$name], $type)) {
+				if (!$reflection->convertType($params[$name], $meta['type'])) {
 					throw new Nette\Application\BadRequestException(sprintf(
 						"Value passed to persistent parameter '%s' in %s must be %s, %s given.",
 						$name,
 						$this instanceof Presenter ? 'presenter ' . $this->getName() : "component '{$this->getUniqueId()}'",
-						$type === 'NULL' ? 'scalar' : $type,
+						$meta['type'] === 'NULL' ? 'scalar' : $meta['type'],
 						is_object($params[$name]) ? get_class($params[$name]) : gettype($params[$name])
 					));
 				}
@@ -280,17 +286,17 @@ abstract class Component extends Nette\ComponentModel\Container implements ISign
 	 * @param  array|mixed  $args
 	 * @throws Nette\Application\AbortException
 	 */
-	public function redirect($code, $destination = null, $args = []): void
+	public function redirect(/*int $code, string */$destination, $args = []): void
 	{
-		if (is_numeric($code)) {
+		if (is_numeric($destination)) {
 			trigger_error(__METHOD__ . '() first parameter $code is deprecated; use redirectPermanent() for 301 redirect.', E_USER_DEPRECATED);
+			[$code, $destination, $args] = func_get_args() + [null, null, []];
 			if (func_num_args() > 3 || !is_array($args)) {
 				$args = array_slice(func_get_args(), 2);
 			}
-		} elseif (!is_numeric($code)) { // first parameter is optional
-			$args = func_num_args() < 3 && is_array($destination) ? $destination : array_slice(func_get_args(), 1);
-			$destination = $code;
+		} else {
 			$code = null;
+			$args = func_num_args() < 3 && is_array($args) ? $args : array_slice(func_get_args(), 1);
 		}
 
 		$presenter = $this->getPresenter();

@@ -17,8 +17,11 @@ use Nette;
  */
 class Form extends Nette\Forms\Form implements ISignalReceiver
 {
-	/** @var callable[]  function (Form $sender): void; Occurs when form is attached to presenter */
+	/** @var callable[]&(callable(Form $sender): void)[]; Occurs when form is attached to presenter */
 	public $onAnchor;
+
+	/** @var bool */
+	private $sameSiteProtection = true;
 
 
 	/**
@@ -65,7 +68,7 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 	final public function getPresenter(): ?Presenter
 	{
 		if (func_num_args()) {
-			trigger_error(__METHOD__ . '() parameter $throw is deprecated, use hasPresenter()', E_USER_DEPRECATED);
+			trigger_error(__METHOD__ . '() parameter $throw is deprecated, use getPresenterIfExists()', E_USER_DEPRECATED);
 			$throw = func_get_arg(0);
 		}
 		return $this->lookup(Presenter::class, $throw ?? true);
@@ -73,8 +76,15 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 
 
 	/**
-	 * Returns whether there is a presenter.
+	 * Returns the presenter where this component belongs to.
 	 */
+	final public function getPresenterIfExists(): ?Presenter
+	{
+		return $this->lookup(Presenter::class, false);
+	}
+
+
+	/** @deprecated */
 	public function hasPresenter(): bool
 	{
 		return (bool) $this->lookup(Presenter::class, false);
@@ -87,6 +97,15 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 	public function isAnchored(): bool
 	{
 		return $this->hasPresenter();
+	}
+
+
+	/**
+	 * Disables CSRF protection using a SameSite cookie.
+	 */
+	public function disableSameSiteProtection(): void
+	{
+		$this->sameSiteProtection = false;
 	}
 
 
@@ -136,7 +155,7 @@ class Form extends Nette\Forms\Form implements ISignalReceiver
 			$class = get_class($this);
 			throw new BadSignalException("Missing handler for signal '$signal' in $class.");
 
-		} elseif (!$this->getPresenter()->getHttpRequest()->isSameSite()) {
+		} elseif ($this->sameSiteProtection && !$this->getPresenter()->getHttpRequest()->isSameSite()) {
 			$this->getPresenter()->detectedCsrf();
 
 		} elseif (!$this->getPresenter()->getRequest()->hasFlag(Nette\Application\Request::RESTORED)) {

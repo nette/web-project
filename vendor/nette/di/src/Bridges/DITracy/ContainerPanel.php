@@ -21,13 +21,13 @@ class ContainerPanel implements Tracy\IBarPanel
 {
 	use Nette\SmartObject;
 
-	/** @var int */
+	/** @var float|null */
 	public static $compilationTime;
 
 	/** @var Nette\DI\Container */
 	private $container;
 
-	/** @var int|null */
+	/** @var float|null */
 	private $elapsedTime;
 
 
@@ -64,7 +64,7 @@ class ContainerPanel implements Tracy\IBarPanel
 		$types = [];
 		foreach ($rc->getMethods() as $method) {
 			if (preg_match('#^createService(.+)#', $method->getName(), $m) && $method->getReturnType()) {
-				$types[lcfirst(str_replace('__', '.', $m[1]))] = (string) $method->getReturnType();
+				$types[lcfirst(str_replace('__', '.', $m[1]))] = $method->getReturnType()->getName();
 			}
 		}
 		$types = $this->getContainerProperty('types') + $types;

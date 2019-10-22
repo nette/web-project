@@ -69,7 +69,7 @@ class Strings
 	 */
 	public static function endsWith(string $haystack, string $needle): bool
 	{
-		return strlen($needle) === 0 || substr($haystack, -strlen($needle)) === $needle;
+		return $needle === '' || substr($haystack, -strlen($needle)) === $needle;
 	}
 
 
@@ -193,7 +193,7 @@ class Strings
 	public static function truncate(string $s, int $maxLen, string $append = "\u{2026}"): string
 	{
 		if (self::length($s) > $maxLen) {
-			$maxLen = $maxLen - self::length($append);
+			$maxLen -= self::length($append);
 			if ($maxLen < 1) {
 				return $append;
 
@@ -323,7 +323,7 @@ class Strings
 	public static function trim(string $s, string $charlist = self::TRIM_CHARACTERS): string
 	{
 		$charlist = preg_quote($charlist, '#');
-		return self::replace($s, '#^[' . $charlist . ']+|[' . $charlist . ']+\z#u', '');
+		return self::replace($s, '#^[' . $charlist . ']+|[' . $charlist . ']+$#Du', '');
 	}
 
 
@@ -406,7 +406,7 @@ class Strings
 		if (!$nth) {
 			return null;
 		} elseif ($nth > 0) {
-			if (strlen($needle) === 0) {
+			if ($needle === '') {
 				return 0;
 			}
 			$pos = 0;
@@ -415,7 +415,7 @@ class Strings
 			}
 		} else {
 			$len = strlen($haystack);
-			if (strlen($needle) === 0) {
+			if ($needle === '') {
 				return $len;
 			}
 			$pos = $len - 1;

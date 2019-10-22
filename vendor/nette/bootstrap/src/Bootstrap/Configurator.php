@@ -160,7 +160,7 @@ class Configurator
 		return [
 			'appDir' => isset($trace[1]['file']) ? dirname($trace[1]['file']) : null,
 			'wwwDir' => isset($last['file']) ? dirname($last['file']) : null,
-			'vendorDir' => $loaderRc ? dirname(dirname($loaderRc->getFileName())) : null,
+			'vendorDir' => $loaderRc ? dirname($loaderRc->getFileName(), 2) : null,
 			'debugMode' => $debugMode,
 			'productionMode' => !$debugMode,
 			'consoleMode' => PHP_SAPI === 'cli',
@@ -197,6 +197,11 @@ class Configurator
 		$loader = new Nette\Loaders\RobotLoader;
 		$loader->setTempDirectory($this->getCacheDirectory() . '/nette.robotLoader');
 		$loader->setAutoRefresh($this->parameters['debugMode']);
+
+		if (isset($this->defaultExtensions['application'])) {
+			$this->defaultExtensions['application'][1][1] = null;
+			$this->defaultExtensions['application'][1][3] = $loader;
+		}
 		return $loader;
 	}
 
@@ -315,6 +320,7 @@ class Configurator
 		if (!isset($_SERVER['HTTP_X_FORWARDED_FOR']) && !isset($_SERVER['HTTP_FORWARDED'])) {
 			$list[] = '127.0.0.1';
 			$list[] = '::1';
+			$list[] = '[::1]'; // workaround for PHP < 7.3.4
 		}
 		return in_array($addr, $list, true) || in_array("$secret@$addr", $list, true);
 	}

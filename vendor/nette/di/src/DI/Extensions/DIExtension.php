@@ -17,16 +17,16 @@ use Nette;
  */
 final class DIExtension extends Nette\DI\CompilerExtension
 {
-	/** @var string[] */
+	/** @var array */
 	public $exportedTags = [];
 
-	/** @var string[] */
+	/** @var array */
 	public $exportedTypes = [];
 
 	/** @var bool */
 	private $debugMode;
 
-	/** @var int */
+	/** @var float */
 	private $time;
 
 

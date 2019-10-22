@@ -109,9 +109,11 @@ class Resolver
 			}
 
 			try {
+				/** @var \ReflectionMethod|\ReflectionFunction $reflection */
 				$reflection = Nette\Utils\Callback::toReflection($entity[0] === '' ? $entity[1] : $entity);
 				$refClass = $reflection instanceof \ReflectionMethod ? $reflection->getDeclaringClass() : null;
 			} catch (\ReflectionException $e) {
+				$refClass = $reflection = null;
 			}
 
 			if (isset($e) || ($refClass && (!$reflection->isPublic()
@@ -195,7 +197,7 @@ class Resolver
 				break;
 
 			case is_array($entity):
-				if (!preg_match('#^\$?(\\\\?' . PhpHelpers::PHP_IDENT . ')+(\[\])?\z#', $entity[1])) {
+				if (!preg_match('#^\$?(\\\\?' . PhpHelpers::PHP_IDENT . ')+(\[\])?$#D', $entity[1])) {
 					throw new ServiceCreationException("Expected function, method or property name, '$entity[1]' given.");
 				}
 
@@ -326,16 +328,11 @@ class Resolver
 			return $this->currentService && $service === $this->currentService->getName()
 				? new Reference(Reference::SELF)
 				: $ref;
-		} else {
-			try {
-				$res = $this->getByType($service);
-			} catch (NotAllowedDuringResolvingException $e) {
-				return new Reference($service);
-			}
-			if (!$res) {
-				throw new ServiceCreationException("Reference to missing service of type $service.");
-			}
-			return $res;
+		}
+		try {
+			return $this->getByType($service);
+		} catch (NotAllowedDuringResolvingException $e) {
+			return new Reference($service);
 		}
 	}
 
@@ -432,7 +429,7 @@ class Resolver
 				$pair = explode('::', substr($val, 1), 2);
 				if (!isset($pair[1])) { // @service
 					$val = new Reference($pair[0]);
-				} elseif (preg_match('#^[A-Z][A-Z0-9_]*\z#', $pair[1], $m)) { // @service::CONSTANT
+				} elseif (preg_match('#^[A-Z][A-Z0-9_]*$#D', $pair[1], $m)) { // @service::CONSTANT
 					$val = ContainerBuilder::literal($this->resolveReferenceType(new Reference($pair[0])) . '::' . $pair[1]);
 				} else { // @service::property
 					$val = new Statement([new Reference($pair[0]), '$' . $pair[1]]);

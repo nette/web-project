@@ -66,7 +66,7 @@ class Message extends MimePart
 	/**
 	 * Returns the sender of the message.
 	 */
-	public function getFrom(): array
+	public function getFrom(): ?array
 	{
 		return $this->getHeader('From');
 	}
@@ -142,10 +142,14 @@ class Message extends MimePart
 	private function formatEmail(string $email, string $name = null): array
 	{
 		if (!$name && preg_match('#^(.+) +<(.*)>\z#', $email, $matches)) {
-			return [$matches[2] => $matches[1]];
-		} else {
-			return [$email => $name];
+			[, $name, $email] = $matches;
+			$name = stripslashes($name);
+			$tmp = substr($name, 1, -1);
+			if ($name === '"' . $tmp . '"') {
+				$name = $tmp;
+			}
 		}
+		return [$email => $name];
 	}
 
 
@@ -163,7 +167,7 @@ class Message extends MimePart
 	/**
 	 * Returns the Return-Path header.
 	 */
-	public function getReturnPath(): string
+	public function getReturnPath(): ?string
 	{
 		return $this->getHeader('Return-Path');
 	}
@@ -183,7 +187,7 @@ class Message extends MimePart
 	/**
 	 * Returns email priority.
 	 */
-	public function getPriority(): int
+	public function getPriority(): ?int
 	{
 		return $this->getHeader('X-Priority');
 	}
@@ -331,7 +335,7 @@ class Message extends MimePart
 	 * Builds email. Does not modify itself, but returns a new object.
 	 * @return static
 	 */
-	protected function build()
+	public function build()
 	{
 		$mail = clone $this;
 		$mail->setHeader('Message-ID', $this->getRandomId());

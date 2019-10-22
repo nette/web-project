@@ -21,7 +21,7 @@ class TemplateFactory implements UI\ITemplateFactory
 {
 	use Nette\SmartObject;
 
-	/** @var callable[]  function (Template $template): void; Occurs when a new template is created */
+	/** @var callable[]&(callable(Template $template): void)[]; Occurs when a new template is created */
 	public $onCreate;
 
 	/** @var ILatteFactory */
@@ -58,11 +58,7 @@ class TemplateFactory implements UI\ITemplateFactory
 	{
 		$latte = $this->latteFactory->create();
 		$template = new $this->templateClass($latte);
-		$presenter = ($control && $control->hasPresenter()) ? $control->getPresenter() : null;
-
-		if ($control instanceof UI\Presenter) {
-			$latte->setLoader(new Loader($control));
-		}
+		$presenter = $control ? $control->getPresenterIfExists() : null;
 
 		if ($latte->onCompile instanceof \Traversable) {
 			$latte->onCompile = iterator_to_array($latte->onCompile);
@@ -106,7 +102,7 @@ class TemplateFactory implements UI\ITemplateFactory
 
 		// default parameters
 		$template->user = $this->user;
-		$template->baseUrl = $this->httpRequest ? rtrim($this->httpRequest->getUrl()->getBaseUrl(), '/') : null;
+		$template->baseUrl = $this->httpRequest ? rtrim($this->httpRequest->getUrl()->withoutUserInfo()->getBaseUrl(), '/') : null;
 		$template->basePath = preg_replace('#https?://[^/]+#A', '', $template->baseUrl);
 		$template->flashes = [];
 		if ($control) {

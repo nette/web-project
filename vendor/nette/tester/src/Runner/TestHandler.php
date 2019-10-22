@@ -157,7 +157,7 @@ class TestHandler
 
 	private function initiateTestCase(Test $test, $foo, PhpInterpreter $interpreter)
 	{
-		$job = new Job($test->withArguments(['method' => TestCase::LIST_METHODS]), $interpreter);
+		$job = new Job($test->withArguments(['method' => TestCase::LIST_METHODS]), $interpreter, $this->runner->getEnvironmentVariables());
 		$job->run();
 
 		if (in_array($job->getExitCode(), [Job::CODE_ERROR, Job::CODE_FAIL, Job::CODE_SKIP], true)) {
@@ -180,7 +180,7 @@ class TestHandler
 	{
 		$code = (int) $code;
 		if ($job->getExitCode() === Job::CODE_SKIP) {
-			$message = preg_match('#.*Skipped:\n(.*?)\z#s', $output = $job->getTest()->stdout, $m)
+			$message = preg_match('#.*Skipped:\n(.*?)$#Ds', $output = $job->getTest()->stdout, $m)
 				? $m[1]
 				: $output;
 			return $job->getTest()->withResult(Test::SKIPPED, trim($message));

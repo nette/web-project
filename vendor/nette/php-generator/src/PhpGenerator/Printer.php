@@ -98,14 +98,14 @@ class Printer
 		foreach ($class->getConstants() as $const) {
 			$consts[] = Helpers::formatDocComment((string) $const->getComment())
 				. ($const->getVisibility() ? $const->getVisibility() . ' ' : '')
-				. 'const ' . $const->getName() . ' = ' . Helpers::dump($const->getValue()) . ";\n";
+				. 'const ' . $const->getName() . ' = ' . $this->dump($const->getValue()) . ";\n";
 		}
 
 		$properties = [];
 		foreach ($class->getProperties() as $property) {
 			$properties[] = Helpers::formatDocComment((string) $property->getComment())
 				. ($property->getVisibility() ?: 'public') . ($property->isStatic() ? ' static' : '') . ' $' . $property->getName()
-				. ($property->getValue() === null ? '' : ' = ' . Helpers::dump($property->getValue()))
+				. ($property->getValue() === null ? '' : ' = ' . $this->dump($property->getValue()))
 				. ";\n";
 		}
 
@@ -139,24 +139,14 @@ class Printer
 	public function printNamespace(PhpNamespace $namespace): string
 	{
 		$name = $namespace->getName();
-
-		$uses = [];
-		foreach ($namespace->getUses() as $alias => $original) {
-			if ($original !== ($name ? $name . '\\' . $alias : $alias)) {
-				if ($alias === $original || substr($original, -(strlen($alias) + 1)) === '\\' . $alias) {
-					$uses[] = "use $original;";
-				} else {
-					$uses[] = "use $original as $alias;";
-				}
-			}
-		}
+		$uses = $this->printUses($namespace);
 
 		$classes = [];
 		foreach ($namespace->getClasses() as $class) {
 			$classes[] = $this->printClass($class, $namespace);
 		}
 
-		$body = ($uses ? implode("\n", $uses) . "\n\n" : '')
+		$body = ($uses ? $uses . "\n\n" : '')
 			. implode("\n", $classes);
 
 		if ($namespace->getBracketedSyntax()) {
@@ -204,6 +194,29 @@ class Printer
 	}
 
 
+	protected function dump($var): string
+	{
+		return Helpers::dump($var);
+	}
+
+
+	protected function printUses(PhpNamespace $namespace): string
+	{
+		$name = $namespace->getName();
+		$uses = [];
+		foreach ($namespace->getUses() as $alias => $original) {
+			if ($original !== ($name ? $name . '\\' . $alias : $alias)) {
+				if ($alias === $original || substr($original, -(strlen($alias) + 1)) === '\\' . $alias) {
+					$uses[] = "use $original;";
+				} else {
+					$uses[] = "use $original as $alias;";
+				}
+			}
+		}
+		return implode("\n", $uses);
+	}
+
+
 	/**
 	 * @param Nette\PhpGenerator\Traits\FunctionLike  $function
 	 */
@@ -218,7 +231,7 @@ class Printer
 				. ($param->isReference() ? '&' : '')
 				. ($variadic ? '...' : '')
 				. '$' . $param->getName()
-				. ($param->hasDefaultValue() && !$variadic ? ' = ' . Helpers::dump($param->getDefaultValue()) : '');
+				. ($param->hasDefaultValue() && !$variadic ? ' = ' . $this->dump($param->getDefaultValue()) : '');
 		}
 
 		return strlen($tmp = implode(', ', $params)) > Helpers::WRAP_LENGTH && count($params) > 1

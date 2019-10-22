@@ -64,12 +64,12 @@ class Template implements Nette\Application\UI\ITemplate
 	 * Renders template to string.
 	 * @param  can throw exceptions? (hidden parameter)
 	 */
-	final public function __toString(): string
+	public function __toString(): string
 	{
 		try {
 			return $this->latte->renderToString($this->file, $this->params);
 		} catch (\Throwable $e) {
-			if (func_num_args()) {
+			if (func_num_args() || PHP_VERSION_ID >= 70400) {
 				throw $e;
 			}
 			trigger_error('Exception in ' . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
