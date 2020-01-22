@@ -77,6 +77,9 @@ final class Structure implements Schema
 	public function normalize($value, Context $context)
 	{
 		$value = $this->doNormalize($value, $context);
+		if (is_object($value)) {
+			$value = (array) $value;
+		}
 		if (is_array($value)) {
 			foreach ($value as $key => $val) {
 				$itemSchema = $this->items[$key] ?? $this->otherItems;
@@ -124,8 +127,6 @@ final class Structure implements Schema
 	{
 		if ($value === null) {
 			$value = []; // is unable to distinguish null from array in NEON
-		} elseif (is_object($value)) {
-			$value = (array) $value;
 		}
 
 		$expected = 'array' . ($this->range === [null, null] ? '' : ':' . implode('..', $this->range));
@@ -139,7 +140,7 @@ final class Structure implements Schema
 			if ($this->otherItems) {
 				$items += array_fill_keys($extraKeys, $this->otherItems);
 			} else {
-				$hint = Nette\Utils\ObjectHelpers::getSuggestion(array_map('strval', array_keys($items)), (string) $extraKeys[0]);
+				$hint = Nette\Utils\Helpers::getSuggestion(array_map('strval', array_keys($items)), (string) $extraKeys[0]);
 				$s = implode("', '", array_map(function ($key) use ($context) {
 					return implode(' › ', array_merge($context->path, [$key]));
 				}, $hint ? [$extraKeys[0]] : $extraKeys));

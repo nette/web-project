@@ -70,6 +70,13 @@ final class PhpNamespace
 	}
 
 
+	public function hasBracketedSyntax(): bool
+	{
+		return $this->bracketedSyntax;
+	}
+
+
+	/** @deprecated  use hasBracketedSyntax() */
 	public function getBracketedSyntax(): bool
 	{
 		return $this->bracketedSyntax;
@@ -111,9 +118,7 @@ final class PhpNamespace
 	}
 
 
-	/**
-	 * @return string[]
-	 */
+	/** @return string[] */
 	public function getUses(): array
 	{
 		return $this->uses;
@@ -145,9 +150,7 @@ final class PhpNamespace
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function add(ClassType $class): self
 	{
 		$name = $class->getName();
@@ -169,19 +172,17 @@ final class PhpNamespace
 
 	public function addInterface(string $name): ClassType
 	{
-		return $this->addClass($name)->setType(ClassType::TYPE_INTERFACE);
+		return $this->addClass($name)->setInterface();
 	}
 
 
 	public function addTrait(string $name): ClassType
 	{
-		return $this->addClass($name)->setType(ClassType::TYPE_TRAIT);
+		return $this->addClass($name)->setTrait();
 	}
 
 
-	/**
-	 * @return ClassType[]
-	 */
+	/** @return ClassType[] */
 	public function getClasses(): array
 	{
 		return $this->classes;
@@ -193,7 +194,11 @@ final class PhpNamespace
 		try {
 			return (new Printer)->printNamespace($this);
 		} catch (\Throwable $e) {
+			if (PHP_VERSION_ID >= 70400) {
+				throw $e;
+			}
 			trigger_error('Exception in ' . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
+			return '';
 		}
 	}
 }

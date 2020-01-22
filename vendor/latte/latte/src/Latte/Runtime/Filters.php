@@ -27,18 +27,18 @@ class Filters
 
 
 	/**
-	 * Escapes string for use inside HTML.
+	 * Escapes string for use everywhere inside HTML (except for comments).
 	 * @param  mixed  $s  plain text
 	 * @return string HTML
 	 */
 	public static function escapeHtml($s): string
 	{
-		return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+		return htmlspecialchars((string) $s, ENT_QUOTES | ENT_HTML5 | ENT_SUBSTITUTE, 'UTF-8');
 	}
 
 
 	/**
-	 * Escapes string for use inside HTML.
+	 * Escapes string for use inside HTML text.
 	 * @param  mixed  $s  plain text or IHtmlString
 	 * @return string HTML
 	 */
@@ -46,7 +46,7 @@ class Filters
 	{
 		return $s instanceof IHtmlString || $s instanceof \Nette\Utils\IHtmlString
 			? $s->__toString(true)
-			: htmlspecialchars((string) $s, ENT_NOQUOTES, 'UTF-8');
+			: htmlspecialchars((string) $s, ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
 	}
 
 
@@ -62,7 +62,7 @@ class Filters
 		if (strpos($s, '`') !== false && strpbrk($s, ' <>"\'') === false) {
 			$s .= ' '; // protection against innerHTML mXSS vulnerability nette/nette#1496
 		}
-		return htmlspecialchars($s, ENT_QUOTES, 'UTF-8', $double);
+		return htmlspecialchars($s, ENT_QUOTES | ENT_HTML5 | ENT_SUBSTITUTE, 'UTF-8', $double);
 	}
 
 
@@ -92,7 +92,7 @@ class Filters
 
 
 	/**
-	 * Escapes string for use inside HTML comments.
+	 * Escapes string for use inside HTML/XML comments.
 	 * @param  string  $s  plain text
 	 * @return string HTML
 	 */
@@ -111,7 +111,7 @@ class Filters
 
 
 	/**
-	 * Escapes string for use inside XML 1.0 template.
+	 * Escapes string for use everywhere inside XML (except for comments).
 	 * @param  string  $s  plain text
 	 * @return string XML
 	 */
@@ -120,7 +120,8 @@ class Filters
 		// XML 1.0: \x09 \x0A \x0D and C1 allowed directly, C0 forbidden
 		// XML 1.1: \x00 forbidden directly and as a character reference,
 		//   \x09 \x0A \x0D \x85 allowed directly, C0, C1 and \x7F allowed as character references
-		return htmlspecialchars(preg_replace('#[\x00-\x08\x0B\x0C\x0E-\x1F]+#', '', (string) $s), ENT_QUOTES, 'UTF-8');
+		$s = preg_replace('#[\x00-\x08\x0B\x0C\x0E-\x1F]+#', '', (string) $s);
+		return htmlspecialchars($s, ENT_QUOTES | ENT_XML1 | ENT_SUBSTITUTE, 'UTF-8');
 	}
 
 
@@ -166,7 +167,7 @@ class Filters
 			throw new \RuntimeException(json_last_error_msg(), $error);
 		}
 
-		return str_replace(["\u{2028}", "\u{2029}", ']]>', '<!'], ['\u2028', '\u2029', ']]\x3E', '\x3C!'], $json);
+		return str_replace([']]>', '<!'], [']]\x3E', '\x3C!'], $json);
 	}
 
 
@@ -203,7 +204,7 @@ class Filters
 			trigger_error('Filter |stripHtml used with incompatible type ' . strtoupper($info->contentType), E_USER_WARNING);
 		}
 		$info->contentType = Engine::CONTENT_TEXT;
-		return html_entity_decode(strip_tags((string) $s), ENT_QUOTES, 'UTF-8');
+		return html_entity_decode(strip_tags((string) $s), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 	}
 
 
@@ -292,7 +293,7 @@ class Filters
 	public static function safeUrl($s): string
 	{
 		$s = (string) $s;
-		return preg_match('~^(?:(?:https?|ftp)://[^@]+(?:/.*)?|mailto:.+|[/?#].*|[^:]+)$~Di', $s) ? $s : '';
+		return preg_match('~^(?:(?:https?|ftp)://[^@]+(?:/.*)?|(?:mailto|tel|sms):.+|[/?#].*|[^:]+)$~Di', $s) ? $s : '';
 	}
 
 
@@ -369,6 +370,16 @@ class Filters
 			$s = preg_replace('#(?:^|[\r\n]+)(?=[^\r\n])#', '$0' . str_repeat($chars, $level), $s);
 		}
 		return $s;
+	}
+
+
+	/**
+	 * Join array of text or HTML elements with a string.
+	 * @return string text|HTML
+	 */
+	public static function implode(array $arr, string $glue = ''): string
+	{
+		return implode($glue, $arr);
 	}
 
 
@@ -472,7 +483,7 @@ class Filters
 	 */
 	public static function breaklines($s): Html
 	{
-		return new Html(nl2br(htmlspecialchars((string) $s, ENT_NOQUOTES, 'UTF-8'), self::$xhtml));
+		return new Html(nl2br(htmlspecialchars((string) $s, ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8'), self::$xhtml));
 	}
 
 

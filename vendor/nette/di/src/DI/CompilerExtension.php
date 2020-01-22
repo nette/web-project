@@ -28,12 +28,14 @@ abstract class CompilerExtension
 	/** @var array|object */
 	protected $config = [];
 
+	/** @var Nette\PhpGenerator\Closure */
+	protected $initialization;
 
-	/**
-	 * @return static
-	 */
+
+	/** @return static */
 	public function setCompiler(Compiler $compiler, string $name)
 	{
+		$this->initialization = new Nette\PhpGenerator\Closure;
 		$this->compiler = $compiler;
 		$this->name = $name;
 		return $this;
@@ -87,7 +89,7 @@ abstract class CompilerExtension
 		}
 		if ($extra = array_diff_key((array) $config, $expected)) {
 			$name = $name ? str_replace('.', ' › ', $name) : $this->name;
-			$hint = Nette\Utils\ObjectHelpers::getSuggestion(array_keys($expected), key($extra));
+			$hint = Nette\Utils\Helpers::getSuggestion(array_keys($expected), key($extra));
 			$extra = $hint ? key($extra) : implode("', '{$name} › ", array_keys($extra));
 			throw new Nette\DI\InvalidConfigurationException("Unknown configuration option '{$name} › {$extra}'" . ($hint ? ", did you mean '{$name} › {$hint}'?" : '.'));
 		}
@@ -131,6 +133,12 @@ abstract class CompilerExtension
 	protected function createLoader(): Config\Loader
 	{
 		return new Config\Loader;
+	}
+
+
+	public function getInitialization(): Nette\PhpGenerator\Closure
+	{
+		return $this->initialization;
 	}
 
 

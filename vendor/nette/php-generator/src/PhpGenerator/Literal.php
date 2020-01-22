@@ -11,13 +11,22 @@ namespace Nette\PhpGenerator;
 
 
 /**
- * Generates PHP code compatible with PSR-2 and PSR-12.
+ * PHP literal value.
  */
-final class PsrPrinter extends Printer
+class Literal
 {
 	/** @var string */
-	protected $indentation = '    ';
+	private $value;
 
-	/** @var int */
-	protected $linesBetweenMethods = 1;
+
+	public function __construct(string $value)
+	{
+		$this->value = $value;
+	}
+
+
+	public function __toString(): string
+	{
+		return $this->value;
+	}
 }

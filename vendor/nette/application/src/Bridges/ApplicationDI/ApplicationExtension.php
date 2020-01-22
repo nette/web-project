@@ -82,11 +82,15 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 		}
 		$this->compiler->addExportedType(Nette\Application\Application::class);
 
-		$touch = $this->debugMode && ($config->scanDirs || $this->robotLoader) && $this->tempDir ? $this->tempDir . '/touch' : null;
+		if ($this->debugMode && ($config->scanDirs || $this->robotLoader) && $this->tempDir) {
+			$touch = $this->tempDir . '/touch';
+			Nette\Utils\FileSystem::createDir($this->tempDir);
+			$this->getContainerBuilder()->addDependency($touch);
+		}
 		$presenterFactory = $builder->addDefinition($this->prefix('presenterFactory'))
 			->setType(Nette\Application\IPresenterFactory::class)
 			->setFactory(Nette\Application\PresenterFactory::class, [new Definitions\Statement(
-				Nette\Bridges\ApplicationDI\PresenterFactoryCallback::class, [1 => $this->invalidLinkMode, $touch]
+				Nette\Bridges\ApplicationDI\PresenterFactoryCallback::class, [1 => $this->invalidLinkMode, $touch ?? null]
 			)]);
 
 		if ($config->mapping) {
@@ -138,14 +142,7 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 	{
 		$config = $this->getConfig();
 
-		if ($this->robotLoader) {
-			if ($config->scanDirs && $config->scanDirs !== $this->scanDirs) {
-				trigger_error("Option 'scanDir' has no effect, global RobotLoader is used.", E_USER_DEPRECATED);
-			}
-			$robot = $this->robotLoader;
-			$robot->refresh();
-
-		} elseif ($config->scanDirs) {
+		if ($config->scanDirs) {
 			if (!class_exists(Nette\Loaders\RobotLoader::class)) {
 				throw new Nette\NotSupportedException("RobotLoader is required to find presenters, install package `nette/robot-loader` or disable option {$this->prefix('scanDirs')}: false");
 			}
@@ -158,12 +155,15 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 			} else {
 				$robot->rebuild();
 			}
+
+		} elseif ($this->robotLoader && $config->scanDirs !== false) {
+			$robot = $this->robotLoader;
+			$robot->refresh();
 		}
 
 		$classes = [];
 		if (isset($robot)) {
 			$classes = array_keys($robot->getIndexedClasses());
-			$this->getContainerBuilder()->addDependency($this->tempDir . '/touch');
 		}
 
 		if ($config->scanComposer) {

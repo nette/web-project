@@ -25,9 +25,7 @@ final class LocatorDefinition extends Definition
 	private $tagged;
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setImplement(string $type)
 	{
 		if (!interface_exists($type)) {
@@ -59,9 +57,7 @@ final class LocatorDefinition extends Definition
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setReferences(array $references)
 	{
 		$this->references = [];
@@ -74,18 +70,14 @@ final class LocatorDefinition extends Definition
 	}
 
 
-	/**
-	 * @return Reference[]
-	 */
+	/** @return Reference[] */
 	public function getReferences(): array
 	{
 		return $this->references;
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setTagged(?string $tagged)
 	{
 		$this->tagged = $tagged;
@@ -128,12 +120,12 @@ final class LocatorDefinition extends Definition
 			->addImplement($this->getType());
 
 		$class->addProperty('container')
-			->setVisibility('private');
+			->setPrivate();
 
 		$class->addMethod('__construct')
 			->addBody('$this->container = $container;')
 			->addParameter('container')
-			->setTypeHint($generator->getClassName());
+			->setType($generator->getClassName());
 
 		foreach ((new \ReflectionClass($this->getType()))->getMethods() as $rm) {
 			preg_match('#^(get|create)(.*)#', $rm->getName(), $m);
@@ -146,7 +138,7 @@ final class LocatorDefinition extends Definition
 
 			if (!$name) {
 				$class->addProperty('mapping', array_map(function ($item) { return $item->getValue(); }, $this->references))
-					->setVisibility('private');
+					->setPrivate();
 
 				$methodInner->setBody('if (!isset($this->mapping[$name])) {
 	' . ($nullable ? 'return null;' : 'throw new Nette\DI\MissingServiceException("Service \'$name\' is not defined.");') . '

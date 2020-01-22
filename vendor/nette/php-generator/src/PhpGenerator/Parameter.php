@@ -26,7 +26,7 @@ final class Parameter
 	private $reference = false;
 
 	/** @var string|null */
-	private $typeHint;
+	private $type;
 
 	/** @var bool */
 	private $nullable = false;
@@ -38,9 +38,7 @@ final class Parameter
 	private $defaultValue;
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setReference(bool $state = true): self
 	{
 		$this->reference = $state;
@@ -54,19 +52,32 @@ final class Parameter
 	}
 
 
-	/**
-	 * @return static
-	 */
-	public function setTypeHint(?string $hint): self
+	/** @return static */
+	public function setType(?string $type): self
 	{
-		$this->typeHint = $hint;
+		$this->type = $type;
 		return $this;
 	}
 
 
+	public function getType(): ?string
+	{
+		return $this->type;
+	}
+
+
+	/** @deprecated  use setType() */
+	public function setTypeHint(?string $type): self
+	{
+		$this->type = $type;
+		return $this;
+	}
+
+
+	/** @deprecated  use getType() */
 	public function getTypeHint(): ?string
 	{
-		return $this->typeHint;
+		return $this->type;
 	}
 
 
@@ -82,9 +93,7 @@ final class Parameter
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setNullable(bool $state = true): self
 	{
 		$this->nullable = $state;
@@ -98,9 +107,7 @@ final class Parameter
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setDefaultValue($val): self
 	{
 		$this->defaultValue = $val;

@@ -27,10 +27,10 @@ The recommended way to install is via Composer:
 composer require nette/php-generator
 ```
 
-- v3.2 requires PHP 7.1 or newer (is compatible up to 7.3)
-- v3.1 requires PHP 7.1 or newer (is compatible up to 7.3)
-- v3.0 requires PHP 7.0 or newer (is compatible up to 7.3)
-- v2.6 requires PHP 5.6 or newer (is compatible up to 7.3)
+- PhpGenerator 3.3 & 3.2 is compatible with PHP 7.1 to 7.4
+- PhpGenerator 3.1 is compatible with PHP 7.1 to 7.3
+- PhpGenerator 3.0 is compatible with PHP 7.0 to 7.3
+- PhpGenerator 2.6 is compatible with PHP 5.6 to 7.3
 
 
 Usage
@@ -43,14 +43,18 @@ $class = new Nette\PhpGenerator\ClassType('Demo');
 
 $class
 	->setFinal()
-	->setExtends('ParentClass')
-	->addImplement('Countable')
-	->addTrait('Nette\SmartObject')
+	->setExtends(ParentClass::class)
+	->addImplement(Countable::class)
+	->addTrait(Nette\SmartObject::class)
 	->addComment("Description of class.\nSecond line\n")
 	->addComment('@property-read Nette\Forms\Form $form');
 
 // to generate PHP code simply cast to string or use echo:
 echo $class;
+
+// or use printer:
+$printer = new Nette\PhpGenerator\Printer;
+echo $printer->printClass($class);
 ```
 
 It will render this result:
@@ -74,7 +78,7 @@ We can add constants and properties:
 $class->addConstant('ID', 123);
 
 $class->addProperty('items', [1, 2, 3])
-	->setVisibility('private')
+	->setPrivate()
 	->setStatic()
 	->addComment('@var int[]');
 ```
@@ -82,10 +86,10 @@ $class->addProperty('items', [1, 2, 3])
 It generates:
 
 ```php
-	const ID = 123;
+const ID = 123;
 
-	/** @var int[] */
-	private static $items = [1, 2, 3];
+/** @var int[] */
+private static $items = [1, 2, 3];
 ```
 
 And we can add methods with parameters:
@@ -95,46 +99,53 @@ $method = $class->addMethod('count')
 	->addComment('Count it.')
 	->addComment('@return int')
 	->setFinal()
-	->setVisibility('protected')
+	->setProtected()
 	->setBody('return count($items ?: $this->items);');
 
 $method->addParameter('items', []) // $items = []
 		->setReference() // &$items = []
-		->setTypeHint('array'); // array &$items = []
+		->setType('array'); // array &$items = []
 ```
 
 It results in:
 
 ```php
-	/**
-	 * Count it.
-	 * @return int
-	 */
-	final protected function count(array &$items = [])
-	{
-		return count($items ?: $this->items);
-	}
+/**
+ * Count it.
+ * @return int
+ */
+final protected function count(array &$items = [])
+{
+	return count($items ?: $this->items);
+}
 ```
 
 If the property, constant, method or parameter already exist, it will be overwritten.
 
 Members can be removed using `removeProperty()`, `removeConstant()`, `removeMethod()` or `removeParameter()`.
 
-PHP Generator supports all new PHP 7.3 features:
+PHP Generator supports all new PHP 7.3 and 7.4 features:
 
 ```php
+use Nette\PhpGenerator\Type;
+
 $class = new Nette\PhpGenerator\ClassType('Demo');
 
 $class->addConstant('ID', 123)
-	->setVisibility('private'); // constant visiblity
+	->setPrivate(); // constant visiblity
+
+$class->addProperty('items')
+	->setType(Type::ARRAY) // typed properites
+	->setNullable()
+	->setInitialized();
 
 $method = $class->addMethod('getValue')
-	->setReturnType('int') // method return type
+	->setReturnType(Type::INT) // method return type
 	->setReturnNullable() // nullable return type
 	->setBody('return count($this->items);');
 
 $method->addParameter('id')
-		->setTypeHint('int') // scalar type hint
+		->setType(Type::ARRAY) // scalar type hint
 		->setNullable(); // nullable type hint
 
 echo $class;
@@ -146,6 +157,8 @@ Result:
 class Demo
 {
 	private const ID = 123;
+
+	public ?array $items = null;
 
 	public function getValue(?int $id): ?int
 	{
@@ -181,11 +194,10 @@ Tabs versus spaces
 The generated code uses tabs for indentation. If you want to have the output compatible with PSR-2 or PSR-12, use `PsrPrinter`:
 
 ```php
-$printer = new Nette\PhpGenerator\PsrPrinter;
-
 $class = new Nette\PhpGenerator\ClassType('Demo');
 // ...
 
+$printer = new Nette\PhpGenerator\PsrPrinter;
 echo $printer->printClass($class); // 4 spaces indentation
 ```
 
@@ -195,17 +207,17 @@ It can be used also for functions, closures, namespaces etc.
 Literals
 --------
 
-You can pass any PHP code to property or parameter default values via `PhpLiteral`:
+You can pass any PHP code to property or parameter default values via `Literal`:
 
 ```php
-use Nette\PhpGenerator\PhpLiteral;
+use Nette\PhpGenerator\Literal;
 
 $class = new Nette\PhpGenerator\ClassType('Demo');
 
-$class->addProperty('foo', new PhpLiteral('Iterator::SELF_FIRST'));
+$class->addProperty('foo', new Literal('Iterator::SELF_FIRST'));
 
 $class->addMethod('bar')
-	->addParameter('id', new PhpLiteral('1 + 2'));
+	->addParameter('id', new Literal('1 + 2'));
 
 echo $class;
 ```
@@ -228,8 +240,8 @@ Interface or Trait
 
 ```php
 $class = new Nette\PhpGenerator\ClassType('DemoInterface');
-$class->setType('interface');
-// or $class->setType('trait');
+$class->setInterface();
+// or $class->setTrait();
 ```
 
 Trait Resolutions and Visibility
@@ -325,6 +337,27 @@ function ($a, $b) use (&$c) {
 }
 ```
 
+Arrow function
+--------------
+
+You can also print closure as arrow function using printer:
+
+```php
+$closure = new Nette\PhpGenerator\Closure;
+$closure->setBody('return $a + $b;');
+$closure->addParameter('a');
+$closure->addParameter('b');
+
+// or use PsrPrinter for output compatible with PSR-2 / PSR-12
+echo (new Nette\PhpGenerator\Printer)->printArrowFunction($closure);
+```
+
+Result:
+
+```php
+fn ($a, $b) => $a + $b;
+```
+
 Method and Function Body Generator
 ----------------------------------
 
@@ -408,8 +441,8 @@ If the class already exists, it will be overwritten.
 You can define use-statements:
 
 ```php
-$namespace->addUse('Http\Request'); // use Http\Request;
-$namespace->addUse('Http\Request', 'HttpReq'); // use Http\Request as HttpReq;
+$namespace->addUse(Http\Request::class); // use Http\Request;
+$namespace->addUse(Http\Request::class, 'HttpReq'); // use Http\Request as HttpReq;
 ```
 
 **IMPORTANT NOTE:** when the class is part of the namespace, it is rendered slightly differently: all types (ie. type hints, return types, parent class name,
@@ -428,7 +461,7 @@ $class->addImplement('Foo\A') // it will resolve to A
 $method = $class->addMethod('method');
 $method->addComment('@return ' . $namespace->unresolveName('Foo\D')); // in comments resolve manually
 $method->addParameter('arg')
-	->setTypeHint('Bar\OtherClass'); // it will resolve to \Bar\OtherClass
+	->setType('Bar\OtherClass'); // it will resolve to \Bar\OtherClass
 
 echo $namespace;
 
@@ -518,4 +551,18 @@ $function = Nette\PhpGenerator\GlobalFunction::from('trim');
 $closure = Nette\PhpGenerator\Closure::from(
 	function (stdClass $a, $b = null) {}
 );
+```
+
+Variables dumper
+----------------
+
+The Dumper returns a parsable PHP string representation of a variable. It provides a better function that you can use instead of `var_export()`
+with more readable output.
+
+```php
+$dumper = new Nette\PhpGenerator\Dumper;
+
+$var = ['a', 'b', 123];
+
+echo $dumper->dump($var); // prints ['a', 'b', 123]
 ```

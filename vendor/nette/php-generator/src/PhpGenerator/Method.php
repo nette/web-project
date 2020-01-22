@@ -40,7 +40,6 @@ final class Method
 
 	/**
 	 * @param  string|array  $method
-	 * @return static
 	 */
 	public static function from($method): self
 	{
@@ -53,17 +52,19 @@ final class Method
 		try {
 			return (new Printer)->printMethod($this);
 		} catch (\Throwable $e) {
+			if (PHP_VERSION_ID >= 70400) {
+				throw $e;
+			}
 			trigger_error('Exception in ' . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
+			return '';
 		}
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setBody(?string $code, array $args = null): self
 	{
-		$this->body = $args === null || $code === null ? $code : Helpers::format($code, ...$args);
+		$this->body = $args === null || $code === null ? $code : (new Dumper)->format($code, ...$args);
 		return $this;
 	}
 
@@ -74,9 +75,7 @@ final class Method
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setStatic(bool $state = true): self
 	{
 		$this->static = $state;
@@ -90,9 +89,7 @@ final class Method
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setFinal(bool $state = true): self
 	{
 		$this->final = $state;
@@ -106,9 +103,7 @@ final class Method
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setAbstract(bool $state = true): self
 	{
 		$this->abstract = $state;
@@ -122,9 +117,7 @@ final class Method
 	}
 
 
-	/**
-	 * @throws Nette\InvalidStateException
-	 */
+	/** @throws Nette\InvalidStateException */
 	public function validate(): void
 	{
 		if ($this->abstract && ($this->final || $this->visibility === ClassType::VISIBILITY_PRIVATE)) {

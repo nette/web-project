@@ -73,6 +73,7 @@ class Template implements Nette\Application\UI\ITemplate
 				throw $e;
 			}
 			trigger_error('Exception in ' . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
+			return '';
 		}
 	}
 
@@ -87,6 +88,17 @@ class Template implements Nette\Application\UI\ITemplate
 	public function addFilter(?string $name, callable $callback)
 	{
 		$this->latte->addFilter($name, $callback);
+		return $this;
+	}
+
+
+	/**
+	 * Registers run-time function.
+	 * @return static
+	 */
+	public function addFunction(string $name, callable $callback)
+	{
+		$this->latte->addFunction($name, $callback);
 		return $this;
 	}
 

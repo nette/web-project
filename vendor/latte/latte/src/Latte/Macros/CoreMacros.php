@@ -19,23 +19,6 @@ use Latte\PhpWriter;
 
 /**
  * Basic macros for Latte.
- *
- * - {if ?} ... {elseif ?} ... {else} ... {/if}
- * - {ifset ?} ... {elseifset ?} ... {/ifset}
- * - {for ?} ... {/for}
- * - {foreach ?} ... {/foreach}
- * - {$variable} with escaping
- * - {=expression} echo with escaping
- * - {php expression} evaluate PHP statement
- * - {_expression} echo translation with escaping
- * - {capture ?} ... {/capture} capture block to parameter
- * - {spaceless} ... {/spaceless} compress whitespaces
- * - {var var => value} set template parameter
- * - {default var => value} set default template parameter
- * - {dump $var}
- * - {debugbreak}
- * - {contentType ...} HTTP Content-Type header
- * - {l} {r} to display { }
  */
 class CoreMacros extends MacroSet
 {
@@ -250,7 +233,9 @@ class CoreMacros extends MacroSet
 	public function macroCapture(MacroNode $node, PhpWriter $writer)
 	{
 		$variable = $node->tokenizer->fetchWord();
-		if (!Helpers::startsWith($variable, '$')) {
+		if (!$variable) {
+			throw new CompileException('Missing variable in {capture} macro.');
+		} elseif (!Helpers::startsWith($variable, '$')) {
 			throw new CompileException("Invalid capture block variable '$variable'");
 		}
 		$this->checkExtraArgs($node);

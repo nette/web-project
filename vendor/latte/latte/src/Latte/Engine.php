@@ -17,7 +17,7 @@ class Engine
 {
 	use Strict;
 
-	public const VERSION = '2.5.3';
+	public const VERSION = '2.6.1';
 
 	/** Content types */
 	public const
@@ -126,11 +126,11 @@ class Engine
 			throw $e->setSource($source, $line, $name);
 		}
 
-		if (!preg_match('#\n|\?#', $name)) {
-			$code = "<?php\n// source: $name\n?>" . $code;
-		}
 		if ($this->strictTypes) {
 			$code = "<?php\ndeclare(strict_types=1);\n?>" . $code;
+		}
+		if (!preg_match('#\n|\?#', $name)) {
+			$code = "<?php\n// source: $name\n?>" . $code;
 		}
 		$code = PhpHelpers::reformatCode($code);
 		return $code;
@@ -268,6 +268,18 @@ class Engine
 
 
 	/**
+	 * Registers run-time function.
+	 * @return static
+	 */
+	public function addFunction(string $name, callable $callback)
+	{
+		$id = $this->getCompiler()->addFunction($name);
+		$this->providers[$id] = $callback;
+		return $this;
+	}
+
+
+	/**
 	 * Adds new provider.
 	 * @return static
 	 */
@@ -287,9 +299,7 @@ class Engine
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setContentType(string $type)
 	{
 		$this->contentType = $type;
@@ -350,9 +360,7 @@ class Engine
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setLoader(ILoader $loader)
 	{
 		$this->loader = $loader;

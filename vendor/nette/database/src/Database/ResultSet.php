@@ -26,7 +26,7 @@ class ResultSet implements \Iterator, IRowContainer
 	/** @var \PDOStatement|null */
 	private $pdoStatement;
 
-	/** @var IRow */
+	/** @var IRow|false */
 	private $result;
 
 	/** @var int */
@@ -72,6 +72,7 @@ class ResultSet implements \Iterator, IRowContainer
 		} catch (\PDOException $e) {
 			$e = $connection->getSupplementalDriver()->convertException($e);
 			$e->queryString = $queryString;
+			$e->params = $params;
 			throw $e;
 		}
 		$this->time = microtime(true) - $time;

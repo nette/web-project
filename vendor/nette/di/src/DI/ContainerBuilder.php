@@ -342,9 +342,7 @@ class ContainerBuilder
 	}
 
 
-	/**
-	 * @internal
-	 */
+	/** @internal */
 	public function exportMeta(): array
 	{
 		$defs = $this->definitions;

@@ -60,7 +60,7 @@ class SqlPreprocessor
 	/** @var bool */
 	private $useParams;
 
-	/** @var string values|set|and|order */
+	/** @var string|null values|set|and|order */
 	private $arrayMode;
 
 
@@ -196,8 +196,8 @@ class SqlPreprocessor
 					}
 					foreach ($value as $val) {
 						$vx2 = [];
-						foreach ($val as $v) {
-							$vx2[] = $this->formatValue($v);
+						foreach ($value[0] as $k => $foo) {
+							$vx2[] = $this->formatValue($val[$k]);
 						}
 						$vx[] = implode(', ', $vx2);
 					}

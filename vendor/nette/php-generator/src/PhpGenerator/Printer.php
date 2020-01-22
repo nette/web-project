@@ -48,7 +48,7 @@ class Printer
 		foreach ($closure->getUses() as $param) {
 			$uses[] = ($param->isReference() ? '&' : '') . '$' . $param->getName();
 		}
-		$useStr = strlen($tmp = implode(', ', $uses)) > Helpers::WRAP_LENGTH && count($uses) > 1
+		$useStr = strlen($tmp = implode(', ', $uses)) > (new Dumper)->wrapLength && count($uses) > 1
 			? "\n" . $this->indentation . implode(",\n" . $this->indentation, $uses) . "\n"
 			: $tmp;
 
@@ -58,6 +58,22 @@ class Printer
 			. ($uses ? " use ($useStr)" : '')
 			. $this->printReturnType($closure, null)
 			. " {\n" . $this->indent(ltrim(rtrim($closure->getBody()) . "\n")) . '}';
+	}
+
+
+	public function printArrowFunction(Closure $closure): string
+	{
+		foreach ($closure->getUses() as $use) {
+			if ($use->isReference()) {
+				throw new Nette\InvalidArgumentException('Arrow function cannot bind variables by-reference.');
+			}
+		}
+
+		return 'fn '
+			. ($closure->getReturnReference() ? '&' : '')
+			. $this->printParameters($closure, null)
+			. $this->printReturnType($closure, null)
+			. ' => ' . trim($closure->getBody()) . ';';
 	}
 
 
@@ -96,16 +112,22 @@ class Printer
 
 		$consts = [];
 		foreach ($class->getConstants() as $const) {
+			$def = ($const->getVisibility() ? $const->getVisibility() . ' ' : '') . 'const ' . $const->getName() . ' = ';
 			$consts[] = Helpers::formatDocComment((string) $const->getComment())
-				. ($const->getVisibility() ? $const->getVisibility() . ' ' : '')
-				. 'const ' . $const->getName() . ' = ' . $this->dump($const->getValue()) . ";\n";
+				. $def
+				. $this->dump($const->getValue(), strlen($def)) . ";\n";
 		}
 
 		$properties = [];
 		foreach ($class->getProperties() as $property) {
+			$type = $property->getType();
+			$def = (($property->getVisibility() ?: 'public') . ($property->isStatic() ? ' static' : '') . ' '
+				. ($type ? ($property->isNullable() ? '?' : '') . ($this->resolveTypes && $namespace ? $namespace->unresolveName($type) : $type) . ' ' : '')
+				. '$' . $property->getName());
+
 			$properties[] = Helpers::formatDocComment((string) $property->getComment())
-				. ($property->getVisibility() ?: 'public') . ($property->isStatic() ? ' static' : '') . ' $' . $property->getName()
-				. ($property->getValue() === null ? '' : ' = ' . $this->dump($property->getValue()))
+				. $def
+				. ($property->getValue() === null && !$property->isInitialized() ? '' : ' = ' . $this->dump($property->getValue(), strlen($def) + 3)) // 3 = ' = '
 				. ";\n";
 		}
 
@@ -149,7 +171,7 @@ class Printer
 		$body = ($uses ? $uses . "\n\n" : '')
 			. implode("\n", $classes);
 
-		if ($namespace->getBracketedSyntax()) {
+		if ($namespace->hasBracketedSyntax()) {
 			return 'namespace' . ($name ? " $name" : '') . "\n{\n"
 				. $this->indent($body)
 				. "}\n";
@@ -172,15 +194,13 @@ class Printer
 			"<?php\n"
 			. ($file->getComment() ? "\n" . Helpers::formatDocComment($file->getComment() . "\n") : '')
 			. "\n"
-			. ($file->getStrictTypes() ? "declare(strict_types=1);\n\n" : '')
+			. ($file->hasStrictTypes() ? "declare(strict_types=1);\n\n" : '')
 			. implode("\n\n", $namespaces)
 		) . "\n";
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function setTypeResolving(bool $state = true): self
 	{
 		$this->resolveTypes = $state;
@@ -190,13 +210,14 @@ class Printer
 
 	protected function indent(string $s): string
 	{
+		$s = str_replace("\t", $this->indentation, $s);
 		return Strings::indent($s, 1, $this->indentation);
 	}
 
 
-	protected function dump($var): string
+	protected function dump($var, int $column = 0): string
 	{
-		return Helpers::dump($var);
+		return (new Dumper)->dump($var, $column);
 	}
 
 
@@ -218,7 +239,7 @@ class Printer
 
 
 	/**
-	 * @param Nette\PhpGenerator\Traits\FunctionLike  $function
+	 * @param Closure|GlobalFunction|Method  $function
 	 */
 	protected function printParameters($function, ?PhpNamespace $namespace): string
 	{
@@ -226,27 +247,27 @@ class Printer
 		$list = $function->getParameters();
 		foreach ($list as $param) {
 			$variadic = $function->isVariadic() && $param === end($list);
-			$hint = $param->getTypeHint();
-			$params[] = ($hint ? ($param->isNullable() ? '?' : '') . ($this->resolveTypes && $namespace ? $namespace->unresolveName($hint) : $hint) . ' ' : '')
+			$type = $param->getType();
+			$params[] = ($type ? ($param->isNullable() ? '?' : '') . ($this->resolveTypes && $namespace ? $namespace->unresolveName($type) : $type) . ' ' : '')
 				. ($param->isReference() ? '&' : '')
 				. ($variadic ? '...' : '')
 				. '$' . $param->getName()
 				. ($param->hasDefaultValue() && !$variadic ? ' = ' . $this->dump($param->getDefaultValue()) : '');
 		}
 
-		return strlen($tmp = implode(', ', $params)) > Helpers::WRAP_LENGTH && count($params) > 1
+		return strlen($tmp = implode(', ', $params)) > (new Dumper)->wrapLength && count($params) > 1
 			? "(\n" . $this->indentation . implode(",\n" . $this->indentation, $params) . "\n)"
 			: "($tmp)";
 	}
 
 
 	/**
-	 * @param Nette\PhpGenerator\Traits\FunctionLike  $function
+	 * @param Closure|GlobalFunction|Method  $function
 	 */
 	protected function printReturnType($function, ?PhpNamespace $namespace): string
 	{
 		return $function->getReturnType()
-			? ': ' . ($function->getReturnNullable() ? '?' : '') . ($this->resolveTypes && $namespace ? $namespace->unresolveName($function->getReturnType()) : $function->getReturnType())
+			? ': ' . ($function->isReturnNullable() ? '?' : '') . ($this->resolveTypes && $namespace ? $namespace->unresolveName($function->getReturnType()) : $function->getReturnType())
 			: '';
 	}
 }

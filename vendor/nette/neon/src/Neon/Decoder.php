@@ -16,48 +16,59 @@ namespace Nette\Neon;
  */
 final class Decoder
 {
-	const PATTERNS = [
+	public const PATTERNS = [
+		// strings
 		'
 			\'\'\'\n (?:(?: [^\n] | \n(?![\t\ ]*+\'\'\') )*+ \n)?[\t\ ]*+\'\'\' |
 			"""\n (?:(?: [^\n] | \n(?![\t\ ]*+""") )*+ \n)?[\t\ ]*+""" |
 			\'[^\'\n]*+\' |
 			" (?: \\\\. | [^"\\\\\n] )*+ "
-		', // string
+		',
+
+		// literal / boolean / integer / float
 		'
-			(?: [^#"\',:=[\]{}()\x00-\x20!`-] | [:-][^"\',\]})\s] )
+			(?: [^#"\',:=[\]{}()\s`-] | (?<!["\']) [:-] [^"\',=[\]{}()\s] )
 			(?:
-				[^,:=\]})(\x00-\x20]++ |
+				[^,:=\]})(\s]++ |
 				:(?! [\s,\]})] | $ ) |
-				[\ \t]++ [^#,:=\]})(\x00-\x20]
+				[\ \t]++ [^#,:=\]})(\s]
 			)*+
-		', // literal / boolean / integer / float
-		'
-			[,:=[\]{}()-]
-		', // symbol
-		'?:\#.*+', // comment
-		'\n[\t\ ]*+', // new line + indent
-		'?:[\t\ ]++', // whitespace
+		',
+
+		// punctuation
+		'[,:=[\]{}()-]',
+
+		// comment
+		'?:\#.*+',
+
+		// new line + indent
+		'\n[\t\ ]*+',
+
+		// whitespace
+		'?:[\t\ ]++',
 	];
 
-	const PATTERN_DATETIME = '#\d\d\d\d-\d\d?-\d\d?(?:(?:[Tt]| ++)\d\d?:\d\d:\d\d(?:\.\d*+)? *+(?:Z|[-+]\d\d?(?::?\d\d)?)?)?\z#A';
+	private const PATTERN_DATETIME = '#\d\d\d\d-\d\d?-\d\d?(?:(?:[Tt]| ++)\d\d?:\d\d:\d\d(?:\.\d*+)? *+(?:Z|[-+]\d\d?(?::?\d\d)?)?)?$#DA';
 
-	const PATTERN_HEX = '#0x[0-9a-fA-F]++\z#A';
+	private const PATTERN_HEX = '#0x[0-9a-fA-F]++$#DA';
 
-	const PATTERN_OCTAL = '#0o[0-7]++\z#A';
+	private const PATTERN_OCTAL = '#0o[0-7]++$#DA';
 
-	const PATTERN_BINARY = '#0b[0-1]++\z#A';
+	private const PATTERN_BINARY = '#0b[0-1]++$#DA';
 
-	const SIMPLE_TYPES = [
+	private const SIMPLE_TYPES = [
 		'true' => 'TRUE', 'True' => 'TRUE', 'TRUE' => 'TRUE', 'yes' => 'TRUE', 'Yes' => 'TRUE', 'YES' => 'TRUE', 'on' => 'TRUE', 'On' => 'TRUE', 'ON' => 'TRUE',
 		'false' => 'FALSE', 'False' => 'FALSE', 'FALSE' => 'FALSE', 'no' => 'FALSE', 'No' => 'FALSE', 'NO' => 'FALSE', 'off' => 'FALSE', 'Off' => 'FALSE', 'OFF' => 'FALSE',
 		'null' => 'NULL', 'Null' => 'NULL', 'NULL' => 'NULL',
 	];
 
-	const ESCAPE_SEQUENCES = [
+	private const DEPRECATED_TYPES = ['on' => 1, 'On' => 1, 'ON' => 1, 'off' => 1, 'Off' => 1, 'OFF' => 1];
+
+	private const ESCAPE_SEQUENCES = [
 		't' => "\t", 'n' => "\n", 'r' => "\r", 'f' => "\x0C", 'b' => "\x08", '"' => '"', '\\' => '\\', '/' => '/', '_' => "\u{A0}",
 	];
 
-	const BRACKETS = [
+	private const BRACKETS = [
 		'[' => ']',
 		'{' => '}',
 		'(' => ')',
@@ -254,15 +265,18 @@ final class Decoder
 					if (preg_match('#^...\n++([\t ]*+)#', $t, $m)) {
 						$converted = substr($t, 3, -3);
 						$converted = str_replace("\n" . $m[1], "\n", $converted);
-						$converted = preg_replace('#^\n|\n[\t ]*+\z#', '', $converted);
+						$converted = preg_replace('#^\n|\n[\t ]*+$#D', '', $converted);
 					} else {
 						$converted = substr($t, 1, -1);
 					}
 					if ($t[0] === '"') {
 						$converted = preg_replace_callback('#\\\\(?:ud[89ab][0-9a-f]{2}\\\\ud[c-f][0-9a-f]{2}|u[0-9a-f]{4}|x[0-9a-f]{2}|.)#i', [$this, 'cbString'], $converted);
 					}
-				} elseif (($fix56 = self::SIMPLE_TYPES) && isset($fix56[$t]) && (!isset($tokens[$n + 1][0]) || ($tokens[$n + 1][0] !== ':' && $tokens[$n + 1][0] !== '='))) {
+				} elseif (isset(self::SIMPLE_TYPES[$t]) && (!isset($tokens[$n + 1][0]) || ($tokens[$n + 1][0] !== ':' && $tokens[$n + 1][0] !== '='))) {
 					$converted = constant(self::SIMPLE_TYPES[$t]);
+					if (isset(self::DEPRECATED_TYPES[$t])) {
+						trigger_error("Neon: keyword '$t' is deprecated, use true/yes or false/no.", E_USER_DEPRECATED);
+					}
 				} elseif (is_numeric($t)) {
 					$converted = $t * 1;
 				} elseif (preg_match(self::PATTERN_HEX, $t)) {
@@ -326,7 +340,7 @@ final class Decoder
 	private function cbString(array $m): string
 	{
 		$sq = $m[0];
-		if (($fix56 = self::ESCAPE_SEQUENCES) && isset($fix56[$sq[1]])) { // workaround for PHP 5.6
+		if (isset(self::ESCAPE_SEQUENCES[$sq[1]])) {
 			return self::ESCAPE_SEQUENCES[$sq[1]];
 		} elseif ($sq[1] === 'u' && strlen($sq) >= 6) {
 			$lead = hexdec(substr($sq, 2, 4));
