@@ -113,11 +113,23 @@ class BlueScreen
 
 	private function renderTemplate(\Throwable $exception, string $template, $toScreen = true): void
 	{
+		$messageHtml = Dumper::encodeString((string) $exception->getMessage(), self::MAX_MESSAGE_LENGTH);
+		$messageHtml = htmlspecialchars($messageHtml, ENT_SUBSTITUTE, 'UTF-8');
 		$messageHtml = preg_replace(
 			'#\'\S(?:[^\']|\\\\\')*\S\'|"\S(?:[^"]|\\\\")*\S"#',
 			'<i>$0</i>',
-			htmlspecialchars(Dumper::encodeString((string) $exception->getMessage(), self::MAX_MESSAGE_LENGTH), ENT_SUBSTITUTE, 'UTF-8')
+			$messageHtml
 		);
+		$messageHtml = preg_replace_callback(
+			'#\w+\\\\[\w\\\\]+\w#',
+			function ($m) {
+				return class_exists($m[0], false) || interface_exists($m[0], false)
+				? '<a href="' . Helpers::escapeHtml(Helpers::editorUri((new \ReflectionClass($m[0]))->getFileName())) . '">' . $m[0] . '</a>'
+				: $m[0];
+			},
+			$messageHtml
+		);
+
 		$info = array_filter($this->info);
 		$source = Helpers::getSource();
 		$title = $exception instanceof \ErrorException
@@ -339,6 +351,7 @@ class BlueScreen
 
 	/**
 	 * Should a file be collapsed in stack trace?
+	 * @internal
 	 */
 	public function isCollapsed(string $file): bool
 	{
@@ -353,6 +366,7 @@ class BlueScreen
 	}
 
 
+	/** @internal */
 	public function getDumper(): \Closure
 	{
 		$keysToHide = array_flip(array_map('strtolower', $this->keysToHide));

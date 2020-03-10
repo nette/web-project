@@ -211,6 +211,21 @@ class Image
 	}
 
 
+	public static function typeToExtension(int $type): string
+	{
+		if (!isset(self::FORMATS[$type])) {
+			throw new Nette\InvalidArgumentException("Unsupported image type '$type'.");
+		}
+		return self::FORMATS[$type];
+	}
+
+
+	public static function typeToMimeType(int $type): string
+	{
+		return 'image/' . self::typeToExtension($type);
+	}
+
+
 	/**
 	 * Wraps GD image.
 	 * @param  resource  $image
@@ -370,8 +385,14 @@ class Image
 	{
 		[$r['x'], $r['y'], $r['width'], $r['height']]
 			= static::calculateCutout($this->getWidth(), $this->getHeight(), $left, $top, $width, $height);
-		$this->image = imagecrop($this->image, $r);
-		imagesavealpha($this->image, true);
+		if (gd_info()['GD Version'] === 'bundled (2.1.0 compatible)') {
+			$this->image = imagecrop($this->image, $r);
+			imagesavealpha($this->image, true);
+		} else {
+			$newImage = static::fromBlank($r['width'], $r['height'], self::RGB(0, 0, 0, 127))->getImageResource();
+			imagecopy($newImage, $this->image, 0, 0, $r['x'], $r['y'], $r['width'], $r['height']);
+			$this->image = $newImage;
+		}
 		return $this;
 	}
 
@@ -536,10 +557,7 @@ class Image
 	 */
 	public function send(int $type = self::JPEG, int $quality = null): void
 	{
-		if (!isset(self::FORMATS[$type])) {
-			throw new Nette\InvalidArgumentException("Unsupported image type '$type'.");
-		}
-		header('Content-Type: ' . image_type_to_mime_type($type));
+		header('Content-Type: ' . self::typeToMimeType($type));
 		$this->output($type, $quality);
 	}
 

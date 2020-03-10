@@ -39,12 +39,12 @@ class Filters
 
 	/**
 	 * Escapes string for use inside HTML text.
-	 * @param  mixed  $s  plain text or IHtmlString
+	 * @param  mixed  $s  plain text or HtmlString
 	 * @return string HTML
 	 */
 	public static function escapeHtmlText($s): string
 	{
-		return $s instanceof IHtmlString || $s instanceof \Nette\Utils\IHtmlString
+		return $s instanceof HtmlString || $s instanceof \Nette\Utils\IHtmlString
 			? $s->__toString(true)
 			: htmlspecialchars((string) $s, ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
 	}
@@ -57,7 +57,7 @@ class Filters
 	 */
 	public static function escapeHtmlAttr($s, bool $double = true): string
 	{
-		$double = $double && $s instanceof IHtmlString ? false : $double;
+		$double = $double && $s instanceof HtmlString ? false : $double;
 		$s = (string) $s;
 		if (strpos($s, '`') !== false && strpbrk($s, ' <>"\'') === false) {
 			$s .= ' '; // protection against innerHTML mXSS vulnerability nette/nette#1496
@@ -120,7 +120,7 @@ class Filters
 		// XML 1.0: \x09 \x0A \x0D and C1 allowed directly, C0 forbidden
 		// XML 1.1: \x00 forbidden directly and as a character reference,
 		//   \x09 \x0A \x0D \x85 allowed directly, C0, C1 and \x7F allowed as character references
-		$s = preg_replace('#[\x00-\x08\x0B\x0C\x0E-\x1F]+#', '', (string) $s);
+		$s = preg_replace('#[\x00-\x08\x0B\x0C\x0E-\x1F]#', "\u{FFFD}", (string) $s);
 		return htmlspecialchars($s, ENT_QUOTES | ENT_XML1 | ENT_SUBSTITUTE, 'UTF-8');
 	}
 
@@ -158,7 +158,7 @@ class Filters
 	 */
 	public static function escapeJs($s): string
 	{
-		if ($s instanceof IHtmlString || $s instanceof \Nette\Utils\IHtmlString) {
+		if ($s instanceof HtmlString || $s instanceof \Nette\Utils\IHtmlString) {
 			$s = $s->__toString(true);
 		}
 
@@ -178,7 +178,9 @@ class Filters
 	public static function escapeICal($s): string
 	{
 		// https://www.ietf.org/rfc/rfc5545.txt
-		return addcslashes(preg_replace('#[\x00-\x08\x0B\x0C-\x1F]+#', '', (string) $s), "\";\\,:\n");
+		$s = str_replace("\r", '', (string) $s);
+		$s = preg_replace('#[\x00-\x08\x0B-\x1F]#', "\u{FFFD}", (string) $s);
+		return addcslashes($s, "\";\\,:\n");
 	}
 
 
@@ -313,18 +315,11 @@ class Filters
 	/**
 	 * Replaces all repeated white spaces with a single space.
 	 * @param  string  $s  HTML
-	 * @param  int  $phase  output buffering phase
 	 * @param  bool  $strip  stripping mode
 	 * @return string HTML
 	 */
-	public static function spacelessHtml(string $s, int $phase = null, bool &$strip = true): string
+	public static function spacelessHtml(string $s, bool &$strip = true): string
 	{
-		if ($phase & PHP_OUTPUT_HANDLER_START) {
-			$s = ltrim($s);
-		}
-		if ($phase & PHP_OUTPUT_HANDLER_FINAL) {
-			$s = rtrim($s);
-		}
 		return preg_replace_callback(
 			'#[ \t\r\n]+|<(/)?(textarea|pre|script)(?=\W)#si',
 			function ($m) use (&$strip) {
@@ -337,6 +332,29 @@ class Filters
 			},
 			$s
 		);
+	}
+
+
+	/**
+	 * Output buffering handler for spacelessHtml.
+	 */
+	public static function spacelessHtmlHandler(string $s, int $phase = null): string
+	{
+		static $strip;
+		$left = $right = '';
+
+		if ($phase & PHP_OUTPUT_HANDLER_START) {
+			$strip = true;
+			$tmp = ltrim($s);
+			$left = substr($s, 0, strlen($s) - strlen($tmp));
+			$s = $tmp;
+		}
+		if ($phase & PHP_OUTPUT_HANDLER_FINAL) {
+			$tmp = rtrim($s);
+			$right = substr($s, strlen($tmp));
+			$s = $tmp;
+		}
+		return $left . self::spacelessHtml($s, $strip) . $right;
 	}
 
 
@@ -644,6 +662,32 @@ class Filters
 			return array_reverse(iterator_to_array($val), $preserveKeys);
 		} else {
 			return iconv('UTF-32LE', 'UTF-8', strrev(iconv('UTF-8', 'UTF-32BE', (string) $val)));
+		}
+	}
+
+
+	/**
+	 * Chunks items by returning an array of arrays with the given number of items.
+	 * @param  array|\Traversable  $list
+	 */
+	public static function batch($list, int $size, $rest = null): \Generator
+	{
+		$batch = [];
+		foreach ($list as $key => $value) {
+			$batch[$key] = $value;
+			if (count($batch) >= $size) {
+				yield $batch;
+				$batch = [];
+			}
+		}
+
+		if ($batch) {
+			if ($rest !== null) {
+				while (count($batch) < $size) {
+					$batch[] = $rest;
+				}
+			}
+			yield $batch;
 		}
 	}
 

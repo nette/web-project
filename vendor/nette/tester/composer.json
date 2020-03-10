@@ -3,7 +3,7 @@
 	"description": "Nette Tester: enjoyable unit testing in PHP with code coverage reporter. 🍏🍏🍎🍏",
 	"homepage": "https://tester.nette.org",
 	"keywords": ["testing", "unit", "nette", "phpunit", "code coverage", "xdebug", "phpdbg", "pcov", "clover", "assertions"],
-	"license": ["BSD-3-Clause", "GPL-2.0", "GPL-3.0"],
+	"license": ["BSD-3-Clause", "GPL-2.0-only", "GPL-3.0-only"],
 	"authors": [
 		{
 			"name": "David Grudl",
@@ -17,10 +17,18 @@
 	"require": {
 		"php": ">=7.1"
 	},
+	"require-dev": {
+		"ext-simplexml": "*",
+		"phpstan/phpstan": "^0.12"
+	},
 	"autoload": {
 		"classmap": ["src/"]
 	},
 	"bin": ["src/tester"],
+	"scripts": {
+		"phpstan": "phpstan analyse --level 5 src",
+		"tester": "tester tests -s"
+	},
 	"extra": {
 		"branch-alias": { "dev-master": "2.4-dev" }
 	}

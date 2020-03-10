@@ -236,7 +236,7 @@ class PhpWriter
 				if ($name !== $orig) {
 					trigger_error("Case mismatch on function name '$name', correct name is '$orig'.", E_USER_WARNING);
 				}
-				$res->append('($this->global->_fn' . strtolower($name) . ')');
+				$res->append('($this->global->fn->' . $orig . ')');
 			} else {
 				$res->append($tokens->currentToken());
 			}
@@ -291,7 +291,7 @@ class PhpWriter
 		$res = new MacroTokens;
 
 		while ($tokens->depth >= $startDepth && $tokens->nextToken()) {
-			if (!$tokens->isCurrent($tokens::T_VARIABLE)) {
+			if (!$tokens->isCurrent($tokens::T_VARIABLE) || $tokens->isPrev('::', '$')) {
 				$res->append($tokens->currentToken());
 				continue;
 			}
@@ -309,7 +309,7 @@ class PhpWriter
 
 					$rescue = [$res->tokens, $expr->tokens, $tokens->position, $addBraces];
 
-					if (!$tokens->isNext('->')) {
+					if (!$tokens->isNext('->', '::')) {
 						$expr->prepend('(');
 						$expr->append(' ?? null)' . $addBraces);
 						break;
@@ -321,9 +321,9 @@ class PhpWriter
 					$expr = new MacroTokens('$_tmp');
 					$addBraces .= ')';
 
-				} elseif ($tokens->nextToken('->')) {
+				} elseif ($tokens->nextToken('->', '::')) {
 					$expr->append($tokens->currentToken());
-					if (!$tokens->nextToken($tokens::T_SYMBOL)) {
+					if (!$tokens->nextToken($tokens::T_SYMBOL, $tokens::T_VARIABLE)) {
 						$expr->append($addBraces);
 						break;
 					}
@@ -518,30 +518,28 @@ class PhpWriter
 				} else {
 					$res->append($tokens->currentToken());
 				}
-			} else {
-				if ($tokens->isCurrent($tokens::T_SYMBOL)) {
-					if ($tokens->isCurrent('escape')) {
-						if ($isContent) {
-							$res->prepend('LR\Filters::convertTo($_fi, ' . var_export(implode($this->context), true) . ', ')
-								->append(')');
-						} else {
-							$res = $this->escapePass($res);
-						}
-						$tokens->nextToken('|');
-					} elseif (!strcasecmp($tokens->currentValue(), 'checkurl')) {
-						$res->prepend('LR\Filters::safeUrl(');
-						$inside = true;
+			} elseif ($tokens->isCurrent($tokens::T_SYMBOL)) {
+				if ($tokens->isCurrent('escape')) {
+					if ($isContent) {
+						$res->prepend('LR\Filters::convertTo($_fi, ' . var_export(implode($this->context), true) . ', ')
+							->append(')');
 					} else {
-						$name = strtolower($tokens->currentValue());
-						$res->prepend($isContent
-							? '$this->filters->filterContent(' . var_export($name, true) . ', $_fi, '
-							: '($this->filters->' . $name . ')('
-						);
-						$inside = true;
+						$res = $this->escapePass($res);
 					}
+					$tokens->nextToken('|');
+				} elseif (!strcasecmp($tokens->currentValue(), 'checkurl')) {
+					$res->prepend('LR\Filters::safeUrl(');
+					$inside = true;
 				} else {
-					throw new CompileException("Modifier name must be alphanumeric string, '{$tokens->currentValue()}' given.");
+					$name = strtolower($tokens->currentValue());
+					$res->prepend($isContent
+						? '$this->filters->filterContent(' . var_export($name, true) . ', $_fi, '
+						: '($this->filters->' . $name . ')('
+					);
+					$inside = true;
 				}
+			} else {
+				throw new CompileException("Modifier name must be alphanumeric string, '{$tokens->currentValue()}' given.");
 			}
 		}
 		if ($inside) {

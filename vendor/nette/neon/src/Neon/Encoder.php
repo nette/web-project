@@ -67,8 +67,7 @@ final class Encoder
 
 		} elseif (
 			is_string($var)
-			&& !is_numeric($var)
-			&& !preg_match('~[\x00-\x1F]|^\d{4}|^(true|false|yes|no|on|off|null)$~Di', $var)
+			&& !preg_match('~[\x00-\x1F]|^[+-.]?\d|^(true|false|yes|no|on|off|null)$~Di', $var)
 			&& preg_match('~^' . Decoder::PATTERNS[1] . '$~Dx', $var) // 1 = literals
 		) {
 			return $var;
@@ -78,7 +77,11 @@ final class Encoder
 			return strpos($var, '.') === false ? $var . '.0' : $var;
 
 		} else {
-			return json_encode($var, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+			$res = json_encode($var, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+			if ($res === false) {
+				throw new Exception('Invalid UTF-8 sequence: ' . $var);
+			}
+			return $res;
 		}
 	}
 }

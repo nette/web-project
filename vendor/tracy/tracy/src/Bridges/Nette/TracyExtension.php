@@ -36,7 +36,7 @@ class TracyExtension extends Nette\DI\CompilerExtension
 	public function getConfigSchema(): Nette\Schema\Schema
 	{
 		return Expect::structure([
-			'email' => Expect::email()->dynamic(),
+			'email' => Expect::anyOf(Expect::email(), Expect::listOf('email'))->dynamic(),
 			'fromEmail' => Expect::email()->dynamic(),
 			'logSeverity' => Expect::scalar(),
 			'editor' => Expect::string()->dynamic(),
@@ -74,7 +74,7 @@ class TracyExtension extends Nette\DI\CompilerExtension
 
 	public function afterCompile(Nette\PhpGenerator\ClassType $class)
 	{
-		$initialize = $class->getMethod('initialize');
+		$initialize = $this->initialization ?? $class->getMethod('initialize');
 		$builder = $this->getContainerBuilder();
 
 		$options = (array) $this->config;

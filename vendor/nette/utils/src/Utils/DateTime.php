@@ -55,7 +55,7 @@ class DateTime extends \DateTime implements \JsonSerializable
 			return (new static('@' . $time))->setTimezone(new \DateTimeZone(date_default_timezone_get()));
 
 		} else { // textual or null
-			return new static($time);
+			return new static((string) $time);
 		}
 	}
 
@@ -113,9 +113,7 @@ class DateTime extends \DateTime implements \JsonSerializable
 	}
 
 
-	/**
-	 * @return static
-	 */
+	/** @return static */
 	public function modifyClone(string $modify = '')
 	{
 		$dolly = clone $this;

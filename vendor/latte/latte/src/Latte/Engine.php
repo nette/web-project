@@ -17,7 +17,8 @@ class Engine
 {
 	use Strict;
 
-	public const VERSION = '2.6.1';
+	public const VERSION = '2.7.0';
+	public const VERSION_ID = 20700;
 
 	/** Content types */
 	public const
@@ -38,11 +39,14 @@ class Engine
 	/** @var Compiler|null */
 	private $compiler;
 
-	/** @var ILoader|null */
+	/** @var Loader|null */
 	private $loader;
 
 	/** @var Runtime\FilterExecutor */
 	private $filters;
+
+	/** @var \stdClass */
+	private $functions;
 
 	/** @var array */
 	private $providers = [];
@@ -63,25 +67,28 @@ class Engine
 	public function __construct()
 	{
 		$this->filters = new Runtime\FilterExecutor;
+		$this->functions = new \stdClass;
 	}
 
 
 	/**
 	 * Renders template to output.
+	 * @param  object|array  $params
 	 */
-	public function render(string $name, array $params = [], string $block = null): void
+	public function render(string $name, $params = [], string $block = null): void
 	{
-		$this->createTemplate($name, $params + ['_renderblock' => $block])
+		$this->createTemplate($name, (array) $params + ($block ? ['_renderblock' => $block] : []))
 			->render();
 	}
 
 
 	/**
 	 * Renders template to string.
+	 * @param  object|array  $params
 	 */
-	public function renderToString(string $name, array $params = [], string $block = null): string
+	public function renderToString(string $name, $params = [], string $block = null): string
 	{
-		$template = $this->createTemplate($name, $params + ['_renderblock' => $block]);
+		$template = $this->createTemplate($name, (array) $params + ($block ? ['_renderblock' => $block] : []));
 		return $template->capture([$template, 'render']);
 	}
 
@@ -95,6 +102,7 @@ class Engine
 		if (!class_exists($class, false)) {
 			$this->loadTemplate($name);
 		}
+		$this->providers['fn'] = $this->functions;
 		return new $class($this, $params, $this->filters, $this->providers, $name);
 	}
 
@@ -112,10 +120,13 @@ class Engine
 		$source = $this->getLoader()->getContent($name);
 
 		try {
-			$tokens = $this->getParser()->setContentType($this->contentType)
+			$tokens = $this->getParser()
+				->setContentType($this->contentType)
 				->parse($source);
 
-			$code = $this->getCompiler()->setContentType($this->contentType)
+			$code = $this->getCompiler()
+				->setContentType($this->contentType)
+				->setFunctions(array_keys((array) $this->functions))
 				->compile($tokens, $this->getTemplateClass($name));
 
 		} catch (\Exception $e) {
@@ -260,7 +271,7 @@ class Engine
 	 * Adds new macro.
 	 * @return static
 	 */
-	public function addMacro(string $name, IMacro $macro)
+	public function addMacro(string $name, Macro $macro)
 	{
 		$this->getCompiler()->addMacro($name, $macro);
 		return $this;
@@ -273,8 +284,7 @@ class Engine
 	 */
 	public function addFunction(string $name, callable $callback)
 	{
-		$id = $this->getCompiler()->addFunction($name);
-		$this->providers[$id] = $callback;
+		$this->functions->$name = $callback;
 		return $this;
 	}
 
@@ -361,14 +371,14 @@ class Engine
 
 
 	/** @return static */
-	public function setLoader(ILoader $loader)
+	public function setLoader(Loader $loader)
 	{
 		$this->loader = $loader;
 		return $this;
 	}
 
 
-	public function getLoader(): ILoader
+	public function getLoader(): Loader
 	{
 		if (!$this->loader) {
 			$this->loader = new Loaders\FileLoader;

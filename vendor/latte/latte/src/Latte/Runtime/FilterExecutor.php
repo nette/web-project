@@ -24,6 +24,7 @@ class FilterExecutor
 
 	/** @var array [name => [callback, FilterInfo aware] */
 	private $_static = [
+		'batch' => [[Filters::class, 'batch'], false],
 		'breaklines' => [[Filters::class, 'breaklines'], false],
 		'bytes' => [[Filters::class, 'bytes'], false],
 		'capitalize' => [[Filters::class, 'capitalize'], false],
@@ -101,7 +102,7 @@ class FilterExecutor
 			if ($aware) { // FilterInfo aware filter
 				return $this->$lname = function (...$args) use ($callback) {
 					array_unshift($args, $info = new FilterInfo);
-					if ($args[1] instanceof IHtmlString) {
+					if ($args[1] instanceof HtmlString) {
 						$args[1] = $args[1]->__toString();
 						$info->contentType = Engine::CONTENT_HTML;
 					}
@@ -118,11 +119,11 @@ class FilterExecutor
 		return $this->$lname = function (...$args) use ($lname, $name) { // dynamic filter
 			array_unshift($args, $lname);
 			foreach ($this->_dynamic as $filter) {
-				$res = (Helpers::checkCallback($filter))(...$args);
+				$res = $filter(...$args);
 				if ($res !== null) {
 					return $res;
 				} elseif (isset($this->_static[$lname])) { // dynamic converted to classic
-					$this->$name = Helpers::checkCallback($this->_static[$lname][0]);
+					$this->$name = $this->_static[$lname][0];
 					return ($this->$name)(...func_get_args());
 				}
 			}
@@ -155,7 +156,7 @@ class FilterExecutor
 					. ($info->contentType === Engine::CONTENT_HTML ? ', try to prepend |stripHtml.' : '.'), E_USER_WARNING);
 			}
 			$res = ($this->$name)(...$args);
-			if ($res instanceof IHtmlString) {
+			if ($res instanceof HtmlString) {
 				trigger_error("Filter |$name should be changed to content-aware filter.");
 				$info->contentType = Engine::CONTENT_HTML;
 				$res = $res->__toString();
@@ -168,7 +169,7 @@ class FilterExecutor
 	private function prepareFilter(string $name): array
 	{
 		if (!isset($this->_static[$name][1])) {
-			$callback = Helpers::checkCallback($this->_static[$name][0]);
+			$callback = $this->_static[$name][0];
 			if (is_string($callback) && strpos($callback, '::')) {
 				$callback = explode('::', $callback);
 			} elseif (is_object($callback)) {
@@ -178,7 +179,7 @@ class FilterExecutor
 				? new \ReflectionMethod($callback[0], $callback[1])
 				: new \ReflectionFunction($callback);
 			$this->_static[$name][1] = ($tmp = $ref->getParameters())
-				&& $tmp[0]->getType() !== null
+				&& $tmp[0]->getType() instanceof \ReflectionNamedType
 				&& $tmp[0]->getType()->getName() === FilterInfo::class;
 		}
 		return $this->_static[$name];
