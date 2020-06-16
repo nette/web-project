@@ -11,5 +11,12 @@ session:
 	expiration: 14 days
 
 
+di:
+	export:
+		parameters: no
+		tags: no
+		types:
+
+
 services:
 	router: App\Router\RouterFactory::createRouter
