@@ -25,7 +25,9 @@
 		"nette/tester": "^2.0"
 	},
 	"autoload": {
-		"classmap": ["app/Bootstrap.php"]
+		"psr-4": {
+			"App\\": "app"
+		}
 	},
 	"minimum-stability": "dev"
 }
