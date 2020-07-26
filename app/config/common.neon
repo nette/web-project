@@ -15,7 +15,6 @@ di:
 	export:
 		parameters: no
 		tags: no
-		types:
 
 
 services:
