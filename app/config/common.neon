@@ -18,4 +18,4 @@ di:
 
 
 services:
-	router: App\Router\RouterFactory::createRouter
+	- App\Router\RouterFactory::createRouter
