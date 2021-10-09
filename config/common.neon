@@ -15,7 +15,3 @@ di:
 	export:
 		parameters: no
 		tags: no
-
-
-services:
-	- App\Router\RouterFactory::createRouter
