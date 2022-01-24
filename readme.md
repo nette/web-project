@@ -14,7 +14,7 @@ If you like Nette, **[please make a donation now](https://nette.org/donate)**. T
 Requirements
 ------------
 
-- Web Project for Nette 3.0 requires PHP 7.1
+- Web Project for Nette 3.1 requires PHP 7.2
 
 
 Installation
@@ -42,20 +42,5 @@ Then visit `http://localhost:8000` in your browser to see the welcome page.
 For Apache or Nginx, setup a virtual host to point to the `www/` directory of the project and you
 should be ready to go.
 
-**It is CRITICAL that whole `app/`, `log/` and `temp/` directories are not accessible directly
+**It is CRITICAL that whole `app/`, `config/`, `log/` and `temp/` directories are not accessible directly
 via a web browser. See [security warning](https://nette.org/security-warning).**
-
-
-Notice: Composer PHP version
-----------------------------
-
-This project forces PHP 5.6 (eventually 7.1) as your PHP version for Composer packages. If you have newer 
-version on production server you should change it in `composer.json`:
-
-```json
-"config": {
-	"platform": {
-		"php": "7.2"
-	}
-}
-```
