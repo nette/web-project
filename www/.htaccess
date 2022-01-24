@@ -16,6 +16,7 @@ Require all granted
 	# RewriteRule .? https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
 	# prevents files starting with dot to be viewed by browser
+	RewriteCond %{REQUEST_FILENAME} -f
 	RewriteRule /\.|^\.(?!well-known/) - [F]
 
 	# front controller
