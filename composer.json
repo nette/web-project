@@ -30,5 +30,10 @@
 			"App\\": "app"
 		}
 	},
-	"minimum-stability": "stable"
+	"minimum-stability": "stable",
+	"config": {
+		"allow-plugins": {
+			"symfony/thanks": true
+		}
+	}
 }
