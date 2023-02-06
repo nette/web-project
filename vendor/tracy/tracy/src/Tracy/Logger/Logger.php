@@ -34,10 +34,7 @@ class Logger implements ILogger
 	private $blueScreen;
 
 
-	/**
-	 * @param  string|array|null  $email
-	 */
-	public function __construct(?string $directory, $email = null, ?BlueScreen $blueScreen = null)
+	public function __construct(?string $directory, string|array|null $email = null, ?BlueScreen $blueScreen = null)
 	{
 		$this->directory = $directory;
 		$this->email = $email;
@@ -48,11 +45,10 @@ class Logger implements ILogger
 
 	/**
 	 * Logs message or exception to file and sends email notification.
-	 * @param  mixed  $message
-	 * @param  string  $level  one of constant ILogger::INFO, WARNING, ERROR (sends email), EXCEPTION (sends email), CRITICAL (sends email)
+	 * For levels ERROR, EXCEPTION and CRITICAL it sends email.
 	 * @return string|null logged error filename
 	 */
-	public function log($message, $level = self::INFO)
+	public function log(mixed $message, string $level = self::INFO)
 	{
 		if (!$this->directory) {
 			throw new \LogicException('Logging directory is not specified.');
@@ -91,7 +87,7 @@ class Logger implements ILogger
 			foreach (Helpers::getExceptionChain($message) as $exception) {
 				$tmp[] = ($exception instanceof \ErrorException
 					? Helpers::errorTypeToString($exception->getSeverity()) . ': ' . $exception->getMessage()
-					: Helpers::getClass($exception) . ': ' . $exception->getMessage() . ($exception->getCode() ? ' #' . $exception->getCode() : '')
+					: get_debug_type($exception) . ': ' . $exception->getMessage() . ($exception->getCode() ? ' #' . $exception->getCode() : '')
 				) . ' in ' . $exception->getFile() . ':' . $exception->getLine();
 			}
 
@@ -123,7 +119,7 @@ class Logger implements ILogger
 	{
 		foreach (Helpers::getExceptionChain($exception) as $exception) {
 			$data[] = [
-				get_class($exception), $exception->getMessage(), $exception->getCode(), $exception->getFile(), $exception->getLine(),
+				$exception::class, $exception->getMessage(), $exception->getCode(), $exception->getFile(), $exception->getLine(),
 				array_map(function (array $item): array {
 					unset($item['args']);
 					return $item;
@@ -196,7 +192,7 @@ class Logger implements ILogger
 				]) . "\n",
 				'subject' => "PHP: An error occurred on the server $host",
 				'body' => static::formatMessage($message) . "\n\nsource: " . Helpers::getSource(),
-			]
+			],
 		);
 
 		mail($email, $parts['subject'], $parts['body'], $parts['headers']);

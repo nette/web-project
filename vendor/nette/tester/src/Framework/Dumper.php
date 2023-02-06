@@ -16,28 +16,23 @@ namespace Tester;
  */
 class Dumper
 {
-	public static $maxLength = 70;
-
-	public static $maxDepth = 10;
-
-	public static $dumpDir = 'output';
-
-	public static $maxPathSegments = 3;
-
+	public static int $maxLength = 70;
+	public static int $maxDepth = 10;
+	public static string $dumpDir = 'output';
+	public static int $maxPathSegments = 3;
 	public static $pathSeparator;
 
 
 	/**
 	 * Dumps information about a variable in readable format.
-	 * @param  mixed  $var  variable to dump
 	 */
-	public static function toLine($var): string
+	public static function toLine(mixed $var): string
 	{
 		if (is_bool($var)) {
-			return $var ? 'TRUE' : 'FALSE';
+			return $var ? 'true' : 'false';
 
 		} elseif ($var === null) {
-			return 'NULL';
+			return 'null';
 
 		} elseif (is_int($var)) {
 			return "$var";
@@ -72,7 +67,7 @@ class Dumper
 			return "[$out]";
 
 		} elseif ($var instanceof \Throwable) {
-			return 'Exception ' . get_class($var) . ': ' . ($var->getCode() ? '#' . $var->getCode() . ' ' : '') . $var->getMessage();
+			return 'Exception ' . $var::class . ': ' . ($var->getCode() ? '#' . $var->getCode() . ' ' : '') . $var->getMessage();
 
 		} elseif ($var instanceof Expect) {
 			return $var->dump();
@@ -91,11 +86,10 @@ class Dumper
 
 	/**
 	 * Formats object to line.
-	 * @param  object  $object
 	 */
-	private static function objectToLine($object): string
+	private static function objectToLine(object $object): string
 	{
-		$line = get_class($object);
+		$line = $object::class;
 		if ($object instanceof \DateTime || $object instanceof \DateTimeInterface) {
 			$line .= '(' . $object->format('Y-m-d H:i:s O') . ')';
 		}
@@ -106,9 +100,8 @@ class Dumper
 
 	/**
 	 * Dumps variable in PHP format.
-	 * @param  mixed  $var  variable to dump
 	 */
-	public static function toPhp($var): string
+	public static function toPhp(mixed $var): string
 	{
 		return self::_toPhp($var);
 	}
@@ -116,19 +109,18 @@ class Dumper
 
 	/**
 	 * Returns object's stripped hash.
-	 * @param  object  $object
 	 */
-	private static function hash($object): string
+	private static function hash(object $object): string
 	{
 		return '#' . substr(md5(spl_object_hash($object)), 0, 4);
 	}
 
 
-	private static function _toPhp(&$var, array &$list = [], int $level = 0, int &$line = 1): string
+	private static function _toPhp(mixed &$var, array &$list = [], int $level = 0, int &$line = 1): string
 	{
 		if (is_float($var)) {
 			$var = str_replace(',', '.', "$var");
-			return strpos($var, '.') === false ? $var . '.0' : $var;
+			return !str_contains($var, '.') ? $var . '.0' : $var;
 
 		} elseif (is_bool($var)) {
 			return $var ? 'true' : 'false';
@@ -173,7 +165,7 @@ class Dumper
 				}
 
 				unset($var[$marker]);
-				if (strpos($outShort, "\n") === false && strlen($outShort) < self::$maxLength) {
+				if (!str_contains($outShort, "\n") && strlen($outShort) < self::$maxLength) {
 					$line = $oldLine;
 					$out = $outShort;
 				}
@@ -192,7 +184,7 @@ class Dumper
 
 			$arr = (array) $var;
 			$space = str_repeat("\t", $level);
-			$class = get_class($var);
+			$class = $var::class;
 			$used = &$list[spl_object_hash($var)];
 
 			if (empty($arr)) {
@@ -356,7 +348,7 @@ class Dumper
 				'%2' => self::color('yellow') . self::toLine($expected) . self::color('white'),
 			]);
 		} else {
-			$message = ($e instanceof \ErrorException ? Helpers::errorTypeToString($e->getSeverity()) : get_class($e))
+			$message = ($e instanceof \ErrorException ? Helpers::errorTypeToString($e->getSeverity()) : $e::class)
 				. ': ' . preg_replace('#[\x00-\x09\x0B-\x1F]+#', ' ', $e->getMessage());
 		}
 
@@ -402,7 +394,7 @@ class Dumper
 	/**
 	 * Dumps data to folder 'output'.
 	 */
-	public static function saveOutput(string $testFile, $content, string $suffix = ''): string
+	public static function saveOutput(string $testFile, mixed $content, string $suffix = ''): string
 	{
 		$path = self::$dumpDir . DIRECTORY_SEPARATOR . pathinfo($testFile, PATHINFO_FILENAME) . $suffix;
 		if (!preg_match('#/|\w:#A', self::$dumpDir)) {

@@ -16,15 +16,19 @@ namespace Nette\Neon;
  */
 final class Neon
 {
-	public const BLOCK = Encoder::BLOCK;
 	public const Chain = '!!chain';
+
+	/** @deprecated use Neon::Chain */
 	public const CHAIN = self::Chain;
+
+	/** @deprecated use parameter $blockMode */
+	public const BLOCK = Encoder::BLOCK;
 
 
 	/**
 	 * Returns value converted to NEON.
 	 */
-	public static function encode($value, bool $blockMode = false, string $indentation = "\t"): string
+	public static function encode(mixed $value, bool $blockMode = false, string $indentation = "\t"): string
 	{
 		$encoder = new Encoder;
 		$encoder->blockMode = $blockMode;
@@ -35,9 +39,8 @@ final class Neon
 
 	/**
 	 * Converts given NEON to PHP value.
-	 * @return mixed
 	 */
-	public static function decode(string $input)
+	public static function decode(string $input): mixed
 	{
 		$decoder = new Decoder;
 		return $decoder->decode($input);
@@ -46,15 +49,15 @@ final class Neon
 
 	/**
 	 * Converts given NEON file to PHP value.
-	 * @return mixed
 	 */
-	public static function decodeFile(string $file)
+	public static function decodeFile(string $file): mixed
 	{
-		if (!is_file($file)) {
-			throw new Exception("File '$file' does not exist.");
+		$input = @file_get_contents($file); // @ is escalated to exception
+		if ($input === false) {
+			$error = preg_replace('#^\w+\(.*?\): #', '', error_get_last()['message'] ?? '');
+			throw new Exception("Unable to read file '$file'. $error");
 		}
 
-		$input = file_get_contents($file);
 		if (substr($input, 0, 3) === "\u{FEFF}") { // BOM
 			$input = substr($input, 3);
 		}

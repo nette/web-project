@@ -18,43 +18,36 @@ class BlueScreen
 	private const MaxMessageLength = 2000;
 
 	/** @var string[] */
-	public $info = [];
+	public array $info = [];
 
 	/** @var string[] paths to be collapsed in stack trace (e.g. core libraries) */
-	public $collapsePaths = [];
+	public array $collapsePaths = [];
 
-	/** @var int  */
-	public $maxDepth = 5;
-
-	/** @var int  */
-	public $maxLength = 150;
-
-	/** @var int */
-	public $maxItems = 100;
+	public int $maxDepth = 5;
+	public int $maxLength = 150;
+	public int $maxItems = 100;
 
 	/** @var callable|null  a callable returning true for sensitive data; fn(string $key, mixed $val): bool */
 	public $scrubber;
 
 	/** @var string[] */
-	public $keysToHide = ['password', 'passwd', 'pass', 'pwd', 'creditcard', 'credit card', 'cc', 'pin', self::class . '::$snapshot'];
+	public array $keysToHide = [
+		'password', 'passwd', 'pass', 'pwd', 'creditcard', 'credit card', 'cc', 'pin', 'authorization',
+		self::class . '::$snapshot',
+	];
 
-	/** @var bool */
-	public $showEnvironment = true;
+	public bool $showEnvironment = true;
 
 	/** @var callable[] */
-	private $panels = [];
+	private array $panels = [];
 
 	/** @var callable[] functions that returns action for exceptions */
-	private $actions = [];
-
-	/** @var callable[] */
-	private $fileGenerators = [];
-
-	/** @var array */
-	private $snapshot;
+	private array $actions = [];
+	private array $fileGenerators = [];
+	private ?array $snapshot = null;
 
 	/** @var \WeakMap<\Fiber|\Generator> */
-	private $fibers;
+	private \WeakMap $fibers;
 
 
 	public function __construct()
@@ -63,7 +56,7 @@ class BlueScreen
 			? [$m[1] . '/tracy', $m[1] . '/nette', $m[1] . '/latte']
 			: [dirname(__DIR__)];
 		$this->fileGenerators[] = [self::class, 'generateNewPhpFileContents'];
-		$this->fibers = PHP_VERSION_ID < 80000 ? new \SplObjectStorage : new \WeakMap;
+		$this->fibers = new \WeakMap;
 	}
 
 
@@ -104,11 +97,7 @@ class BlueScreen
 	}
 
 
-	/**
-	 * @param \Fiber|\Generator $fiber
-	 * @return static
-	 */
-	public function addFiber($fiber): self
+	public function addFiber(\Fiber|\Generator $fiber): static
 	{
 		$this->fibers[$fiber] = true;
 		return $this;
@@ -131,9 +120,7 @@ class BlueScreen
 	/** @internal */
 	public function renderToAjax(\Throwable $exception, DeferredContent $defer): void
 	{
-		$defer->addSetup('Tracy.BlueScreen.loadAjax', Helpers::capture(function () use ($exception) {
-			$this->renderTemplate($exception, __DIR__ . '/assets/content.phtml');
-		}));
+		$defer->addSetup('Tracy.BlueScreen.loadAjax', Helpers::capture(fn() => $this->renderTemplate($exception, __DIR__ . '/assets/content.phtml')));
 	}
 
 
@@ -156,17 +143,17 @@ class BlueScreen
 	}
 
 
-	private function renderTemplate(\Throwable $exception, string $template, $toScreen = true): void
+	private function renderTemplate(\Throwable $exception, string $template, bool $toScreen = true): void
 	{
 		[$generators, $fibers] = $this->findGeneratorsAndFibers($exception);
 		$headersSent = headers_sent($headersFile, $headersLine);
 		$obStatus = Debugger::$obStatus;
-		$showEnvironment = $this->showEnvironment && (strpos($exception->getMessage(), 'Allowed memory size') === false);
+		$showEnvironment = $this->showEnvironment && (!str_contains($exception->getMessage(), 'Allowed memory size'));
 		$info = array_filter($this->info);
 		$source = Helpers::getSource();
 		$title = $exception instanceof \ErrorException
 			? Helpers::errorTypeToString($exception->getSeverity())
-			: Helpers::getClass($exception);
+			: get_debug_type($exception);
 		$lastError = $exception instanceof \ErrorException || $exception instanceof \Error
 			? null
 			: error_get_last();
@@ -174,8 +161,8 @@ class BlueScreen
 		if (function_exists('apache_request_headers')) {
 			$httpHeaders = apache_request_headers();
 		} else {
-			$httpHeaders = array_filter($_SERVER, function ($k) { return strncmp($k, 'HTTP_', 5) === 0; }, ARRAY_FILTER_USE_KEY);
-			$httpHeaders = array_combine(array_map(function ($k) { return strtolower(strtr(substr($k, 5), '_', '-')); }, array_keys($httpHeaders)), $httpHeaders);
+			$httpHeaders = array_filter($_SERVER, fn($k) => strncmp($k, 'HTTP_', 5) === 0, ARRAY_FILTER_USE_KEY);
+			$httpHeaders = array_combine(array_map(fn($k) => strtolower(strtr(substr($k, 5), '_', '-')), array_keys($httpHeaders)), $httpHeaders);
 		}
 
 		$snapshot = &$this->snapshot;
@@ -285,7 +272,7 @@ class BlueScreen
 			];
 		}
 
-		$query = ($ex instanceof \ErrorException ? '' : Helpers::getClass($ex) . ' ')
+		$query = ($ex instanceof \ErrorException ? '' : get_debug_type($ex) . ' ')
 			. preg_replace('#\'.*\'|".*"#Us', '', $ex->getMessage());
 		$actions[] = [
 			'link' => 'https://www.google.com/search?sourceid=tracy&q=' . urlencode($query),
@@ -316,7 +303,7 @@ class BlueScreen
 		int $line,
 		int $lines = 15,
 		bool $php = true,
-		int $column = 0
+		int $column = 0,
 	): ?string
 	{
 		$source = @file_get_contents($file); // @ file may not exist
@@ -351,6 +338,7 @@ class BlueScreen
 
 		$source = preg_replace('#(__halt_compiler\s*\(\)\s*;).*#is', '$1', $source);
 		$source = str_replace(["\r\n", "\r"], "\n", $source);
+		$source = preg_replace('#/\*sensitive\{\*/.*?/\*\}\*/#s', Dumper\Describer::HiddenValue, $source);
 		$source = explode("\n", highlight_string($source, true));
 		$out = $source[0]; // <code><span color=highlight.html>
 		$source = str_replace('<br />', "\n", $source[1]);
@@ -395,14 +383,14 @@ class BlueScreen
 						'#((?:&.*?;|[^&]){' . ($column - 1) . '})(&.*?;|.)#u',
 						'\1<span class="tracy-column-highlight">\2</span>',
 						$s . ' ',
-						1
+						1,
 					);
 				}
 				$out .= sprintf(
 					"<span class='tracy-line-highlight'>%{$numWidth}s:    %s\n</span>%s",
 					$n,
 					$s,
-					implode('', $tags[0])
+					implode('', $tags[0]),
 				);
 			} else {
 				$out .= sprintf("<span class='tracy-line'>%{$numWidth}s:</span>    %s\n", $n, $s);
@@ -448,7 +436,7 @@ class BlueScreen
 
 				return "\e[0m\e[" . end($stack) . 'm';
 			},
-			$s
+			$s,
 		);
 		$s = htmlspecialchars_decode(strip_tags($s), ENT_QUOTES | ENT_HTML5);
 		return $s;
@@ -476,17 +464,15 @@ class BlueScreen
 	/** @internal */
 	public function getDumper(): \Closure
 	{
-		return function ($v, $k = null): string {
-			return Dumper::toHtml($v, [
-				Dumper::DEPTH => $this->maxDepth,
-				Dumper::TRUNCATE => $this->maxLength,
-				Dumper::ITEMS => $this->maxItems,
-				Dumper::SNAPSHOT => &$this->snapshot,
-				Dumper::LOCATION => Dumper::LOCATION_CLASS,
-				Dumper::SCRUBBER => $this->scrubber,
-				Dumper::KEYS_TO_HIDE => $this->keysToHide,
-			], $k);
-		};
+		return fn($v, $k = null): string => Dumper::toHtml($v, [
+			Dumper::DEPTH => $this->maxDepth,
+			Dumper::TRUNCATE => $this->maxLength,
+			Dumper::ITEMS => $this->maxItems,
+			Dumper::SNAPSHOT => &$this->snapshot,
+			Dumper::LOCATION => Dumper::LOCATION_CLASS,
+			Dumper::SCRUBBER => $this->scrubber,
+			Dumper::KEYS_TO_HIDE => $this->keysToHide,
+		], $k);
 	}
 
 
@@ -498,7 +484,7 @@ class BlueScreen
 		$msg = preg_replace(
 			'#\'\S(?:[^\']|\\\\\')*\S\'|"\S(?:[^"]|\\\\")*\S"#',
 			'<i>$0</i>',
-			$msg
+			$msg,
 		);
 
 		// clickable class & methods
@@ -517,18 +503,16 @@ class BlueScreen
 
 				return '<a href="' . Helpers::escapeHtml(Helpers::editorUri($r->getFileName(), $r->getStartLine())) . '" class="tracy-editor">' . $m[0] . '</a>';
 			},
-			$msg
+			$msg,
 		);
 
 		// clickable file name
 		$msg = preg_replace_callback(
 			'#([\w\\\\/.:-]+\.(?:php|phpt|phtml|latte|neon))(?|:(\d+)| on line (\d+))?#',
-			function ($m) {
-				return @is_file($m[1])
+			fn($m) => @is_file($m[1])
 				? '<a href="' . Helpers::escapeHtml(Helpers::editorUri($m[1], isset($m[2]) ? (int) $m[2] : null)) . '" class="tracy-editor">' . $m[0] . '</a>'
-				: $m[0];
-			},
-			$msg
+				: $m[0],
+			$msg,
 		);
 
 		return $msg;
@@ -544,7 +528,7 @@ class BlueScreen
 		@phpinfo(INFO_CONFIGURATION | INFO_MODULES); // @ phpinfo may be disabled
 		$info = ob_get_clean();
 
-		if (strpos($license, '<body') === false) {
+		if (!str_contains($license, '<body')) {
 			echo '<pre class="tracy-dump tracy-light">', Helpers::escapeHtml($info), '</pre>';
 		} else {
 			$info = str_replace('<table', '<table class="tracy-sortable"', $info);

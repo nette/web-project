@@ -40,9 +40,7 @@ final class ProductionStrategy
 				header('Content-Type: text/html; charset=UTF-8');
 			}
 
-			(function ($logged) use ($exception) {
-				require Debugger::$errorTemplate ?: __DIR__ . '/assets/error.500.phtml';
-			})(empty($e));
+			(fn($logged) => require Debugger::$errorTemplate ?: __DIR__ . '/assets/error.500.phtml')(empty($e));
 
 		} elseif (Helpers::isCli()) {
 			// @ triggers E_NOTICE when strerr is closed since PHP 7.4
@@ -60,15 +58,13 @@ final class ProductionStrategy
 		string $message,
 		string $file,
 		int $line,
-		array $context = null
 	): void
 	{
 		if ($severity & Debugger::$logSeverity) {
 			$err = new ErrorException($message, 0, $severity, $file, $line);
-			@$err->context = $context; // dynamic properties are deprecated since PHP 8.2
 			Helpers::improveException($err);
 		} else {
-			$err = 'PHP ' . Helpers::errorTypeToString($severity) . ': ' . Helpers::improveError($message, (array) $context) . " in $file:$line";
+			$err = 'PHP ' . Helpers::errorTypeToString($severity) . ': ' . Helpers::improveError($message) . " in $file:$line";
 		}
 
 		try {

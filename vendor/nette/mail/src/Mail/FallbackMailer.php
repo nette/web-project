@@ -17,21 +17,19 @@ class FallbackMailer implements Mailer
 	use Nette\SmartObject;
 
 	/** @var callable[]  function (FallbackMailer $sender, SendException $e, Mailer $mailer, Message $mail): void */
-	public $onFailure;
+	public array $onFailure = [];
 
 	/** @var Mailer[] */
-	private $mailers;
+	private array $mailers;
 
-	/** @var int */
-	private $retryCount;
+	private int $retryCount;
 
-	/** @var int in miliseconds */
-	private $retryWaitTime;
+	/** in miliseconds */
+	private int $retryWaitTime;
 
 
 	/**
 	 * @param Mailer[]  $mailers
-	 * @param int  $retryWaitTime in miliseconds
 	 */
 	public function __construct(array $mailers, int $retryCount = 3, int $retryWaitTime = 1000)
 	{
@@ -64,7 +62,7 @@ class FallbackMailer implements Mailer
 
 				} catch (SendException $e) {
 					$failures[] = $e;
-					$this->onFailure($this, $e, $mailer, $mail);
+					Nette\Utils\Arrays::invoke($this->onFailure, $this, $e, $mailer, $mail);
 				}
 			}
 		}
@@ -75,8 +73,7 @@ class FallbackMailer implements Mailer
 	}
 
 
-	/** @return static */
-	public function addMailer(Mailer $mailer)
+	public function addMailer(Mailer $mailer): static
 	{
 		$this->mailers[] = $mailer;
 		return $this;

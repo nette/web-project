@@ -16,7 +16,7 @@ use Nette\Utils\Strings;
 /**
  * MIME message part.
  *
- * @property   string $body
+ * @property-deprecated   string $body
  */
 class MimePart
 {
@@ -24,36 +24,31 @@ class MimePart
 
 	/** encoding */
 	public const
-		ENCODING_BASE64 = 'base64',
-		ENCODING_7BIT = '7bit',
-		ENCODING_8BIT = '8bit',
-		ENCODING_QUOTED_PRINTABLE = 'quoted-printable';
+		EncodingBase64 = 'base64',
+		Encoding7Bit = '7bit',
+		Encoding8Bit = '8bit',
+		EncodingQuotedPrintable = 'quoted-printable';
 
 	/** @internal */
 	public const EOL = "\r\n";
 
 	public const LineLength = 76;
 
+	/** value (RFC 2231), encoded-word (RFC 2047) */
 	private const
-		SequenceValue = 1, // value, RFC 2231
-		SequenceWord = 2;  // encoded-word, RFC 2047
+		SequenceValue = 1,
+		SequenceWord = 2;
 
-	/** @var array */
-	private $headers = [];
-
-	/** @var array */
-	private $parts = [];
-
-	/** @var string */
-	private $body = '';
+	private array $headers = [];
+	private array $parts = [];
+	private string $body = '';
 
 
 	/**
 	 * Sets a header.
 	 * @param  string|array|null  $value  value or pair email => name
-	 * @return static
 	 */
-	public function setHeader(string $name, $value, bool $append = false)
+	public function setHeader(string $name, string|array|null $value, bool $append = false): static
 	{
 		if (!$name || preg_match('#[^a-z0-9-]#i', $name)) {
 			throw new Nette\InvalidArgumentException("Header name must be non-empty alphanumeric string, '$name' given.");
@@ -96,9 +91,8 @@ class MimePart
 
 	/**
 	 * Returns a header.
-	 * @return mixed
 	 */
-	public function getHeader(string $name)
+	public function getHeader(string $name): mixed
 	{
 		return $this->headers[$name] ?? null;
 	}
@@ -106,9 +100,8 @@ class MimePart
 
 	/**
 	 * Removes a header.
-	 * @return static
 	 */
-	public function clearHeader(string $name)
+	public function clearHeader(string $name): static
 	{
 		unset($this->headers[$name]);
 		return $this;
@@ -159,9 +152,8 @@ class MimePart
 
 	/**
 	 * Sets Content-Type header.
-	 * @return static
 	 */
-	public function setContentType(string $contentType, ?string $charset = null)
+	public function setContentType(string $contentType, ?string $charset = null): static
 	{
 		$this->setHeader('Content-Type', $contentType . ($charset ? "; charset=$charset" : ''));
 		return $this;
@@ -170,9 +162,8 @@ class MimePart
 
 	/**
 	 * Sets Content-Transfer-Encoding header.
-	 * @return static
 	 */
-	public function setEncoding(string $encoding)
+	public function setEncoding(string $encoding): static
 	{
 		$this->setHeader('Content-Transfer-Encoding', $encoding);
 		return $this;
@@ -199,9 +190,8 @@ class MimePart
 
 	/**
 	 * Sets textual body.
-	 * @return static
 	 */
-	public function setBody(string $body)
+	public function setBody(string $body): static
 	{
 		$this->body = $body;
 		return $this;
@@ -242,19 +232,19 @@ class MimePart
 		$body = $this->body;
 		if ($body !== '') {
 			switch ($this->getEncoding()) {
-				case self::ENCODING_QUOTED_PRINTABLE:
+				case self::EncodingQuotedPrintable:
 					$output .= quoted_printable_encode($body);
 					break;
 
-				case self::ENCODING_BASE64:
+				case self::EncodingBase64:
 					$output .= rtrim(chunk_split(base64_encode($body), self::LineLength, self::EOL));
 					break;
 
-				case self::ENCODING_7BIT:
+				case self::Encoding7Bit:
 					$body = preg_replace('#[\x80-\xFF]+#', '', $body);
 					// break omitted
 
-				case self::ENCODING_8BIT:
+				case self::Encoding8Bit:
 					$body = str_replace(["\x00", "\r"], '', $body);
 					$body = str_replace("\n", self::EOL, $body);
 					$output .= $body;
@@ -266,7 +256,7 @@ class MimePart
 		}
 
 		if ($this->parts) {
-			if (substr($output, -strlen(self::EOL)) !== self::EOL) {
+			if (!str_ends_with($output, self::EOL)) {
 				$output .= self::EOL;
 			}
 

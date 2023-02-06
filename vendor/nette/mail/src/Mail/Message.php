@@ -16,31 +16,34 @@ use Nette\Utils\Strings;
 /**
  * Mail provides functionality to compose and send both text and MIME-compliant multipart email messages.
  *
- * @property   string $subject
- * @property   string $htmlBody
+ * @property-deprecated   string $subject
+ * @property-deprecated   string $htmlBody
  */
 class Message extends MimePart
 {
 	/** Priority */
 	public const
-		HIGH = 1,
-		NORMAL = 3,
-		LOW = 5;
+		High = 1,
+		Normal = 3,
+		Low = 5;
 
-	/** @var array */
-	public static $defaultHeaders = [
+	/** @deprecated use Message::High */
+	public const HIGH = self::High;
+
+	/** @deprecated use Message::Normal */
+	public const NORMAL = self::Normal;
+
+	/** @deprecated use Message::Low */
+	public const LOW = self::Low;
+
+	public static array $defaultHeaders = [
 		'MIME-Version' => '1.0',
 		'X-Mailer' => 'Nette Framework',
 	];
 
-	/** @var array */
-	private $attachments = [];
-
-	/** @var array */
-	private $inlines = [];
-
-	/** @var string */
-	private $htmlBody = '';
+	private array $attachments = [];
+	private array $inlines = [];
+	private string $htmlBody = '';
 
 
 	public function __construct()
@@ -55,9 +58,8 @@ class Message extends MimePart
 
 	/**
 	 * Sets the sender of the message. Email or format "John Doe" <doe@example.com>
-	 * @return static
 	 */
-	public function setFrom(string $email, ?string $name = null)
+	public function setFrom(string $email, ?string $name = null): static
 	{
 		$this->setHeader('From', $this->formatEmail($email, $name));
 		return $this;
@@ -75,9 +77,8 @@ class Message extends MimePart
 
 	/**
 	 * Adds the reply-to address. Email or format "John Doe" <doe@example.com>
-	 * @return static
 	 */
-	public function addReplyTo(string $email, ?string $name = null)
+	public function addReplyTo(string $email, ?string $name = null): static
 	{
 		$this->setHeader('Reply-To', $this->formatEmail($email, $name), true);
 		return $this;
@@ -86,9 +87,8 @@ class Message extends MimePart
 
 	/**
 	 * Sets the subject of the message.
-	 * @return static
 	 */
-	public function setSubject(string $subject)
+	public function setSubject(string $subject): static
 	{
 		$this->setHeader('Subject', $subject);
 		return $this;
@@ -106,9 +106,8 @@ class Message extends MimePart
 
 	/**
 	 * Adds email recipient. Email or format "John Doe" <doe@example.com>
-	 * @return static
 	 */
-	public function addTo(string $email, ?string $name = null) // addRecipient()
+	public function addTo(string $email, ?string $name = null): static // addRecipient()
 	{
 		$this->setHeader('To', $this->formatEmail($email, $name), true);
 		return $this;
@@ -117,9 +116,8 @@ class Message extends MimePart
 
 	/**
 	 * Adds carbon copy email recipient. Email or format "John Doe" <doe@example.com>
-	 * @return static
 	 */
-	public function addCc(string $email, ?string $name = null)
+	public function addCc(string $email, ?string $name = null): static
 	{
 		$this->setHeader('Cc', $this->formatEmail($email, $name), true);
 		return $this;
@@ -128,9 +126,8 @@ class Message extends MimePart
 
 	/**
 	 * Adds blind carbon copy email recipient. Email or format "John Doe" <doe@example.com>
-	 * @return static
 	 */
-	public function addBcc(string $email, ?string $name = null)
+	public function addBcc(string $email, ?string $name = null): static
 	{
 		$this->setHeader('Bcc', $this->formatEmail($email, $name), true);
 		return $this;
@@ -157,9 +154,8 @@ class Message extends MimePart
 
 	/**
 	 * Sets the Return-Path header of the message.
-	 * @return static
 	 */
-	public function setReturnPath(string $email)
+	public function setReturnPath(string $email): static
 	{
 		$this->setHeader('Return-Path', $email);
 		return $this;
@@ -177,9 +173,8 @@ class Message extends MimePart
 
 	/**
 	 * Sets email priority.
-	 * @return static
 	 */
-	public function setPriority(int $priority)
+	public function setPriority(int $priority): static
 	{
 		$this->setHeader('X-Priority', (string) $priority);
 		return $this;
@@ -198,9 +193,8 @@ class Message extends MimePart
 
 	/**
 	 * Sets HTML body.
-	 * @return static
 	 */
-	public function setHtmlBody(string $html, ?string $basePath = null)
+	public function setHtmlBody(string $html, ?string $basePath = null): static
 	{
 		if ($basePath) {
 			$cids = [];
@@ -214,7 +208,7 @@ class Message extends MimePart
 					(["\']?)(?![a-z]+:|[/\#])([^"\'>)\s]+)
 					|\[\[ ([\w()+./@~-]+) \]\]
 				#ix',
-				PREG_OFFSET_CAPTURE
+				captureOffset: true,
 			);
 			foreach (array_reverse($matches) as $m) {
 				$file = rtrim($basePath, '/\\') . '/' . (isset($m[4]) ? $m[4][0] : urldecode($m[3][0]));
@@ -226,7 +220,7 @@ class Message extends MimePart
 					$html,
 					"{$m[1][0]}{$m[2][0]}cid:{$cids[$file]}",
 					$m[0][1],
-					strlen($m[0][0])
+					strlen($m[0][0]),
 				);
 			}
 		}
@@ -268,9 +262,8 @@ class Message extends MimePart
 
 	/**
 	 * Adds inlined Mime Part.
-	 * @return static
 	 */
-	public function addInlinePart(MimePart $part)
+	public function addInlinePart(MimePart $part): static
 	{
 		$this->inlines[] = $part;
 		return $this;
@@ -303,7 +296,7 @@ class Message extends MimePart
 		string $file,
 		?string $content,
 		?string $contentType,
-		string $disposition
+		string $disposition,
 	): MimePart
 	{
 		$part = new MimePart;
@@ -324,7 +317,7 @@ class Message extends MimePart
 
 		$part->setBody($content);
 		$part->setContentType($contentType);
-		$part->setEncoding(preg_match('#(multipart|message)/#A', $contentType) ? self::ENCODING_8BIT : self::ENCODING_BASE64);
+		$part->setEncoding(preg_match('#(multipart|message)/#A', $contentType) ? self::Encoding8Bit : self::EncodingBase64);
 		$part->setHeader('Content-Disposition', $disposition . '; filename="' . addcslashes($file, '"\\') . '"');
 		return $part;
 	}
@@ -344,9 +337,8 @@ class Message extends MimePart
 
 	/**
 	 * Builds email. Does not modify itself, but returns a new object.
-	 * @return static
 	 */
-	public function build()
+	public function build(): static
 	{
 		$mail = clone $this;
 		$mail->setHeader('Message-ID', $mail->getHeader('Message-ID') ?? $this->getRandomId());
@@ -374,8 +366,8 @@ class Message extends MimePart
 
 			$alt->setContentType('text/html', 'UTF-8')
 				->setEncoding(preg_match('#[^\n]{990}#', $mail->htmlBody)
-					? self::ENCODING_QUOTED_PRINTABLE
-					: (preg_match('#[\x80-\xFF]#', $mail->htmlBody) ? self::ENCODING_8BIT : self::ENCODING_7BIT))
+					? self::EncodingQuotedPrintable
+					: (preg_match('#[\x80-\xFF]#', $mail->htmlBody) ? self::Encoding8Bit : self::Encoding7Bit))
 				->setBody($mail->htmlBody);
 		}
 
@@ -383,8 +375,8 @@ class Message extends MimePart
 		$mail->setBody('');
 		$cursor->setContentType('text/plain', 'UTF-8')
 			->setEncoding(preg_match('#[^\n]{990}#', $text)
-				? self::ENCODING_QUOTED_PRINTABLE
-				: (preg_match('#[\x80-\xFF]#', $text) ? self::ENCODING_8BIT : self::ENCODING_7BIT))
+				? self::EncodingQuotedPrintable
+				: (preg_match('#[\x80-\xFF]#', $text) ? self::Encoding8Bit : self::Encoding7Bit))
 			->setBody($text);
 
 		return $mail;

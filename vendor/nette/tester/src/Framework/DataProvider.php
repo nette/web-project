@@ -26,9 +26,7 @@ class DataProvider
 		}
 
 		if (pathinfo($file, PATHINFO_EXTENSION) === 'php') {
-			$data = (function () {
-				return require func_get_arg(0);
-			})(realpath($file));
+			$data = (fn() => require func_get_arg(0))(realpath($file));
 
 			if ($data instanceof \Traversable) {
 				$data = iterator_to_array($data);
@@ -72,29 +70,17 @@ class DataProvider
 	}
 
 
-	private static function compare($l, string $operator, $r): bool
+	private static function compare(mixed $l, string $operator, mixed $r): bool
 	{
-		switch ($operator) {
-			case '>':
-				return $l > $r;
-			case '=>':
-			case '>=':
-				return $l >= $r;
-			case '<':
-				return $l < $r;
-			case '=<':
-			case '<=':
-				return $l <= $r;
-			case '=':
-			case '==':
-				return $l == $r;
-			case '!':
-			case '!=':
-			case '<>':
-				return $l != $r;
-		}
-
-		throw new \InvalidArgumentException("Unknown operator $operator.");
+		return match ($operator) {
+			'>' => $l > $r,
+			'>=', '=>' => $l >= $r,
+			'<' => $l < $r,
+			'=<', '<=' => $l <= $r,
+			'=', '==' => $l == $r,
+			'!', '!=', '<>' => $l != $r,
+			default => throw new \InvalidArgumentException("Unknown operator '$operator'"),
+		};
 	}
 
 

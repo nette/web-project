@@ -338,15 +338,22 @@ class Session
 	}
 
 
-	/** @deprecated */
-	public function getIterator(): \Iterator
+	/** @return string[] */
+	public function getSectionNames(): array
 	{
-		trigger_error(__METHOD__ . '() is deprecated', E_USER_DEPRECATED);
 		if ($this->exists() && !$this->started) {
 			$this->autoStart(false);
 		}
 
-		return new \ArrayIterator(array_keys($_SESSION['__NF']['DATA'] ?? []));
+		return array_keys($_SESSION['__NF']['DATA'] ?? []);
+	}
+
+
+	/** @deprecated use getSectionNames() */
+	public function getIterator(): \Iterator
+	{
+		trigger_error(__METHOD__ . '() is deprecated', E_USER_DEPRECATED);
+		return new \ArrayIterator($this->getSectionNames());
 	}
 
 
@@ -403,7 +410,7 @@ class Session
 			$normalized[$normKey] = $value;
 		}
 
-		if (array_key_exists('read_and_close', $normalized)) {
+		if (isset($normalized['read_and_close'])) {
 			if (session_status() === PHP_SESSION_ACTIVE) {
 				throw new Nette\InvalidStateException('Cannot configure "read_and_close" for already started session.');
 			}

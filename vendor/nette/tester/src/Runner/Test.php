@@ -16,31 +16,25 @@ namespace Tester\Runner;
 class Test
 {
 	public const
-		PREPARED = 0,
-		FAILED = 1,
-		PASSED = 2,
-		SKIPPED = 3;
+		Prepared = 0,
+		Failed = 1,
+		Passed = 2,
+		Skipped = 3;
 
-	/** @var string|null */
-	public $title;
+	/** @deprecated */
+	public const
+		PREPARED = self::Prepared,
+		FAILED = self::Failed,
+		PASSED = self::Passed,
+		SKIPPED = self::Skipped;
 
-	/** @var string|null */
-	public $message;
-
-	/** @var string */
-	public $stdout = '';
-
-	/** @var string */
-	public $stderr = '';
-
-	/** @var string */
-	private $file;
-
-	/** @var int */
-	private $result = self::PREPARED;
-
-	/** @var float|null */
-	private $duration;
+	public ?string $title;
+	public ?string $message = null;
+	public string $stdout = '';
+	public string $stderr = '';
+	private string $file;
+	private int $result = self::Prepared;
+	private ?float $duration = null;
 
 	/** @var string[]|string[][] */
 	private $args = [];
@@ -70,9 +64,7 @@ class Test
 
 	public function getSignature(): string
 	{
-		$args = implode(' ', array_map(function ($arg): string {
-			return is_array($arg) ? "$arg[0]=$arg[1]" : $arg;
-		}, $this->args));
+		$args = implode(' ', array_map(fn($arg): string => is_array($arg) ? "$arg[0]=$arg[1]" : $arg, $this->args));
 
 		return $this->file . ($args ? " $args" : '');
 	}
@@ -86,7 +78,7 @@ class Test
 
 	public function hasResult(): bool
 	{
-		return $this->result !== self::PREPARED;
+		return $this->result !== self::Prepared;
 	}
 
 
@@ -96,6 +88,15 @@ class Test
 	public function getDuration(): ?float
 	{
 		return $this->duration;
+	}
+
+
+	/**
+	 * Full output (stdout + stderr)
+	 */
+	public function getOutput(): string
+	{
+		return $this->stdout . ($this->stderr ? "\nSTDERR:\n" . $this->stderr : '');
 	}
 
 

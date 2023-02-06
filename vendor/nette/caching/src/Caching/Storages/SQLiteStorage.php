@@ -20,8 +20,7 @@ class SQLiteStorage implements Nette\Caching\Storage, Nette\Caching\BulkReader
 {
 	use Nette\SmartObject;
 
-	/** @var \PDO */
-	private $pdo;
+	private \PDO $pdo;
 
 
 	public function __construct(string $path)
@@ -52,12 +51,12 @@ class SQLiteStorage implements Nette\Caching\Storage, Nette\Caching\BulkReader
 	}
 
 
-	public function read(string $key)
+	public function read(string $key): mixed
 	{
 		$stmt = $this->pdo->prepare('SELECT data, slide FROM cache WHERE key=? AND (expire IS NULL OR expire >= ?)');
 		$stmt->execute([$key, time()]);
 		if (!$row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-			return;
+			return null;
 		}
 
 		if ($row['slide'] !== null) {

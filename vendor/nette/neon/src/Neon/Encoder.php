@@ -19,24 +19,21 @@ final class Encoder
 	/** @deprecated */
 	public const BLOCK = true;
 
-	/** @var bool */
-	public $blockMode = false;
-
-	/** @var string */
-	public $indentation = "\t";
+	public bool $blockMode = false;
+	public string $indentation = "\t";
 
 
 	/**
 	 * Returns the NEON representation of a value.
 	 */
-	public function encode($val): string
+	public function encode(mixed $val): string
 	{
 		$node = $this->valueToNode($val, $this->blockMode);
 		return $node->toString();
 	}
 
 
-	public function valueToNode($val, bool $blockMode = false): Node
+	public function valueToNode(mixed $val, bool $blockMode = false): Node
 	{
 		if ($val instanceof \DateTimeInterface) {
 			return new Node\LiteralNode($val);
@@ -52,7 +49,7 @@ final class Encoder
 		} elseif ($val instanceof Entity) {
 			return new Node\EntityNode(
 				$this->valueToNode($val->value),
-				$this->arrayToNodes((array) $val->attributes)
+				$this->arrayToNodes($val->attributes),
 			);
 
 		} elseif (is_object($val) || is_array($val)) {
@@ -76,7 +73,7 @@ final class Encoder
 
 
 	/** @return Node\ArrayItemNode[] */
-	private function arrayToNodes($val, bool $blockMode = false): array
+	private function arrayToNodes(mixed $val, bool $blockMode = false): array
 	{
 		$res = [];
 		$counter = 0;

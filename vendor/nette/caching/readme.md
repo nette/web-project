@@ -33,7 +33,7 @@ Installation
 composer require nette/caching
 ```
 
-It requires PHP version 7.2 and supports PHP up to 8.2.
+It requires PHP version 8.0 and supports PHP up to 8.2.
 
 
 Basic Usage
@@ -129,6 +129,14 @@ $value = $cache->load($key, function (&$dependencies) {
 	$dependencies[Cache::Expire] = '20 minutes';
 	return ...;
 ]);
+```
+
+Or using 3rd parameter in the `load()` method, eg:
+
+```php
+$value = $cache->load($key, function () {
+	return ...;
+], [Cache::Expire => '20 minutes']);
 ```
 
 In the following examples, we will assume the second variant and thus the existence of a variable `$dependencies`.

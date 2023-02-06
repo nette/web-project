@@ -47,20 +47,12 @@ class FileStorage implements Nette\Caching\Storage
 		File = 'file',
 		Handle = 'handle';
 
-	/** @var float  probability that the clean() routine is started */
-	public static $gcProbability = 0.001;
+	/** probability that the clean() routine is started */
+	public static float $gcProbability = 0.001;
 
-	/** @deprecated */
-	public static $useDirectories = true;
-
-	/** @var string */
-	private $dir;
-
-	/** @var Journal */
-	private $journal;
-
-	/** @var array */
-	private $locks;
+	private string $dir;
+	private ?Journal $journal;
+	private array $locks;
 
 
 	public function __construct(string $dir, ?Journal $journal = null)
@@ -78,7 +70,7 @@ class FileStorage implements Nette\Caching\Storage
 	}
 
 
-	public function read(string $key)
+	public function read(string $key): mixed
 	{
 		$meta = $this->readMetaAndLock($this->getCacheFile($key), LOCK_SH);
 		return $meta && $this->verify($meta)
@@ -327,9 +319,8 @@ class FileStorage implements Nette\Caching\Storage
 
 	/**
 	 * Reads cache data from disk and closes cache file handle.
-	 * @return mixed
 	 */
-	protected function readData(array $meta)
+	protected function readData(array $meta): mixed
 	{
 		$data = stream_get_contents($meta[self::Handle]);
 		flock($meta[self::Handle], LOCK_UN);

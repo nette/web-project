@@ -15,14 +15,9 @@ namespace Tracy;
  */
 final class DeferredContent
 {
-	/** @var SessionStorage */
-	private $sessionStorage;
-
-	/** @var string */
-	private $requestId;
-
-	/** @var bool */
-	private $useSession = false;
+	private SessionStorage $sessionStorage;
+	private string $requestId;
+	private bool $useSession = false;
 
 
 	public function __construct(SessionStorage $sessionStorage)
@@ -52,7 +47,7 @@ final class DeferredContent
 	}
 
 
-	public function addSetup(string $method, $argument): void
+	public function addSetup(string $method, mixed $argument): void
 	{
 		$argument = json_encode($argument, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 		$item = &$this->getItems('setup')[$this->requestId];
@@ -66,7 +61,7 @@ final class DeferredContent
 		if (headers_sent($file, $line) || ob_get_length()) {
 			throw new \LogicException(
 				__METHOD__ . '() called after some output has been sent. '
-				. ($file ? "Output started at $file:$line." : 'Try Tracy\OutputDebugger to find where output started.')
+				. ($file ? "Output started at $file:$line." : 'Try Tracy\OutputDebugger to find where output started.'),
 			);
 		}
 
@@ -126,7 +121,7 @@ final class DeferredContent
 			__DIR__ . '/../BlueScreen/assets/bluescreen.css',
 		], Debugger::$customCssFiles));
 
-		$js1 = array_map(function ($file) { return '(function() {' . file_get_contents($file) . '})();'; }, [
+		$js1 = array_map(fn($file) => '(function() {' . file_get_contents($file) . '})();', [
 			__DIR__ . '/../Bar/assets/bar.js',
 			__DIR__ . '/../assets/toggle.js',
 			__DIR__ . '/../assets/table-sort.js',
@@ -153,9 +148,7 @@ final class DeferredContent
 	{
 		foreach ($this->sessionStorage->getData() as &$items) {
 			$items = array_slice((array) $items, -10, null, true);
-			$items = array_filter($items, function ($item) {
-				return isset($item['time']) && $item['time'] > time() - 60;
-			});
+			$items = array_filter($items, fn($item) => isset($item['time']) && $item['time'] > time() - 60);
 		}
 	}
 }

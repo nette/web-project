@@ -15,22 +15,22 @@ final class Lexer
 {
 	public const Patterns = [
 		// strings
-		Token::String => '
-			\'\'\'\n (?:(?: [^\n] | \n(?![\t\ ]*+\'\'\') )*+ \n)?[\t\ ]*+\'\'\' |
-			"""\n (?:(?: [^\n] | \n(?![\t\ ]*+""") )*+ \n)?[\t\ ]*+""" |
-			\' (?: \'\' | [^\'\n] )*+ \' |
-			" (?: \\\\. | [^"\\\\\n] )*+ "
-		',
+		Token::String => <<<'XX'
+			'''\n (?:(?: [^\n] | \n(?![\t ]*+''') )*+ \n)?[\t ]*+''' |
+			"""\n (?:(?: [^\n] | \n(?![\t ]*+""") )*+ \n)?[\t ]*+""" |
+			' (?: '' | [^'\n] )*+ ' |
+			" (?: \\. | [^"\\\n] )*+ "
+			XX,
 
 		// literal / boolean / integer / float
-		Token::Literal => '
-			(?: [^#"\',:=[\]{}()\n\t\ `-] | (?<!["\']) [:-] [^"\',=[\]{}()\n\t\ ] )
+		Token::Literal => <<<'XX'
+			(?: [^#"',:=[\]{}()\n\t `-] | (?<!["']) [:-] [^"',=[\]{}()\n\t ] )
 			(?:
-				[^,:=\]})(\n\t\ ]++ |
-				:(?! [\n\t\ ,\]})] | $ ) |
-				[\ \t]++ [^#,:=\]})(\n\t\ ]
+				[^,:=\]})(\n\t ]++ |
+				:(?! [\n\t ,\]})] | $ ) |
+				[ \t]++ [^#,:=\]})(\n\t ]
 			)*+
-		',
+			XX,
 
 		// punctuation
 		Token::Char => '[,:=[\]{}()-]',
@@ -42,7 +42,7 @@ final class Lexer
 		Token::Newline => '\n++',
 
 		// whitespace
-		Token::Whitespace => '[\t\ ]++',
+		Token::Whitespace => '[\t ]++',
 	];
 
 
@@ -50,30 +50,19 @@ final class Lexer
 	{
 		$input = str_replace("\r", '', $input);
 		$pattern = '~(' . implode(')|(', self::Patterns) . ')~Amixu';
-		$res = preg_match_all($pattern, $input, $tokens, PREG_SET_ORDER);
+		$res = preg_match_all($pattern, $input, $matches, PREG_SET_ORDER);
 		if ($res === false) {
 			throw new Exception('Invalid UTF-8 sequence.');
 		}
 
 		$types = array_keys(self::Patterns);
 		$offset = 0;
-		foreach ($tokens as &$token) {
-			$type = null;
-			for ($i = 1; $i <= count($types); $i++) {
-				if (!isset($token[$i])) {
-					break;
-				} elseif ($token[$i] !== '') {
-					$type = $types[$i - 1];
-					if ($type === Token::Char) {
-						$type = $token[0];
-					}
 
-					break;
-				}
-			}
-
-			$token = new Token($token[0], $type);
-			$offset += strlen($token->value);
+		$tokens = [];
+		foreach ($matches as $match) {
+			$type = $types[count($match) - 2];
+			$tokens[] = new Token($match[0], $type === Token::Char ? $match[0] : $type);
+			$offset += strlen($match[0]);
 		}
 
 		$stream = new TokenStream($tokens);

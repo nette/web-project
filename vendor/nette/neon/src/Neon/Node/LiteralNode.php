@@ -16,42 +16,32 @@ use Nette\Neon\Node;
 final class LiteralNode extends Node
 {
 	private const SimpleTypes = [
-		'true' => true, 'True' => true, 'TRUE' => true, 'yes' => true, 'Yes' => true, 'YES' => true, 'on' => true, 'On' => true, 'ON' => true,
-		'false' => false, 'False' => false, 'FALSE' => false, 'no' => false, 'No' => false, 'NO' => false, 'off' => false, 'Off' => false, 'OFF' => false,
+		'true' => true, 'True' => true, 'TRUE' => true, 'yes' => true, 'Yes' => true, 'YES' => true,
+		'false' => false, 'False' => false, 'FALSE' => false, 'no' => false, 'No' => false, 'NO' => false,
 		'null' => null, 'Null' => null, 'NULL' => null,
 	];
-
-	private const DeprecatedTypes = ['on' => 1, 'On' => 1, 'ON' => 1, 'off' => 1, 'Off' => 1, 'OFF' => 1];
 
 	private const PatternDatetime = '#\d\d\d\d-\d\d?-\d\d?(?:(?:[Tt]| ++)\d\d?:\d\d:\d\d(?:\.\d*+)? *+(?:Z|[-+]\d\d?(?::?\d\d)?)?)?$#DA';
 	private const PatternHex = '#0x[0-9a-fA-F]++$#DA';
 	private const PatternOctal = '#0o[0-7]++$#DA';
 	private const PatternBinary = '#0b[0-1]++$#DA';
 
-	/** @var mixed */
-	public $value;
 
-
-	public function __construct($value)
-	{
-		$this->value = $value;
+	public function __construct(
+		public mixed $value,
+	) {
 	}
 
 
-	public function toValue()
+	public function toValue(): mixed
 	{
 		return $this->value;
 	}
 
 
-	/** @return mixed */
-	public static function parse(string $value, bool $isKey = false)
+	public static function parse(string $value, bool $isKey = false): mixed
 	{
 		if (!$isKey && array_key_exists($value, self::SimpleTypes)) {
-			if (isset(self::DeprecatedTypes[$value])) {
-				trigger_error("Neon: keyword '$value' is deprecated, use true/yes or false/no.", E_USER_DEPRECATED);
-			}
-
 			return self::SimpleTypes[$value];
 
 		} elseif (is_numeric($value)) {
@@ -85,7 +75,7 @@ final class LiteralNode extends Node
 
 		} elseif (is_float($this->value)) {
 			$res = json_encode($this->value);
-			return strpos($res, '.') === false ? $res . '.0' : $res;
+			return str_contains($res, '.') ? $res : $res . '.0';
 
 		} elseif (is_int($this->value) || is_bool($this->value) || $this->value === null) {
 			return json_encode($this->value);

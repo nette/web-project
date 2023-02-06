@@ -17,21 +17,11 @@ use ErrorException;
  */
 final class DevelopmentStrategy
 {
-	/** @var Bar */
-	private $bar;
-
-	/** @var BlueScreen */
-	private $blueScreen;
-
-	/** @var DeferredContent */
-	private $defer;
-
-
-	public function __construct(Bar $bar, BlueScreen $blueScreen, DeferredContent $defer)
-	{
-		$this->bar = $bar;
-		$this->blueScreen = $blueScreen;
-		$this->defer = $defer;
+	public function __construct(
+		private Bar $bar,
+		private BlueScreen $blueScreen,
+		private DeferredContent $defer,
+	) {
 	}
 
 
@@ -49,7 +39,6 @@ final class DevelopmentStrategy
 			$this->blueScreen->render($exception);
 
 		} else {
-			Debugger::fireLog($exception);
 			$this->renderExceptionCli($exception);
 		}
 	}
@@ -84,7 +73,6 @@ final class DevelopmentStrategy
 		string $message,
 		string $file,
 		int $line,
-		array $context = null
 	): void
 	{
 		if (function_exists('ini_set')) {
@@ -96,20 +84,16 @@ final class DevelopmentStrategy
 			&& !isset($_GET['_tracy_skip_error'])
 		) {
 			$e = new ErrorException($message, 0, $severity, $file, $line);
-			@$e->context = $context; // dynamic properties are deprecated since PHP 8.2
-			@$e->skippable = true;
+			@$e->skippable = true; // dynamic properties are deprecated since PHP 8.2
 			Debugger::exceptionHandler($e);
 			exit(255);
 		}
 
-		$message = 'PHP ' . Helpers::errorTypeToString($severity) . ': ' . Helpers::improveError($message, (array) $context);
+		$message = 'PHP ' . Helpers::errorTypeToString($severity) . ': ' . Helpers::improveError($message);
 		$count = &$this->bar->getPanel('Tracy:errors')->data["$file|$line|$message"];
 
-		if (!$count++) { // not repeated error
-			Debugger::fireLog(new ErrorException($message, 0, $severity, $file, $line));
-			if (!Helpers::isHtmlMode() && !Helpers::isAjax()) {
-				echo "\n$message in $file on line $line\n";
-			}
+		if (!$count++ && !Helpers::isHtmlMode() && !Helpers::isAjax()) {
+			echo "\n$message in $file on line $line\n";
 		}
 
 		if (function_exists('ini_set')) {

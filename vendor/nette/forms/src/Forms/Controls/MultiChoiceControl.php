@@ -38,7 +38,7 @@ abstract class MultiChoiceControl extends BaseControl
 
 	public function loadHttpData(): void
 	{
-		$this->value = array_keys(array_flip($this->getHttpData(Nette\Forms\Form::DATA_TEXT)));
+		$this->value = array_keys(array_flip($this->getHttpData(Nette\Forms\Form::DataText)));
 		if (is_array($this->disabled)) {
 			$this->value = array_diff($this->value, array_keys($this->disabled));
 		}
@@ -60,7 +60,9 @@ abstract class MultiChoiceControl extends BaseControl
 
 		$flip = [];
 		foreach ($values as $value) {
-			if (!is_scalar($value) && !(is_object($value) && method_exists($value, '__toString'))) {
+			if ($value instanceof \BackedEnum) {
+				$value = $value->value;
+			} elseif (!is_scalar($value) && !(is_object($value) && method_exists($value, '__toString'))) {
 				throw new Nette\InvalidArgumentException(sprintf("Values must be scalar, %s given in field '%s'.", gettype($value), $this->name));
 			}
 

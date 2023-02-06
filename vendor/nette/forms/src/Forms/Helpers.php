@@ -29,7 +29,7 @@ class Helpers
 
 	/**
 	 * Extracts and sanitizes submitted form data for single control.
-	 * @param  int  $type  type Form::DATA_TEXT, DATA_LINE, DATA_FILE, DATA_KEYS
+	 * @param  int  $type  type Form::DataText, DataLine, DataFile, DataKeys
 	 * @return string|string[]
 	 * @internal
 	 */
@@ -37,7 +37,7 @@ class Helpers
 	{
 		$name = explode('[', str_replace(['[]', ']', '.'], ['', '', '_'], $htmlName));
 		$data = Nette\Utils\Arrays::get($data, $name, null);
-		$itype = $type & ~Form::DATA_KEYS;
+		$itype = $type & ~Form::DataKeys;
 
 		if (substr($htmlName, -2) === '[]') {
 			if (!is_array($data)) {
@@ -51,7 +51,7 @@ class Helpers
 				}
 			}
 
-			if ($type & Form::DATA_KEYS) {
+			if ($type & Form::DataKeys) {
 				return $data;
 			}
 
@@ -64,17 +64,17 @@ class Helpers
 
 	private static function sanitize(int $type, $value)
 	{
-		if ($type === Form::DATA_TEXT) {
+		if ($type === Form::DataText) {
 			return is_scalar($value)
 				? Strings::normalizeNewLines($value)
 				: null;
 
-		} elseif ($type === Form::DATA_LINE) {
+		} elseif ($type === Form::DataLine) {
 			return is_scalar($value)
 				? Strings::trim(strtr((string) $value, "\r\n", '  '))
 				: null;
 
-		} elseif ($type === Form::DATA_FILE) {
+		} elseif ($type === Form::DataFile) {
 			return $value instanceof Nette\Http\FileUpload ? $value : null;
 
 		} else {
@@ -184,7 +184,7 @@ class Helpers
 			$input->value = $value;
 			$res .= ($res === '' && $wrapperEnd === '' ? '' : $wrapper)
 				. $labelTag . $label->attributes() . '>'
-				. $inputTag . $input->attributes() . (Html::$xhtml ? ' />' : '>')
+				. $inputTag . $input->attributes() . (isset(Html::$xhtml) && Html::$xhtml ? ' />' : '>')
 				. ($caption instanceof Nette\HtmlStringable ? $caption : htmlspecialchars((string) $caption, ENT_NOQUOTES, 'UTF-8'))
 				. '</label>'
 				. $wrapperEnd;
@@ -268,5 +268,21 @@ class Helpers
 		return isset($units[$ch = strtolower(substr($value, -1))])
 			? (int) $value << $units[$ch]
 			: (int) $value;
+	}
+
+
+	/** @internal */
+	public static function getSingleType($reflection): ?string
+	{
+		$type = Nette\Utils\Type::fromReflection($reflection);
+		if (!$type) {
+			return null;
+		} elseif ($res = $type->getSingleName()) {
+			return $res;
+		} else {
+			throw new Nette\InvalidStateException(
+				Nette\Utils\Reflection::toString($reflection) . " has unsupported type '$type'."
+			);
+		}
 	}
 }

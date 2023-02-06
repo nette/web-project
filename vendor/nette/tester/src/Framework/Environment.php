@@ -16,31 +16,38 @@ namespace Tester;
 class Environment
 {
 	/** Should Test use console colors? */
-	public const COLORS = 'NETTE_TESTER_COLORS';
+	public const VariableColors = 'NETTE_TESTER_COLORS';
 
 	/** Test is run by Runner */
-	public const RUNNER = 'NETTE_TESTER_RUNNER';
+	public const VariableRunner = 'NETTE_TESTER_RUNNER';
 
 	/** Code coverage engine */
-	public const COVERAGE_ENGINE = 'NETTE_TESTER_COVERAGE_ENGINE';
+	public const VariableCoverageEngine = 'NETTE_TESTER_COVERAGE_ENGINE';
 
 	/** Code coverage file */
-	public const COVERAGE = 'NETTE_TESTER_COVERAGE';
+	public const VariableCoverage = 'NETTE_TESTER_COVERAGE';
 
 	/** Thread number when run tests in multi threads */
-	public const THREAD = 'NETTE_TESTER_THREAD';
+	public const VariableThread = 'NETTE_TESTER_THREAD';
 
-	/** @var bool */
-	public static $checkAssertions = false;
+	/** @deprecated use Environment::VariableColors */
+	public const COLORS = self::VariableColors;
 
-	/** @var bool */
-	public static $useColors;
+	/** @deprecated use Environment::VariableRunner */
+	public const RUNNER = self::VariableRunner;
 
-	/** @var int initial output buffer level */
-	private static $obLevel;
+	/** @deprecated use Environment::VariableCoverageEngine */
+	public const COVERAGE_ENGINE = self::VariableCoverageEngine;
 
-	/** @var int */
-	private static $exitCode = 0;
+	/** @deprecated use Environment::VariableCoverage */
+	public const COVERAGE = self::VariableCoverage;
+
+	/** @deprecated use Environment::VariableThread */
+	public const THREAD = self::VariableThread;
+
+	public static bool $checkAssertions = false;
+	public static bool $useColors;
+	private static int $exitCode = 0;
 
 
 	/**
@@ -50,7 +57,6 @@ class Environment
 	{
 		self::setupErrors();
 		self::setupColors();
-		self::$obLevel = ob_get_level();
 
 		class_exists(Runner\Job::class);
 		class_exists(Dumper::class);
@@ -59,8 +65,8 @@ class Environment
 		$annotations = self::getTestAnnotations();
 		self::$checkAssertions = !isset($annotations['outputmatch']) && !isset($annotations['outputmatchfile']);
 
-		if (getenv(self::COVERAGE) && getenv(self::COVERAGE_ENGINE)) {
-			CodeCoverage\Collector::start(getenv(self::COVERAGE), getenv(self::COVERAGE_ENGINE));
+		if (getenv(self::VariableCoverage) && getenv(self::VariableCoverageEngine)) {
+			CodeCoverage\Collector::start(getenv(self::VariableCoverage), getenv(self::VariableCoverageEngine));
 		}
 
 		if (getenv('TERMINAL_EMULATOR') === 'JetBrains-JediTerm') {
@@ -75,8 +81,8 @@ class Environment
 	 */
 	public static function setupColors(): void
 	{
-		self::$useColors = getenv(self::COLORS) !== false
-			? (bool) getenv(self::COLORS)
+		self::$useColors = getenv(self::VariableColors) !== false
+			? (bool) getenv(self::VariableColors)
 			: (PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg')
 				&& getenv('NO_COLOR') === false // https://no-color.org
 				&& (getenv('FORCE_COLOR')
@@ -85,9 +91,11 @@ class Environment
 						: @stream_isatty(STDOUT)) // @ may trigger error 'cannot cast a filtered stream on this system'
 				);
 
-		ob_start(function (string $s): string {
-			return self::$useColors ? $s : Dumper::removeColors($s);
-		}, 1, PHP_OUTPUT_HANDLER_FLUSHABLE);
+		ob_start(
+			fn(string $s): string => self::$useColors ? $s : Dumper::removeColors($s),
+			1,
+			PHP_OUTPUT_HANDLER_FLUSHABLE
+		);
 	}
 
 
@@ -121,18 +129,25 @@ class Environment
 			register_shutdown_function(function () use ($error): void {
 				if (in_array($error['type'] ?? null, [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE], true)) {
 					if (($error['type'] & error_reporting()) !== $error['type']) { // show fatal errors hidden by @shutup
-						self::removeOutputBuffers();
-						echo "\n", Dumper::color('white/red', "Fatal error: $error[message] in $error[file] on line $error[line]"), "\n";
+						self::print("\n" . Dumper::color('white/red', "Fatal error: $error[message] in $error[file] on line $error[line]"));
 					}
 				} elseif (self::$checkAssertions && !Assert::$counter) {
-					self::removeOutputBuffers();
-					echo "\n", Dumper::color('white/red', 'Error: This test forgets to execute an assertion.'), "\n";
-					self::exit(Runner\Job::CODE_FAIL);
-				} elseif (!getenv(self::RUNNER) && self::$exitCode !== Runner\Job::CODE_SKIP) {
-					echo "\n", (self::$exitCode ? Dumper::color('white/red', 'FAILURE') : Dumper::color('white/green', 'OK')), "\n";
+					self::print("\n" . Dumper::color('white/red', 'Error: This test forgets to execute an assertion.'));
+					self::exit(Runner\Job::CodeFail);
+				} elseif (!getenv(self::VariableRunner) && self::$exitCode !== Runner\Job::CodeSkip) {
+					self::print("\n" . (self::$exitCode ? Dumper::color('white/red', 'FAILURE') : Dumper::color('white/green', 'OK')));
 				}
 			});
 		});
+	}
+
+
+	/**
+	 * Creates global functions test(), setUp() and tearDown().
+	 */
+	public static function setupFunctions(): void
+	{
+		require __DIR__ . '/functions.php';
 	}
 
 
@@ -141,10 +156,9 @@ class Environment
 	 */
 	public static function handleException(\Throwable $e): void
 	{
-		self::removeOutputBuffers();
 		self::$checkAssertions = false;
-		echo Dumper::dumpException($e);
-		self::exit($e instanceof AssertException ? Runner\Job::CODE_FAIL : Runner\Job::CODE_ERROR);
+		self::print(Dumper::dumpException($e));
+		self::exit($e instanceof AssertException ? Runner\Job::CodeFail : Runner\Job::CodeError);
 	}
 
 
@@ -154,8 +168,8 @@ class Environment
 	public static function skip(string $message = ''): void
 	{
 		self::$checkAssertions = false;
-		echo "\nSkipped:\n$message\n";
-		self::exit(Runner\Job::CODE_SKIP);
+		self::print("\nSkipped:\n$message");
+		self::exit(Runner\Job::CodeSkip);
 	}
 
 
@@ -191,7 +205,7 @@ class Environment
 	public static function bypassFinals(): void
 	{
 		FileMutator::addMutator(function (string $code): string {
-			if (strpos($code, 'final') !== false) {
+			if (str_contains($code, 'final')) {
 				$tokens = token_get_all($code, TOKEN_PARSE);
 				$code = '';
 				foreach ($tokens as $token) {
@@ -238,15 +252,21 @@ class Environment
 	}
 
 
-	private static function removeOutputBuffers(): void
-	{
-		while (ob_get_level() > self::$obLevel && @ob_end_flush()); // @ may be not removable
-	}
-
-
 	public static function exit(int $code = 0): void
 	{
 		self::$exitCode = $code;
 		exit($code);
+	}
+
+
+	/** @internal */
+	public static function print(string $s): void
+	{
+		$s = $s === '' || str_ends_with($s, "\n") ? $s : $s . "\n";
+		if (PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg') {
+			fwrite(STDOUT, self::$useColors ? $s : Dumper::removeColors($s));
+		} else {
+			echo $s;
+		}
 	}
 }

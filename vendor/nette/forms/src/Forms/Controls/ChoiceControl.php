@@ -38,7 +38,7 @@ abstract class ChoiceControl extends BaseControl
 
 	public function loadHttpData(): void
 	{
-		$this->value = $this->getHttpData(Nette\Forms\Form::DATA_TEXT);
+		$this->value = $this->getHttpData(Nette\Forms\Form::DataText);
 		if ($this->value !== null) {
 			$this->value = is_array($this->disabled) && isset($this->disabled[$this->value])
 				? null
@@ -49,12 +49,16 @@ abstract class ChoiceControl extends BaseControl
 
 	/**
 	 * Sets selected item (by key).
-	 * @param  string|int|null  $value
+	 * @param  string|int|\BackedEnum|null  $value
 	 * @return static
 	 * @internal
 	 */
 	public function setValue($value)
 	{
+		if ($value instanceof \BackedEnum) {
+			$value = $value->value;
+		}
+
 		if ($this->checkDefaultValue && $value !== null && !array_key_exists((string) $value, $this->items)) {
 			$set = Nette\Utils\Strings::truncate(implode(', ', array_map(function ($s) { return var_export($s, true); }, array_keys($this->items))), 70, '...');
 			throw new Nette\InvalidArgumentException("Value '$value' is out of allowed set [$set] in field '{$this->name}'.");

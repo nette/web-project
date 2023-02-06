@@ -54,6 +54,10 @@ class Dumper
 				return false;
 			}
 
+		});
+
+		document.documentElement.addEventListener('tracy-beforetoggle', (e) => {
+			let el;
 			// initializes lazy <span data-tracy-dump> inside <pre data-tracy-snapshot>
 			if ((el = e.target.closest('[data-tracy-snapshot]'))) {
 				let snapshot = JSON.parse(el.getAttribute('data-tracy-snapshot'));
@@ -107,7 +111,7 @@ class Dumper
 
 			let el;
 
-			if (e.target.matches('.tracy-dump-hash') && (el = e.target.closest('.tracy-dump'))) {
+			if (e.target.matches('.tracy-dump-hash') && (el = e.target.closest('tracy-div'))) {
 				el.querySelectorAll('.tracy-dump-hash').forEach((el) => {
 					if (el.textContent === e.target.textContent) {
 						el.classList.add('tracy-dump-highlight');

@@ -170,7 +170,7 @@ final class Escaper
 			ContentType::JavaScript => 'LR\Filters::escapeJs(' . $str . ')',
 			ContentType::Css => 'LR\Filters::escapeCss(' . $str . ')',
 			ContentType::ICal => 'LR\Filters::escapeIcal(' . $str . ')',
-			ContentType::Text => $str,
+			ContentType::Text => '($this->filters->escape)(' . $str . ')',
 			default => throw new \LogicException("Unknown content-type $this->contentType."),
 		};
 	}
@@ -202,14 +202,14 @@ final class Escaper
 				'html' => 'escapeHtmlText',
 				'html/attr' => 'escapeHtmlAttr',
 				'html/attr/js' => 'escapeHtmlAttr',
-				'html/js' => 'escapeHtmlRawText',
+				'html/js' => 'convertJSToHtmlRawText',
 				'html/comment' => 'escapeHtmlComment',
 			],
 			self::Css => [
 				'html' => 'escapeHtmlText',
 				'html/attr' => 'escapeHtmlAttr',
 				'html/attr/css' => 'escapeHtmlAttr',
-				'html/css' => 'escapeHtmlRawText',
+				'html/css' => 'convertJSToHtmlRawText',
 				'html/comment' => 'escapeHtmlComment',
 			],
 			'html' => [

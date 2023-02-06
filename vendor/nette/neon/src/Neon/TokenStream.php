@@ -13,16 +13,13 @@ namespace Nette\Neon;
 /** @internal */
 final class TokenStream
 {
-	/** @var Token[] */
-	private $tokens;
-
-	/** @var int */
-	private $pos = 0;
+	private int $pos = 0;
 
 
-	public function __construct(array $tokens)
-	{
-		$this->tokens = $tokens;
+	public function __construct(
+		/** @var Token[] */
+		public array $tokens,
+	) {
 	}
 
 
@@ -39,7 +36,7 @@ final class TokenStream
 	}
 
 
-	public function isNext(...$types): bool
+	public function isNext(int|string ...$types): bool
 	{
 		while (in_array($this->tokens[$this->pos]->type ?? null, [Token::Comment, Token::Whitespace], true)) {
 			$this->pos++;
@@ -51,7 +48,7 @@ final class TokenStream
 	}
 
 
-	public function consume(...$types): ?Token
+	public function consume(int|string ...$types): ?Token
 	{
 		return $this->isNext(...$types)
 			? $this->tokens[$this->pos++]
@@ -71,7 +68,7 @@ final class TokenStream
 	/** @return never */
 	public function error(?string $message = null, ?int $pos = null): void
 	{
-		$pos = $pos ?? $this->pos;
+		$pos ??= $this->pos;
 		$input = '';
 		foreach ($this->tokens as $i => $token) {
 			if ($i >= $pos) {
@@ -84,7 +81,7 @@ final class TokenStream
 		$line = substr_count($input, "\n") + 1;
 		$col = strlen($input) - strrpos("\n" . $input, "\n") + 1;
 		$token = $this->tokens[$pos] ?? null;
-		$message = $message ?? 'Unexpected ' . ($token === null
+		$message ??= 'Unexpected ' . ($token === null
 			? 'end'
 			: "'" . str_replace("\n", '<new line>', substr($this->tokens[$pos]->value, 0, 40)) . "'");
 		throw new Exception("$message on line $line, column $col.");

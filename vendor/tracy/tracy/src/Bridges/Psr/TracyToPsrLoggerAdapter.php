@@ -30,13 +30,10 @@ class TracyToPsrLoggerAdapter extends Psr\Log\AbstractLogger
 		Psr\Log\LogLevel::DEBUG => Tracy\ILogger::DEBUG,
 	];
 
-	/** @var Tracy\ILogger */
-	private $tracyLogger;
 
-
-	public function __construct(Tracy\ILogger $tracyLogger)
-	{
-		$this->tracyLogger = $tracyLogger;
+	public function __construct(
+		private Tracy\ILogger $tracyLogger,
+	) {
 	}
 
 

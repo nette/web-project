@@ -19,17 +19,20 @@ final class Exposer
 {
 	public static function exposeObject(object $obj, Value $value, Describer $describer): void
 	{
-		$tmp = (array) $obj;
-		$values = $tmp; // bug #79477, PHP < 7.4.6
-		$props = self::getProperties(get_class($obj));
+		$values = get_mangled_object_vars($obj);
+		$props = self::getProperties($obj::class);
+
+		foreach (array_diff_key((array) $obj, $values) as $k => $v) {
+			$describer->addPropertyTo($value, (string) $k, $v);
+		}
 
 		foreach (array_diff_key($values, $props) as $k => $v) {
 			$describer->addPropertyTo(
 				$value,
 				(string) $k,
 				$v,
-				Value::PROP_DYNAMIC,
-				$describer->getReferenceId($values, $k)
+				Value::PropertyDynamic,
+				$describer->getReferenceId($values, $k),
 			);
 		}
 
@@ -41,20 +44,24 @@ final class Exposer
 					$values[$k],
 					$type,
 					$describer->getReferenceId($values, $k),
-					$class
+					$class,
+					$describer->describeEnumProperty($class, $name, $values[$k]),
 				);
 			} else {
-				$value->items[] = [
+				$describer->addPropertyTo(
+					$value,
 					$name,
-					new Value(Value::TYPE_TEXT, 'unset'),
-					$type === Value::PROP_PRIVATE ? $class : $type,
-				];
+					null,
+					$type,
+					class: $class,
+					described: new Value(Value::TypeText, 'unset'),
+				);
 			}
 		}
 	}
 
 
-	private static function getProperties($class): array
+	private static function getProperties(string $class): array
 	{
 		static $cache;
 		if (isset($cache[$class])) {
@@ -70,11 +77,11 @@ final class Exposer
 			if ($prop->isStatic() || $prop->getDeclaringClass()->getName() !== $class) {
 				// nothing
 			} elseif ($prop->isPrivate()) {
-				$props["\x00" . $class . "\x00" . $name] = [$name, $class, Value::PROP_PRIVATE];
+				$props["\x00" . $class . "\x00" . $name] = [$name, $class, Value::PropertyPrivate];
 			} elseif ($prop->isProtected()) {
-				$props["\x00*\x00" . $name] = [$name, $class, Value::PROP_PROTECTED];
+				$props["\x00*\x00" . $name] = [$name, $class, Value::PropertyProtected];
 			} else {
-				$props[$name] = [$name, $class, Value::PROP_PUBLIC];
+				$props[$name] = [$name, $class, Value::PropertyPublic];
 				unset($parentProps["\x00*\x00" . $name]);
 			}
 		}
@@ -98,7 +105,7 @@ final class Exposer
 		$value->value .= '(' . implode(', ', $params) . ')';
 
 		$uses = [];
-		$useValue = new Value(Value::TYPE_OBJECT);
+		$useValue = new Value(Value::TypeObject);
 		$useValue->depth = $value->depth + 1;
 		foreach ($rc->getStaticVariables() as $name => $v) {
 			$uses[] = '$' . $name;
@@ -108,14 +115,14 @@ final class Exposer
 		if ($uses) {
 			$useValue->value = implode(', ', $uses);
 			$useValue->collapsed = true;
-			$value->items[] = ['use', $useValue];
+			$describer->addPropertyTo($value, 'use', null, described: $useValue);
 		}
 	}
 
 
 	public static function exposeEnum(\UnitEnum $enum, Value $value, Describer $describer): void
 	{
-		$value->value = get_class($enum) . '::' . $enum->name;
+		$value->value = $enum::class . '::' . $enum->name;
 		if ($enum instanceof \BackedEnum) {
 			$describer->addPropertyTo($value, 'value', $enum->value);
 			$value->collapsed = true;
@@ -129,7 +136,7 @@ final class Exposer
 		$obj->setFlags(\ArrayObject::STD_PROP_LIST);
 		self::exposeObject($obj, $value, $describer);
 		$obj->setFlags($flags);
-		$describer->addPropertyTo($value, 'storage', $obj->getArrayCopy(), Value::PROP_PRIVATE, null, \ArrayObject::class);
+		$describer->addPropertyTo($value, 'storage', $obj->getArrayCopy(), Value::PropertyPrivate, null, \ArrayObject::class);
 	}
 
 
@@ -138,17 +145,18 @@ final class Exposer
 		$props = preg_match_all('#^\s*\[([^\]]+)\] =>#m', print_r($obj, true), $tmp) ? $tmp[1] : [];
 		sort($props);
 		foreach ($props as $p) {
-			$describer->addPropertyTo($value, $p, $obj->$p, Value::PROP_PUBLIC);
+			$describer->addPropertyTo($value, $p, $obj->$p, Value::PropertyPublic);
 		}
 	}
 
 
-	/**
-	 * @param  \DOMNodeList|\DOMNamedNodeMap  $obj
-	 */
-	public static function exposeDOMNodeList($obj, Value $value, Describer $describer): void
+	public static function exposeDOMNodeList(
+		\DOMNodeList|\DOMNamedNodeMap $obj,
+		Value $value,
+		Describer $describer,
+	): void
 	{
-		$describer->addPropertyTo($value, 'length', $obj->length, Value::PROP_PUBLIC);
+		$describer->addPropertyTo($value, 'length', $obj->length, Value::PropertyPublic);
 		$describer->addPropertyTo($value, 'items', iterator_to_array($obj));
 	}
 
@@ -160,7 +168,7 @@ final class Exposer
 			$describer->addPropertyTo($value, 'file', $r->getExecutingFile() . ':' . $r->getExecutingLine());
 			$describer->addPropertyTo($value, 'this', $r->getThis());
 		} catch (\ReflectionException $e) {
-			$value->value = get_class($gen) . ' (terminated)';
+			$value->value = $gen::class . ' (terminated)';
 		}
 	}
 
@@ -168,9 +176,9 @@ final class Exposer
 	public static function exposeFiber(\Fiber $fiber, Value $value, Describer $describer): void
 	{
 		if ($fiber->isTerminated()) {
-			$value->value = get_class($fiber) . ' (terminated)';
+			$value->value = $fiber::class . ' (terminated)';
 		} elseif (!$fiber->isStarted()) {
-			$value->value = get_class($fiber) . ' (not started)';
+			$value->value = $fiber::class . ' (not started)';
 		} else {
 			$r = new \ReflectionFiber($fiber);
 			$describer->addPropertyTo($value, 'file', $r->getExecutingFile() . ':' . $r->getExecutingLine());
@@ -199,10 +207,10 @@ final class Exposer
 	public static function exposePhpIncompleteClass(
 		\__PHP_Incomplete_Class $obj,
 		Value $value,
-		Describer $describer
+		Describer $describer,
 	): void
 	{
-		$values = (array) $obj;
+		$values = get_mangled_object_vars($obj);
 		$class = $values['__PHP_Incomplete_Class_Name'];
 		unset($values['__PHP_Incomplete_Class_Name']);
 		foreach ($values as $k => $v) {
@@ -210,10 +218,10 @@ final class Exposer
 			if (isset($k[0]) && $k[0] === "\x00") {
 				$info = explode("\00", $k);
 				$k = end($info);
-				$type = $info[1] === '*' ? Value::PROP_PROTECTED : Value::PROP_PRIVATE;
-				$decl = $type === Value::PROP_PRIVATE ? $info[1] : null;
+				$type = $info[1] === '*' ? Value::PropertyProtected : Value::PropertyPrivate;
+				$decl = $type === Value::PropertyPrivate ? $info[1] : null;
 			} else {
-				$type = Value::PROP_PUBLIC;
+				$type = Value::PropertyPublic;
 				$k = (string) $k;
 				$decl = null;
 			}
@@ -228,11 +236,11 @@ final class Exposer
 	public static function exposeDsCollection(
 		Ds\Collection $obj,
 		Value $value,
-		Describer $describer
+		Describer $describer,
 	): void
 	{
 		foreach ($obj as $k => $v) {
-			$describer->addPropertyTo($value, (string) $k, $v, Value::PROP_VIRTUAL);
+			$describer->addPropertyTo($value, (string) $k, $v);
 		}
 	}
 
@@ -240,12 +248,12 @@ final class Exposer
 	public static function exposeDsMap(
 		Ds\Map $obj,
 		Value $value,
-		Describer $describer
+		Describer $describer,
 	): void
 	{
 		$i = 0;
 		foreach ($obj as $k => $v) {
-			$describer->addPropertyTo($value, (string) $i++, new Ds\Pair($k, $v), Value::PROP_VIRTUAL);
+			$describer->addPropertyTo($value, (string) $i++, new Ds\Pair($k, $v));
 		}
 	}
 }

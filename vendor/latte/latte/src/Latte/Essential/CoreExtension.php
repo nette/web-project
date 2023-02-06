@@ -83,9 +83,10 @@ final class CoreExtension extends Latte\Extension
 			'sep' => [Nodes\FirstLastSepNode::class, 'create'],
 			'last' => [Nodes\FirstLastSepNode::class, 'create'],
 			'first' => [Nodes\FirstLastSepNode::class, 'create'],
-			'skipIf' => [Nodes\SkipNode::class, 'create'],
-			'breakIf' => [Nodes\SkipNode::class, 'create'],
-			'continueIf' => [Nodes\SkipNode::class, 'create'],
+			'skipIf' => [Nodes\JumpNode::class, 'create'],
+			'breakIf' => [Nodes\JumpNode::class, 'create'],
+			'exitIf' => [Nodes\JumpNode::class, 'create'],
+			'continueIf' => [Nodes\JumpNode::class, 'create'],
 
 			'if' => [Nodes\IfNode::class, 'create'],
 			'ifset' => [Nodes\IfNode::class, 'create'],
@@ -111,6 +112,7 @@ final class CoreExtension extends Latte\Extension
 			'dataStream' => [Filters::class, 'dataStream'],
 			'datastream' => [Filters::class, 'dataStream'],
 			'date' => [Filters::class, 'date'],
+			'escape' => [Latte\Runtime\Filters::class, 'nop'],
 			'escapeCss' => [Latte\Runtime\Filters::class, 'escapeCss'],
 			'escapeHtml' => [Latte\Runtime\Filters::class, 'escapeHtml'],
 			'escapeHtmlComment' => [Latte\Runtime\Filters::class, 'escapeHtmlComment'],
@@ -198,7 +200,7 @@ final class CoreExtension extends Latte\Extension
 	private function includeSplitter(Tag $tag, TemplateParser $parser): Nodes\IncludeBlockNode|Nodes\IncludeFileNode
 	{
 		$tag->expectArguments();
-		$mod = $tag->parser->tryConsumeModifier('block', 'file');
+		$mod = $tag->parser->tryConsumeTokenBeforeUnquotedString('block', 'file');
 		if ($mod) {
 			$block = $mod->text === 'block';
 		} elseif ($tag->parser->stream->tryConsume('#')) {

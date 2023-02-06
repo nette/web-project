@@ -20,8 +20,9 @@ use Latte\Compiler\Tag;
  * {breakIf ...}
  * {continueIf ...}
  * {skipIf ...}
+ * {exitIf ...}
  */
-class SkipNode extends StatementNode
+class JumpNode extends StatementNode
 {
 	public string $type;
 	public ExpressionNode $condition;
@@ -31,7 +32,17 @@ class SkipNode extends StatementNode
 	public static function create(Tag $tag): static
 	{
 		$tag->expectArguments();
-		if (!$tag->closestTag($tag->name === 'skipIf' ? ['foreach'] : ['for', 'foreach', 'while'])) {
+		$allowed = match ($tag->name) {
+			'breakIf', 'continueIf' => ['for', 'foreach', 'while'],
+			'skipIf' => ['foreach'],
+			'exitIf' => ['block', null],
+		};
+		for (
+			$parent = $tag->parent;
+			in_array($parent?->name, ['if', 'ifset', 'ifcontent'], true);
+			$parent = $parent->parent
+		);
+		if (!in_array($parent?->name, $allowed, true)) {
 			throw new CompileException("Tag {{$tag->name}} is unexpected here.", $tag->position);
 		}
 
@@ -47,9 +58,12 @@ class SkipNode extends StatementNode
 
 	public function print(PrintContext $context): string
 	{
-		$cmd = $this->type === 'skipIf'
-			? '{ $iterator->skipRound(); continue; }'
-			: str_replace('If', '', $this->type) . ';';
+		$cmd = match ($this->type) {
+			'breakIf' => 'break;',
+			'continueIf' => 'continue;',
+			'skipIf' => '{ $iterator->skipRound(); continue; }',
+			'exitIf' => 'return;',
+		};
 
 		if ($this->endTag) {
 			$cmd = "{ echo \"</$this->endTag>\\n\"; $cmd; } ";

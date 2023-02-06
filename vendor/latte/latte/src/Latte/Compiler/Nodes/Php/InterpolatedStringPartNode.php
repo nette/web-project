@@ -7,18 +7,17 @@
 
 declare(strict_types=1);
 
-namespace Latte\Compiler\Nodes\Php\Expression;
+namespace Latte\Compiler\Nodes\Php;
 
-use Latte\Compiler\Nodes\Php\ExpressionNode;
+use Latte\Compiler\Node;
 use Latte\Compiler\Position;
 use Latte\Compiler\PrintContext;
 
 
-class InRangeNode extends ExpressionNode
+class InterpolatedStringPartNode extends Node
 {
 	public function __construct(
-		public ExpressionNode $needle,
-		public ExpressionNode $haystack,
+		public string $value,
 		public ?Position $position = null,
 	) {
 	}
@@ -26,17 +25,12 @@ class InRangeNode extends ExpressionNode
 
 	public function print(PrintContext $context): string
 	{
-		return 'in_array('
-			. $this->needle->print($context)
-			. ', '
-			. $this->haystack->print($context)
-			. ', true)';
+		throw new \LogicException('Cannot directly print InterpolatedStringPart');
 	}
 
 
 	public function &getIterator(): \Generator
 	{
-		yield $this->needle;
-		yield $this->haystack;
+		false && yield;
 	}
 }
