@@ -85,6 +85,12 @@ trait FunctionLike
 	}
 
 
+	public function getParameter(string $name): Parameter
+	{
+		return $this->parameters[$name] ?? throw new Nette\InvalidArgumentException("Parameter '$name' not found.");
+	}
+
+
 	/**
 	 * @param  string  $name without $
 	 */
@@ -109,6 +115,12 @@ trait FunctionLike
 	}
 
 
+	public function hasParameter(string $name): bool
+	{
+		return isset($this->parameters[$name]);
+	}
+
+
 	public function setVariadic(bool $state = true): static
 	{
 		$this->variadic = $state;
@@ -129,6 +141,7 @@ trait FunctionLike
 	}
 
 
+	/** @return ($asObject is true ? ?Type : ?string) */
 	public function getReturnType(bool $asObject = false): Type|string|null
 	{
 		return $asObject && $this->returnType

@@ -31,6 +31,9 @@ final class TemplateParserHtml
 	private ?Html\ElementNode $element = null;
 	private TemplateParser /*readonly*/ $parser;
 
+	/** @var array{string, ?Nodes\Php\ExpressionNode} */
+	private ?array $endName = null;
+
 
 	public function __construct(TemplateParser $parser, array $attrParsers)
 	{
@@ -50,9 +53,7 @@ final class TemplateParserHtml
 		$stream = $this->parser->getStream();
 		$token = $stream->peek();
 		return match ($token->type) {
-			Token::Html_TagOpen => $stream->peek(1)?->is(Token::Slash)
-				? $this->parseEndTag()
-				: $this->parseElement(),
+			Token::Html_TagOpen => $this->parseTag(),
 			Token::Html_CommentOpen => $this->parseComment(),
 			Token::Html_BogusOpen => $this->parseBogusTag(),
 			default => $this->parser->inTextResolve(),
@@ -76,11 +77,40 @@ final class TemplateParserHtml
 	}
 
 
+	private function parseTag(): ?Node
+	{
+		$stream = $this->parser->getStream();
+		$this->parser->getLexer()->setState(TemplateLexer::StateHtmlTag);
+		if (!$stream->peek(1)?->is(Token::Slash)) {
+			return $this->parseElement();
+		}
+
+		if ($this->element
+			&& $this->parser->peekTag() === $this->element->data->tag // is directly in the element
+		) {
+			$save = $stream->getIndex();
+			$this->endName = [$endText] = $this->parseEndTag();
+			if ($this->element->is($endText) || $this->element->data->textualName === $endText) {
+				return null; // go to parseElement() one level up to close the element
+			}
+			$stream->seek($save);
+			if (!in_array($endText, $this->element->data->unclosedTags ?? [], true)) {
+				return null; // go to parseElement() one level up to collapse
+			}
+		}
+
+		if ($this->parser->strict) {
+			$stream->throwUnexpectedException(excerpt: '/');
+		}
+		return $this->parseBogusEndTag();
+	}
+
+
 	private function parseElement(): Node
 	{
 		$res = new FragmentNode;
 		$res->append($this->extractIndentation());
-		$res->append($this->parseTag($this->element));
+		$res->append($this->parseStartTag($this->element));
 		$elem = $this->element;
 
 		$stream = $this->parser->getStream();
@@ -102,16 +132,21 @@ final class TemplateParserHtml
 			$frag = $this->parser->parseFragment([$this, 'inTextResolve']);
 			$content->append($this->finishNAttrNodes($frag, $innerNodes));
 
-			if ($this->isClosingTag($elem->name)) {
+			[$endText, $endVariable] = $this->endName;
+			$this->endName = null;
+			if ($endText && ($this->element->is($endText) || $this->element->data->textualName === $endText)) {
 				$elem->content = $content;
 				$elem->content->append($this->extractIndentation());
-				$this->parseTag();
 
 			} elseif ($outerNodes || $innerNodes || $tagNodes
-				|| ($this->parser->getContentType() === ContentType::Html && in_array(strtolower($elem->name), ['script', 'style'], true))
+				|| $this->parser->strict
+				|| $elem->variableName
+				|| $endVariable
+				|| $elem->isRawText()
 			) {
 				$stream->throwUnexpectedException(
-					addendum: ", expecting </{$elem->name}> for element started " . $elem->position->toWords(),
+					addendum: ", expecting </{$elem->data->textualName}> for element started $elem->position",
+					excerpt: $endText ? "/{$endText}>" : $stream->peek(1)?->text . $stream->peek(2)?->text,
 				);
 			} else { // element collapsed to tags
 				$res->append($content);
@@ -145,50 +180,112 @@ final class TemplateParserHtml
 	}
 
 
-	private function parseTag(&$elem = null): Html\ElementNode
+	private function parseStartTag(&$elem = null): Html\ElementNode
 	{
 		$stream = $this->parser->getStream();
 		$openToken = $stream->consume(Token::Html_TagOpen);
-		$stream->tryConsume(Token::Slash);
+		$this->parser->getLexer()->setState(TemplateLexer::StateHtmlTag);
+
+		[$textual, $variable] = $this->parseTagName($this->parser->strict);
+		if (($this->parser->strict || $variable)
+			&& !$stream->is(Token::Whitespace, Token::Slash, Token::Html_TagClose)
+		) {
+			throw $stream->throwUnexpectedException();
+		}
+
 		$this->parser->lastIndentation = null;
-		$this->parser->location = $this->parser::LocationTag;
+		$this->parser->inHead = false;
 		$elem = new Html\ElementNode(
-			name: $stream->consume(Token::Html_Name)->text,
+			name: $variable ? '' : $textual,
 			position: $openToken->position,
 			parent: $this->element,
 			data: (object) ['tag' => $this->parser->peekTag()],
+			contentType: $this->parser->getContentType(),
 		);
 		$elem->attributes = $this->parser->parseFragment([$this, 'inTagResolve']);
 		$elem->selfClosing = (bool) $stream->tryConsume(Token::Slash);
+		$elem->variableName = $variable;
+		$elem->data->textualName = $textual;
 		$stream->consume(Token::Html_TagClose);
-		$this->parser->location = $this->parser::LocationText;
+		$state = !$elem->selfClosing && $elem->isRawText()
+			? TemplateLexer::StateHtmlRawText
+			: TemplateLexer::StateHtmlText;
+		$this->parser->getLexer()->setState($state, $elem->name);
 		return $elem;
 	}
 
 
-	private function parseEndTag(): ?Html\BogusTagNode
+	/** @return array{string, ?Nodes\Php\ExpressionNode} */
+	private function parseEndTag(): array
 	{
 		$stream = $this->parser->getStream();
-		$name = $stream->peek(2)->text ?? '';
+		$stream->consume(Token::Html_TagOpen);
+		$this->parser->getLexer()->setState(TemplateLexer::StateHtmlTag);
+		$stream->consume(Token::Slash);
+		$name = $this->parseTagName();
+		$stream->tryConsume(Token::Whitespace);
+		$stream->consume(Token::Html_TagClose);
+		$this->parser->getLexer()->setState(TemplateLexer::StateHtmlText);
+		return $name;
+	}
 
-		if ($this->element
-			&& $this->parser->peekTag() === $this->element->data->tag
-			&& (strcasecmp($name, $this->element->name) === 0
-				|| !in_array($name, $this->element->data->unclosedTags ?? [], true))
-		) {
-			return null; // go back to parseElement()
-		}
 
+	/** @return array{string, ?Nodes\Php\ExpressionNode} */
+	private function parseTagName(bool $strict = true): array
+	{
+		$variable = $text = null;
+		$parts = [];
+		$stream = $this->parser->getStream();
+		do {
+			if ($stream->is(Token::Latte_TagOpen)) {
+				$save = $stream->getIndex();
+				$statement = $this->parser->parseLatteStatement([$this, 'inTagResolve']);
+				if (!$statement instanceof Latte\Essential\Nodes\PrintNode) {
+					if (!$parts || $strict) {
+						throw new CompileException('Only expression can be used as a HTML tag name.', $statement->position);
+					}
+					$stream->seek($save);
+					break;
+				}
+				$parts[] = $statement->expression;
+				$save -= $stream->getIndex();
+				while ($save < 0) {
+					$text .= $stream->peek($save++)->text;
+				}
+				$variable = true;
+
+			} elseif ($token = $stream->tryConsume(Token::Html_Name)) {
+				$parts[] = new Latte\Compiler\Nodes\Php\Scalar\StringNode($token->text, $token->position);
+				$text .= $token->text;
+
+			} elseif (!$parts) {
+				throw $stream->throwUnexpectedException([Token::Html_Name, Token::Latte_TagOpen]);
+			} else {
+				break;
+			}
+		} while (true);
+
+		$variable = $variable
+			? Latte\Compiler\Nodes\Php\Expression\BinaryOpNode::nest('.', ...$parts)
+			: null;
+		return [$text, $variable];
+	}
+
+
+	private function parseBogusEndTag(): ?Html\BogusTagNode
+	{
+		$stream = $this->parser->getStream();
 		$openToken = $stream->consume(Token::Html_TagOpen);
+		$this->parser->getLexer()->setState(TemplateLexer::StateHtmlTag);
 		$this->parser->lastIndentation = null;
-		$this->parser->location = $this->parser::LocationTag;
+		$this->parser->inHead = false;
 		$node = new Html\BogusTagNode(
-			openDelimiter: $openToken->text . $stream->consume(Token::Slash)->text . $stream->tryConsume(Token::Text)?->text,
-			content: $this->parser->parseFragment([$this, 'inTagResolve']),
+			openDelimiter: $openToken->text . $stream->consume(Token::Slash)->text . $stream->consume(Token::Html_Name)->text,
+			content: new Nodes\TextNode($stream->tryConsume(Token::Whitespace)->text ?? ''),
 			endDelimiter: $stream->consume(Token::Html_TagClose)->text,
 			position: $openToken->position,
 		);
-		$this->parser->location = $this->parser::LocationText;
+		$this->parser->getLexer()->setState(TemplateLexer::StateHtmlText);
 		return $node;
 	}
 
@@ -197,13 +294,11 @@ final class TemplateParserHtml
 	{
 		$stream = $this->parser->getStream();
 		$openToken = $stream->consume(Token::Html_BogusOpen);
+		$this->parser->getLexer()->setState(TemplateLexer::StateHtmlBogus);
 		$this->parser->lastIndentation = null;
-		$this->parser->location = $this->parser::LocationTag;
-		$content = $this->parser->parseFragment(fn() => match ($stream->peek()->type) {
-			Token::Html_TagClose => null,
-			default => $this->parser->inTextResolve(),
-		});
-		$this->parser->location = $this->parser::LocationText;
+		$this->parser->inHead = false;
+		$content = $this->parser->parseFragment([$this->parser, 'inTextResolve']);
+		$this->parser->getLexer()->setState(TemplateLexer::StateHtmlText);
 		return new Html\BogusTagNode(
 			openDelimiter: $openToken->text,
 			content: $content,
@@ -215,7 +310,7 @@ final class TemplateParserHtml
 
 	private function resolveVoidness(Html\ElementNode $elem): bool
 	{
-		if ($this->parser->getContentType() !== ContentType::Html) {
+		if ($elem->contentType !== ContentType::Html) {
 			return $elem->selfClosing;
 		} elseif (isset(Helpers::$emptyElements[strtolower($elem->name)])) {
 			return true;
@@ -246,66 +341,53 @@ final class TemplateParserHtml
 	private function parseAttribute(): ?Node
 	{
 		$stream = $this->parser->getStream();
-		$followsLatte = $stream->is(Token::Latte_TagOpen);
+		if ($stream->is(Token::Latte_TagOpen)) {
+			$name = $this->parser->parseLatteStatement();
+			if (!$name instanceof Latte\Essential\Nodes\PrintNode) {
+				return $name; // value like '<span {if true}attr1=val{/if}>'
+			}
+		} else {
+			$name = $this->parser->parseText();
+		}
+
+		[$value, $quote] = $this->parseAttributeValue();
+		return new Html\AttributeNode(
+			name: $name,
+			value: $value,
+			quote: $quote,
+			position: $name->position,
+		);
+	}
+
+
+	private function parseAttributeValue(): ?array
+	{
+		$stream = $this->parser->getStream();
 		$save = $stream->getIndex();
-		try {
-			$name = $this->parser->parseFragment(fn() => match ($stream->peek()->type) {
+		$this->consumeIgnored();
+		if (!$stream->tryConsume(Token::Equals)) {
+			$stream->seek($save);
+			return null;
+		}
+
+		$this->consumeIgnored();
+		if ($quoteToken = $stream->tryConsume(Token::Quote)) {
+			$this->parser->getLexer()->setState(TemplateLexer::StateHtmlQuotedValue, $quoteToken->text);
+			$value = $this->parser->parseFragment([$this->parser, 'inTextResolve']);
+			$stream->tryConsume(Token::Quote) || $stream->throwUnexpectedException([$quoteToken->text], addendum: ", end of HTML attribute started $quoteToken->position");
+			$this->parser->getLexer()->setState(TemplateLexer::StateHtmlTag);
+			return [$value, $quoteToken->text];
+		}
+
+		$value = $this->parser->parseFragment(
+			fn() => match ($stream->peek()->type) {
 				Token::Html_Name => $this->parser->parseText(),
 				Token::Latte_TagOpen => $this->parser->parseLatteStatement(),
 				Token::Latte_CommentOpen => $this->parser->parseLatteComment(),
 				default => null,
-			});
-		} catch (CompileException $e) {
-			if ($followsLatte // attribute name together with the value inside the tag
-				&& $stream->peek() // it is not lexer exception
-			) {
-				$stream->seek($save);
-				return $this->parser->parseLatteStatement();
-			}
-			throw $e;
-		}
-
-		if (!$name->children) {
-			return null;
-		} elseif (count($name->children) === 1 && $name->children[0] instanceof Nodes\TextNode) {
-			$name = $name->children[0];
-		}
-
-		$save = $stream->getIndex();
-		$this->consumeIgnored();
-		if ($stream->tryConsume(Token::Equals)) {
-			$this->consumeIgnored();
-			$value = match ($stream->peek()->type) {
-				Token::Quote => $this->parseAttributeQuote(),
-				Token::Html_Name => $this->parser->parseText(),
-				Token::Latte_TagOpen => $this->parser->parseFragment(
-					function (FragmentNode $fragment) use ($stream) {
-						if ($fragment->children) {
-							return null;
-						}
-						return match ($stream->peek()->type) {
-							Token::Quote => $this->parseAttributeQuote(),
-							Token::Html_Name => $this->parser->parseText(),
-							Token::Latte_TagOpen => $this->parser->parseLatteStatement(),
-							Token::Latte_CommentOpen => $this->parser->parseLatteComment(),
-							default => null,
-						};
-					},
-				),
-				default => null,
-			}
-			?? $stream->throwUnexpectedException();
-
-		} else {
-			$stream->seek($save);
-			$value = null;
-		}
-
-		return new Html\AttributeNode(
-			name: $name,
-			value: $value,
-			position: $name->position,
-		);
+			},
+		)->simplify() ?? $stream->throwUnexpectedException();
+		return [$value, null];
 	}
 
 
@@ -326,10 +408,12 @@ final class TemplateParserHtml
 		$this->consumeIgnored();
 		if ($stream->tryConsume(Token::Equals)) {
 			$this->consumeIgnored();
-			if ($stream->tryConsume(Token::Quote)) {
+			if ($quoteToken = $stream->tryConsume(Token::Quote)) {
+				$this->parser->getLexer()->setState(TemplateLexer::StateHtmlQuotedNAttrValue, $quoteToken->text);
 				$valueToken = $stream->tryConsume(Token::Text);
 				$pos = $stream->peek()->position;
-				$stream->consume(Token::Quote);
+				$stream->tryConsume(Token::Quote) || $stream->throwUnexpectedException([$quoteToken->text], addendum: ", end of n:attribute started $quoteToken->position");
+				$this->parser->getLexer()->setState(TemplateLexer::StateHtmlTag);
 			} else {
 				$valueToken = $stream->consume(Token::Html_Name);
 			}
@@ -346,7 +430,7 @@ final class TemplateParserHtml
 			tokens: $tokens,
 			position: $nameToken->position,
 			prefix: $this->getPrefix($name),
-			location: $this->parser->location,
+			inTag: true,
 			htmlElement: $this->element,
 			data: (object) ['node' => $node = new Nodes\TextNode('')], // TODO: better
 		);
@@ -354,38 +438,19 @@ final class TemplateParserHtml
 	}
 
 
-	private function parseAttributeQuote(): Html\QuotedValue
-	{
-		$stream = $this->parser->getStream();
-		$quoteToken = $stream->consume(Token::Quote);
-		$value = $this->parser->parseFragment(fn() => match ($stream->peek()->type) {
-			Token::Quote => null,
-			default => $this->parser->inTextResolve(),
-		});
-		$node = new Html\QuotedValue(
-			value: $value,
-			quote: $quoteToken->text,
-			position: $quoteToken->position,
-		);
-		$stream->consume(Token::Quote);
-		return $node;
-	}
-
-
 	private function parseComment(): Html\CommentNode
 	{
 		$this->parser->lastIndentation = null;
-		$this->parser->location = $this->parser::LocationTag;
+		$this->parser->inHead = false;
+		$this->parser->getLexer()->setState(TemplateLexer::StateHtmlComment);
 		$stream = $this->parser->getStream();
+		$openToken = $stream->consume(Token::Html_CommentOpen);
 		$node = new Html\CommentNode(
-			position: $stream->consume(Token::Html_CommentOpen)->position,
-			content: $this->parser->parseFragment(fn() => match ($stream->peek()->type) {
-				Token::Html_CommentClose => null,
-				default => $this->parser->inTextResolve(),
-			}),
+			position: $openToken->position,
+			content: $this->parser->parseFragment([$this->parser, 'inTextResolve']),
 		);
-		$stream->consume(Token::Html_CommentClose);
-		$this->parser->location = $this->parser::LocationText;
+		$stream->tryConsume(Token::Html_CommentClose) || $stream->throwUnexpectedException([Token::Html_CommentClose], addendum: " started $openToken->position");
+		$this->parser->getLexer()->setState(TemplateLexer::StateHtmlText);
 		return $node;
 	}
 
@@ -398,22 +463,15 @@ final class TemplateParserHtml
 				continue;
 			}
 			if ($stream->tryConsume(Token::Latte_CommentOpen)) {
+				$this->parser->getLexer()->pushState(TemplateLexer::StateLatteComment);
 				$stream->consume(Token::Text);
 				$stream->consume(Token::Latte_CommentClose);
+				$this->parser->getLexer()->popState();
 				$stream->tryConsume(Token::Newline);
 				continue;
 			}
 			return;
 		} while (true);
-	}
-
-
-	private function isClosingTag(string $name): bool
-	{
-		$stream = $this->parser->getStream();
-		return $stream->is(Token::Html_TagOpen)
-			&& $stream->peek(1)->is(Token::Slash)
-			&& strcasecmp($name, $stream->peek(2)->text ?? '') === 0;
 	}
 
 

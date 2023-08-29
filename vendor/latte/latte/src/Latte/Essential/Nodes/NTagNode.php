@@ -11,10 +11,11 @@ namespace Latte\Essential\Nodes;
 
 use Latte;
 use Latte\CompileException;
-use Latte\Compiler\Nodes\Php\ExpressionNode;
 use Latte\Compiler\Nodes\StatementNode;
 use Latte\Compiler\PrintContext;
 use Latte\Compiler\Tag;
+use Latte\Compiler\TemplateParser;
+use Latte\ContentType;
 
 
 /**
@@ -22,50 +23,35 @@ use Latte\Compiler\Tag;
  */
 final class NTagNode extends StatementNode
 {
-	public ExpressionNode $name;
-	public string $origName;
-
-
-	public static function create(Tag $tag): void
+	public static function create(Tag $tag, TemplateParser $parser): void
 	{
 		if (preg_match('(style$|script$)iA', $tag->htmlElement->name)) {
 			throw new CompileException('Attribute n:tag is not allowed in <script> or <style>', $tag->position);
 		}
 
 		$tag->expectArguments();
-		$node = new static;
-		$node->name = $tag->parser->parseExpression();
-		$node->origName = $tag->htmlElement->name;
-		$tag->htmlElement->customName = $node;
+		$newName = $tag->parser->parseExpression();
+		$origName = $tag->htmlElement->name;
+		$tag->htmlElement->variableName = Latte\Compiler\ExpressionBuilder::class(self::class)
+			->staticMethod('check', [$origName, $newName, $parser->getContentType() === ContentType::Xml])->build();
 	}
 
 
 	public function print(PrintContext $context): string
 	{
-		return self::class . '::check('
-			. var_export($this->origName, true)
-			. ', '
-			. $this->name->print($context)
-			. ')';
+		throw new \LogicException('Cannot directly print');
 	}
 
 
-	public static function check(string $orig, $new): string
+	public static function check(string $orig, mixed $new, bool $xml): mixed
 	{
 		if ($new === null) {
 			return $orig;
-
-		} elseif (
-			!is_string($new)
-			|| !preg_match('~' . Latte\Compiler\TemplateLexer::ReTagName . '$~DA', $new)
+		} elseif (!$xml
+			&& is_string($new)
+			&& isset(Latte\Helpers::$emptyElements[strtolower($orig)]) !== isset(Latte\Helpers::$emptyElements[strtolower($new)])
 		) {
-			throw new Latte\RuntimeException('Invalid tag name ' . var_export($new, true));
-
-		} elseif (
-			in_array($lower = strtolower($new), ['style', 'script'], true)
-			|| isset(Latte\Helpers::$emptyElements[strtolower($orig)]) !== isset(Latte\Helpers::$emptyElements[$lower])
-		) {
-			throw new Latte\RuntimeException("Forbidden tag <$orig> change to <$new>.");
+			throw new Latte\RuntimeException("Forbidden tag <$orig> change to <$new>");
 		}
 
 		return $new;
@@ -74,6 +60,6 @@ final class NTagNode extends StatementNode
 
 	public function &getIterator(): \Generator
 	{
-		yield $this->name;
+		false && yield;
 	}
 }

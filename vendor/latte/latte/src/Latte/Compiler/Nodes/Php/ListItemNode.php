@@ -14,13 +14,12 @@ use Latte\Compiler\Position;
 use Latte\Compiler\PrintContext;
 
 
-class ArrayItemNode extends Node
+class ListItemNode extends Node
 {
 	public function __construct(
-		public ExpressionNode $value,
+		public ExpressionNode|ListNode $value,
 		public ExpressionNode|IdentifierNode|null $key = null,
 		public bool $byRef = false,
-		public bool $unpack = false,
 		public ?Position $position = null,
 	) {
 	}
@@ -35,20 +34,7 @@ class ArrayItemNode extends Node
 		};
 		return $key
 			. ($this->byRef ? '&' : '')
-			. ($this->unpack ? '...' : '')
 			. $this->value->print($context);
-	}
-
-
-	public function toArgument(): ArgumentNode
-	{
-		$key = match (true) {
-			$this->key instanceof Scalar\StringNode => new IdentifierNode($this->key->value),
-			$this->key instanceof IdentifierNode => $this->key,
-			$this->key === null => null,
-			default => throw new \InvalidArgumentException('The expression used in the key cannot be converted to an argument.'),
-		};
-		return new ArgumentNode($this->value, $this->byRef, $this->unpack, $key, $this->position);
 	}
 
 
@@ -58,17 +44,5 @@ class ArrayItemNode extends Node
 			yield $this->key;
 		}
 		yield $this->value;
-	}
-}
-
-
-class_alias(ArrayItemNode::class, Expression\ArrayItemNode::class);
-
-namespace Latte\Compiler\Nodes\Php\Expression;
-
-if (false) {
-	/** @deprecated use Latte\Compiler\Nodes\Php\ArrayItemNode */
-	class ArrayItemNode
-	{
 	}
 }

@@ -40,7 +40,6 @@ final class Escaper
 
 	private string $state = '';
 	private string $tag = '';
-	private string $quote = '';
 	private string $subType = '';
 
 
@@ -65,8 +64,7 @@ final class Escaper
 
 	public function export(): string
 	{
-		return ($this->state === self::HtmlAttribute && $this->quote === '' ? 'html/unquoted-attr' : $this->state)
-			. ($this->subType ? '/' . $this->subType : '');
+		return $this->state . ($this->subType ? '/' . $this->subType : '');
 	}
 
 
@@ -79,17 +77,11 @@ final class Escaper
 	public function enterHtmlText(?ElementNode $node): void
 	{
 		$this->state = self::HtmlText;
-		if ($this->contentType === ContentType::Html && $node) {
-			$name = strtolower($node->name);
-			if (
-				($name === 'script' || $name === 'style')
-				&& is_string($attr = $node->getAttribute('type') ?? 'css')
-				&& preg_match('#(java|j|ecma|live)script|module|json|css|plain#i', $attr)
-			) {
-				$this->state = $name === 'script'
-					? self::HtmlJavaScript
-					: self::HtmlCss;
-			}
+		if ($node->isRawText()
+			&& is_string($attr = $node->getAttribute('type') ?? 'css')
+			&& preg_match('#(java|j|ecma|live)script|module|json|css|plain#i', $attr)
+		) {
+			$this->state = $node->is('script') ? self::HtmlJavaScript : self::HtmlCss;
 		}
 	}
 
@@ -101,10 +93,9 @@ final class Escaper
 	}
 
 
-	public function enterHtmlAttribute(?string $name = null, string $quote = ''): void
+	public function enterHtmlAttribute(?string $name = null): void
 	{
 		$this->state = self::HtmlAttribute;
-		$this->quote = $quote;
 		$this->subType = '';
 
 		if ($this->contentType === ContentType::Html && is_string($name)) {
@@ -122,12 +113,6 @@ final class Escaper
 	}
 
 
-	public function enterHtmlAttributeQuote(string $quote = '"'): void
-	{
-		$this->quote = $quote;
-	}
-
-
 	public function enterHtmlBogusTag(): void
 	{
 		$this->state = self::HtmlBogusTag;
@@ -142,16 +127,15 @@ final class Escaper
 
 	public function escape(string $str): string
 	{
-		[$lq, $rq] = $this->state === self::HtmlAttribute && !$this->quote ? ["'\"' . ", " . '\"'"] : ['', ''];
 		return match ($this->contentType) {
 			ContentType::Html => match ($this->state) {
 				self::HtmlText => 'LR\Filters::escapeHtmlText(' . $str . ')',
 				self::HtmlTag => 'LR\Filters::escapeHtmlTag(' . $str . ')',
 				self::HtmlAttribute => match ($this->subType) {
 					'',
-					self::Url => $lq . 'LR\Filters::escapeHtmlAttr(' . $str . ')' . $rq,
-					self::JavaScript => $lq . 'LR\Filters::escapeHtmlAttr(LR\Filters::escapeJs(' . $str . '))' . $rq,
-					self::Css => $lq . 'LR\Filters::escapeHtmlAttr(LR\Filters::escapeCss(' . $str . '))' . $rq,
+					self::Url => 'LR\Filters::escapeHtmlAttr(' . $str . ')',
+					self::JavaScript => 'LR\Filters::escapeHtmlAttr(LR\Filters::escapeJs(' . $str . '))',
+					self::Css => 'LR\Filters::escapeHtmlAttr(LR\Filters::escapeCss(' . $str . '))',
 				},
 				self::HtmlComment => 'LR\Filters::escapeHtmlComment(' . $str . ')',
 				self::HtmlBogusTag => 'LR\Filters::escapeHtml(' . $str . ')',
@@ -162,7 +146,7 @@ final class Escaper
 			ContentType::Xml => match ($this->state) {
 				self::HtmlText,
 				self::HtmlBogusTag => 'LR\Filters::escapeXml(' . $str . ')',
-				self::HtmlAttribute => $lq . 'LR\Filters::escapeXml(' . $str . ')' . $rq,
+				self::HtmlAttribute => 'LR\Filters::escapeXml(' . $str . ')',
 				self::HtmlComment => 'LR\Filters::escapeHtmlComment(' . $str . ')',
 				self::HtmlTag => 'LR\Filters::escapeXmlTag(' . $str . ')',
 				default => throw new \LogicException("Unknown context $this->contentType, $this->state."),
@@ -218,18 +202,13 @@ final class Escaper
 				'html/attr/css' => 'convertHtmlToHtmlAttr',
 				'html/attr/url' => 'convertHtmlToHtmlAttr',
 				'html/comment' => 'escapeHtmlComment',
-				'html/unquoted-attr' => 'convertHtmlToUnquotedAttr',
 			],
 			'html/attr' => [
 				'html' => 'convertHtmlToHtmlAttr',
-				'html/unquoted-attr' => 'convertHtmlAttrToUnquotedAttr',
 			],
 			'html/attr/url' => [
 				'html' => 'convertHtmlToHtmlAttr',
 				'html/attr' => 'nop',
-			],
-			'html/unquoted-attr' => [
-				'html' => 'convertHtmlToHtmlAttr',
 			],
 		];
 

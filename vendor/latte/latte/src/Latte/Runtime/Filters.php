@@ -75,9 +75,12 @@ class Filters
 	public static function escapeHtmlTag($s): string
 	{
 		$s = (string) $s;
-		return preg_match('#^[a-z0-9:-]+$#i', $s)
-			? $s
-			: '"' . self::escapeHtmlAttr($s) . '"';
+		$s = htmlspecialchars($s, ENT_QUOTES | ENT_HTML5 | ENT_SUBSTITUTE, 'UTF-8');
+		return preg_replace_callback(
+			'#[=/\s]#',
+			fn($m) => '&#' . ord($m[0]) . ';',
+			$s,
+		);
 	}
 
 
@@ -122,10 +125,12 @@ class Filters
 	 */
 	public static function escapeXmlTag($s): string
 	{
-		$s = (string) $s;
-		return preg_match('#^[a-z0-9:-]+$#i', $s)
-			? $s
-			: '"' . self::escapeXml($s) . '"';
+		$s = self::escapeXml((string) $s);
+		return preg_replace_callback(
+			'#[=/\s]#',
+			fn($m) => '&#' . ord($m[0]) . ';',
+			$s,
+		);
 	}
 
 
@@ -211,24 +216,6 @@ class Filters
 
 
 	/**
-	 * Converts HTML text to unquoted attribute. The quotation marks need to be escaped.
-	 */
-	public static function convertHtmlToUnquotedAttr(string $s): string
-	{
-		return '"' . self::escapeHtmlAttr($s, false) . '"';
-	}
-
-
-	/**
-	 * Converts HTML quoted attribute to unquoted.
-	 */
-	public static function convertHtmlAttrToUnquotedAttr(string $s): string
-	{
-		return '"' . $s . '"';
-	}
-
-
-	/**
 	 * Converts HTML to plain text.
 	 */
 	public static function convertHtmlToText(string $s): string
@@ -248,5 +235,21 @@ class Filters
 		}
 
 		return preg_match('~^(?:(?:https?|ftp)://[^@]+(?:/.*)?|(?:mailto|tel|sms):.+|[/?#].*|[^:]+)$~Di', $s) ? $s : '';
+	}
+
+
+	/**
+	 * Validates HTML tag name.
+	 */
+	public static function safeTag(mixed $name, bool $xml = false): string
+	{
+		if (!is_string($name)) {
+			throw new Latte\RuntimeException('Tag name must be string, ' . get_debug_type($name) . ' given');
+		} elseif (!preg_match('~' . Latte\Compiler\TemplateLexer::ReTagName . '$~DA', $name)) {
+			throw new Latte\RuntimeException("Invalid tag name '$name'");
+		} elseif (!$xml && in_array(strtolower($name), ['style', 'script'], true)) {
+			throw new Latte\RuntimeException("Forbidden variable tag name <$name>");
+		}
+		return $name;
 	}
 }

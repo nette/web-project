@@ -14,6 +14,7 @@ use Latte\CompileException;
 use Latte\Compiler\ExpressionBuilder;
 use Latte\Compiler\Node;
 use Latte\Compiler\Nodes\AuxiliaryNode;
+use Latte\Compiler\Nodes\Php\Expression\FunctionCallableNode;
 use Latte\Compiler\Nodes\Php\Expression\FunctionCallNode;
 use Latte\Compiler\Nodes\Php\Expression\VariableNode;
 use Latte\Compiler\Nodes\Php\NameNode;
@@ -101,12 +102,13 @@ final class Passes
 	/**
 	 * $ʟ_xxx variables are forbidden
 	 */
-	public static function internalVariablesPass(TemplateNode $node): void
+	public static function internalVariablesPass(TemplateNode $node, bool $forbidThis = false): void
 	{
-		(new NodeTraverser)->traverse($node, function (Node $node) {
+		$forbidden = $forbidThis ? ['GLOBALS', 'this'] : ['GLOBALS'];
+		(new NodeTraverser)->traverse($node, function (Node $node) use ($forbidden) {
 			if ($node instanceof VariableNode
 				&& is_string($node->name)
-				&& (str_starts_with($node->name, 'ʟ_'))
+				&& (str_starts_with($node->name, 'ʟ_') || in_array($node->name, $forbidden, true))
 			) {
 				throw new CompileException("Forbidden variable \$$node->name.", $node->position);
 			}

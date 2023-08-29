@@ -23,6 +23,7 @@ class Parameter
 	use Nette\SmartObject;
 	use Traits\NameAware;
 	use Traits\AttributeAware;
+	use Traits\CommentAware;
 
 	private bool $reference = false;
 	private ?string $type = null;
@@ -51,6 +52,7 @@ class Parameter
 	}
 
 
+	/** @return ($asObject is true ? ?Type : ?string) */
 	public function getType(bool $asObject = false): Type|string|null
 	{
 		return $asObject && $this->type

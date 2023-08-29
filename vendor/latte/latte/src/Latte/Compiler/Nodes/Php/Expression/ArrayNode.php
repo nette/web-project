@@ -12,8 +12,6 @@ namespace Latte\Compiler\Nodes\Php\Expression;
 use Latte\Compiler\Nodes\Php\ArgumentNode;
 use Latte\Compiler\Nodes\Php\ArrayItemNode;
 use Latte\Compiler\Nodes\Php\ExpressionNode;
-use Latte\Compiler\Nodes\Php\IdentifierNode;
-use Latte\Compiler\Nodes\Php\Scalar;
 use Latte\Compiler\Position;
 use Latte\Compiler\PrintContext;
 
@@ -21,41 +19,18 @@ use Latte\Compiler\PrintContext;
 class ArrayNode extends ExpressionNode
 {
 	public function __construct(
-		/** @var array<ArrayItemNode|null> */
+		/** @var array<ArrayItemNode> */
 		public array $items = [],
 		public ?Position $position = null,
 	) {
-		(function (?ArrayItemNode ...$args) {})(...$items);
-	}
-
-
-	/** @param  ArgumentNode[]  $args */
-	public static function fromArguments(array $args): self
-	{
-		$node = new self;
-		foreach ($args as $arg) {
-			$node->items[] = new ArrayItemNode($arg->value, $arg->name, $arg->byRef, $arg->unpack, $arg->position);
-		}
-
-		return $node;
+		(function (ArrayItemNode ...$args) {})(...$items);
 	}
 
 
 	/** @return ArgumentNode[] */
 	public function toArguments(): array
 	{
-		$args = [];
-		foreach ($this->items as $item) {
-			$key = match (true) {
-				$item->key instanceof Scalar\StringNode => new IdentifierNode($item->key->value),
-				$item->key instanceof IdentifierNode => $item->key,
-				$item->key === null => null,
-				default => throw new \InvalidArgumentException('The expression used in the key cannot be converted to an argument.'),
-			};
-			$args[] = new ArgumentNode($item->value, $item->byRef, $item->unpack, $key, $item->position);
-		}
-
-		return $args;
+		return array_map(fn(ArrayItemNode $item) => $item->toArgument(), $this->items);
 	}
 
 
@@ -87,9 +62,7 @@ class ArrayNode extends ExpressionNode
 	public function &getIterator(): \Generator
 	{
 		foreach ($this->items as &$item) {
-			if ($item) {
-				yield $item;
-			}
+			yield $item;
 		}
 	}
 }

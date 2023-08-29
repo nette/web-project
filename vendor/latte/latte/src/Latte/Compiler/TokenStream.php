@@ -70,7 +70,7 @@ final class TokenStream
 	{
 		$token = $this->peek();
 		if ($kind && !$token->is(...$kind)) {
-			$kind = array_map(fn($item) => is_string($item) ? "'$item'" : Token::NAMES[$item], $kind);
+			$kind = array_map(fn($item) => is_string($item) ? "'$item'" : Token::Names[$item], $kind);
 			$this->throwUnexpectedException($kind);
 		} elseif (!$token->isEnd()) {
 			$this->index++;
@@ -119,28 +119,15 @@ final class TokenStream
 	 * @throws CompileException
 	 * @return never
 	 */
-	public function throwUnexpectedException(array $expected = [], string $addendum = ''): void
+	public function throwUnexpectedException(array $expected = [], string $addendum = '', string $excerpt = ''): void
 	{
-		$s = null;
-		$i = 0;
-		do {
-			$token = $this->peek($i++);
-			if ($token->isEnd()) {
-				break;
-			}
-			$s .= $token->text;
-			if (strlen($s) > 5) {
-				break;
-			}
-		} while (true);
-
-		$expected = array_map(fn($item) => is_int($item) ? Token::NAMES[$item] : $item, $expected);
-
+		$token = $this->peek()->text . $excerpt;
+		$expected = array_map(fn($item) => is_int($item) ? Token::Names[$item] : $item, $expected);
 		throw new CompileException(
 			'Unexpected '
-			. ($s === null
+			. ($token === ''
 				? 'end'
-				: "'" . trim($s, "\n") . "'")
+				: "'" . trim($token, "\n") . "'")
 			. ($expected && count($expected) < 5
 				? ', expecting ' . implode(', ', $expected)
 				: '')
