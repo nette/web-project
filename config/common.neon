@@ -7,6 +7,11 @@ application:
 		*: App\*Module\Presenters\*Presenter
 
 
+latte:
+	strictTypes: yes
+	strictParsing: yes
+
+
 session:
 	expiration: 14 days
 
