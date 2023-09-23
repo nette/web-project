@@ -27,7 +27,7 @@ abstract class MultiChoiceControl extends BaseControl
 	private $items = [];
 
 
-	public function __construct($label = null, array $items = null)
+	public function __construct($label = null, ?array $items = null)
 	{
 		parent::__construct($label);
 		if ($items !== null) {
@@ -38,7 +38,7 @@ abstract class MultiChoiceControl extends BaseControl
 
 	public function loadHttpData(): void
 	{
-		$this->value = array_keys(array_flip($this->getHttpData(Nette\Forms\Form::DATA_TEXT)));
+		$this->value = array_keys(array_flip($this->getHttpData(Nette\Forms\Form::DataText)));
 		if (is_array($this->disabled)) {
 			$this->value = array_diff($this->value, array_keys($this->disabled));
 		}
@@ -57,19 +57,25 @@ abstract class MultiChoiceControl extends BaseControl
 		} elseif (!is_array($values)) {
 			throw new Nette\InvalidArgumentException(sprintf("Value must be array or null, %s given in field '%s'.", gettype($values), $this->name));
 		}
+
 		$flip = [];
 		foreach ($values as $value) {
-			if (!is_scalar($value) && !(is_object($value) && method_exists($value, '__toString'))) {
+			if ($value instanceof \BackedEnum) {
+				$value = $value->value;
+			} elseif (!is_scalar($value) && !(is_object($value) && method_exists($value, '__toString'))) {
 				throw new Nette\InvalidArgumentException(sprintf("Values must be scalar, %s given in field '%s'.", gettype($value), $this->name));
 			}
+
 			$flip[(string) $value] = true;
 		}
+
 		$values = array_keys($flip);
 		if ($this->checkDefaultValue && ($diff = array_diff($values, array_keys($this->items)))) {
 			$set = Nette\Utils\Strings::truncate(implode(', ', array_map(function ($s) { return var_export($s, true); }, array_keys($this->items))), 70, '...');
 			$vals = (count($diff) > 1 ? 's' : '') . " '" . implode("', '", $diff) . "'";
 			throw new Nette\InvalidArgumentException("Value$vals are out of allowed set [$set] in field '{$this->name}'.");
 		}
+
 		$this->value = $values;
 		return $this;
 	}

@@ -5,41 +5,40 @@
 class BlueScreen
 {
 	static init(ajax) {
+		BlueScreen.globalInit();
+
 		let blueScreen = document.getElementById('tracy-bs');
-		let styles = [];
 
-		for (let i = 0; i < document.styleSheets.length; i++) {
-			let style = document.styleSheets[i];
-			if (!style.ownerNode.classList.contains('tracy-debug')) {
-				style.oldDisabled = style.disabled;
-				style.disabled = true;
-				styles.push(style);
-			}
-		}
-
+		document.documentElement.classList.add('tracy-bs-visible');
 		if (navigator.platform.indexOf('Mac') > -1) {
-			blueScreen.classList.add('mac');
+			blueScreen.classList.add('tracy-mac');
 		}
 
-		document.getElementById('tracy-bs-toggle').addEventListener('tracy-toggle', function() {
-			let collapsed = this.classList.contains('tracy-collapsed');
-			for (let i = 0; i < styles.length; i++) {
-				styles[i].disabled = collapsed ? styles[i].oldDisabled : true;
+		blueScreen.addEventListener('tracy-toggle', (e) => {
+			if (e.target.matches('#tracy-bs-toggle')) { // blue screen toggle
+				document.documentElement.classList.toggle('tracy-bs-visible', !e.detail.collapsed);
+
+			} else if (!e.target.matches('.tracy-dump *') && e.detail.originalEvent) { // panel toggle
+				e.detail.relatedTarget.classList.toggle('tracy-panel-fadein', !e.detail.collapsed);
 			}
 		});
 
 		if (!ajax) {
 			document.body.appendChild(blueScreen);
-			let id = location.href + document.querySelector('.section--error').textContent;
+			let id = location.href + document.querySelector('.tracy-section--error').textContent;
 			Tracy.Toggle.persist(blueScreen, sessionStorage.getItem('tracy-toggles-bskey') === id);
 			sessionStorage.setItem('tracy-toggles-bskey', id);
 		}
 
-		if (inited) {
-			return;
-		}
-		inited = true;
+		(new ResizeObserver(stickyFooter)).observe(blueScreen);
 
+		if (document.documentElement.classList.contains('tracy-bs-visible')) {
+			window.scrollTo(0, 0);
+		}
+	}
+
+
+	static globalInit() {
 		// enables toggling via ESC
 		document.addEventListener('keyup', (e) => {
 			if (e.keyCode === 27 && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) { // ESC
@@ -47,14 +46,12 @@ class BlueScreen
 			}
 		});
 
-		blueScreen.addEventListener('tracy-toggle', (e) => {
-			if (!e.target.matches('.tracy-dump *') && e.detail.originalEvent) {
-				e.detail.relatedTarget.classList.toggle('panel-fadein', !e.detail.collapsed);
-			}
-		});
-
 		Tracy.TableSort.init();
 		Tracy.Tabs.init();
+
+		window.addEventListener('scroll', stickyFooter);
+
+		BlueScreen.globalInit = function() {};
 	}
 
 
@@ -67,12 +64,14 @@ class BlueScreen
 		ajaxBs = document.getElementById('tracy-bs');
 		Tracy.Dumper.init(ajaxBs);
 		BlueScreen.init(true);
-		window.scrollTo(0, 0);
 	}
 }
 
-let inited;
-
+function stickyFooter() {
+	let footer = document.querySelector('#tracy-bs footer');
+	footer.classList.toggle('tracy-footer--sticky', false); // to measure footer.offsetTop
+	footer.classList.toggle('tracy-footer--sticky', footer.offsetHeight + footer.offsetTop - window.innerHeight - document.documentElement.scrollTop < 0);
+}
 
 let Tracy = window.Tracy = window.Tracy || {};
 Tracy.BlueScreen = Tracy.BlueScreen || BlueScreen;

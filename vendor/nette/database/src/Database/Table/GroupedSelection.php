@@ -42,7 +42,7 @@ class GroupedSelection extends Selection
 		string $tableName,
 		string $column,
 		Selection $refTable,
-		Nette\Caching\IStorage $cacheStorage = null
+		?Nette\Caching\IStorage $cacheStorage = null
 	) {
 		$this->refTable = $refTable;
 		$this->column = $column;
@@ -96,7 +96,7 @@ class GroupedSelection extends Selection
 	/**
 	 * @return mixed
 	 */
-	public function aggregation(string $function, string $groupFunction = null)
+	public function aggregation(string $function, ?string $groupFunction = null)
 	{
 		$aggregation = &$this->getRefTable($refPath)->aggregation[$refPath . $function . $this->sqlBuilder->getSelectQueryHash($this->getPreviousAccessedColumns())];
 
@@ -128,11 +128,12 @@ class GroupedSelection extends Selection
 				return $val;
 			}
 		}
+
 		return 0;
 	}
 
 
-	public function count(string $column = null): int
+	public function count(?string $column = null): int
 	{
 		$return = parent::count($column);
 		return $return ?? 0;
@@ -161,6 +162,7 @@ class GroupedSelection extends Selection
 			if ($limit && $rows > 1) {
 				$this->sqlBuilder->setLimit(null, null);
 			}
+
 			parent::execute();
 			$this->sqlBuilder->setLimit($limit, null);
 			$data = [];
@@ -179,6 +181,7 @@ class GroupedSelection extends Selection
 				} else {
 					unset($this->rows[$key]);
 				}
+
 				$skip++;
 				unset($ref, $skip);
 			}
@@ -194,6 +197,7 @@ class GroupedSelection extends Selection
 			foreach ($this->data as $row) {
 				$row->setTable($this); // injects correct parent GroupedSelection
 			}
+
 			reset($this->data);
 		}
 	}

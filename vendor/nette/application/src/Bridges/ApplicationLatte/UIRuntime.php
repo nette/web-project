@@ -16,7 +16,7 @@ use Nette\PhpGenerator as Php;
 
 
 /**
- * Runtime helpers for UI macros.
+ * Latte v2 helpers for UI macros.
  * @internal
  */
 final class UIRuntime

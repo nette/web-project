@@ -18,24 +18,15 @@ use Tester\Helpers;
 abstract class AbstractGenerator
 {
 	protected const
-		CODE_DEAD = -2,
-		CODE_UNTESTED = -1,
-		CODE_TESTED = 1;
+		LineDead = -2,
+		LineTested = 1,
+		LineUntested = -1;
 
-	/** @var array */
-	public $acceptFiles = ['php', 'phpt', 'phtml'];
-
-	/** @var array */
-	protected $data;
-
-	/** @var array */
-	protected $sources;
-
-	/** @var int */
-	protected $totalSum = 0;
-
-	/** @var int */
-	protected $coveredSum = 0;
+	public array $acceptFiles = ['php', 'phpt', 'phtml'];
+	protected array $data;
+	protected array $sources;
+	protected int $totalSum = 0;
+	protected int $coveredSum = 0;
 
 
 	/**
@@ -72,7 +63,7 @@ abstract class AbstractGenerator
 	}
 
 
-	public function render(string $file = null): void
+	public function render(?string $file = null): void
 	{
 		$handle = $file ? @fopen($file, 'w') : STDOUT; // @ is escalated to exception
 		if (!$handle) {
@@ -82,8 +73,9 @@ abstract class AbstractGenerator
 		ob_start(function (string $buffer) use ($handle) { fwrite($handle, $buffer); }, 4096);
 		try {
 			$this->renderSelf();
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 		}
+
 		ob_end_flush();
 		fclose($handle);
 
@@ -91,6 +83,7 @@ abstract class AbstractGenerator
 			if ($file) {
 				unlink($file);
 			}
+
 			throw $e;
 		}
 	}

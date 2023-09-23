@@ -23,7 +23,7 @@ final class NeonAdapter implements Nette\DI\Config\Adapter
 {
 	use Nette\SmartObject;
 
-	private const PREVENT_MERGING_SUFFIX = '!';
+	private const PreventMergingSuffix = '!';
 
 	/** @var string */
 	private $file;
@@ -44,6 +44,7 @@ final class NeonAdapter implements Nette\DI\Config\Adapter
 		$node = $decoder->parseToNode($input);
 		$traverser = new Neon\Traverser;
 		$node = $traverser->traverse($node, [$this, 'removeUnderscoreVisitor']);
+		$node = $traverser->traverse($node, [$this, 'convertAtSignVisitor']);
 		return $this->process((array) $node->toValue());
 	}
 
@@ -53,7 +54,7 @@ final class NeonAdapter implements Nette\DI\Config\Adapter
 	{
 		$res = [];
 		foreach ($arr as $key => $val) {
-			if (is_string($key) && substr($key, -1) === self::PREVENT_MERGING_SUFFIX) {
+			if (is_string($key) && substr($key, -1) === self::PreventMergingSuffix) {
 				if (!is_array($val) && $val !== null) {
 					throw new Nette\DI\InvalidConfigurationException(sprintf(
 						"Replacing operator is available only for arrays, item '%s' is not array (used in '%s')",
@@ -83,7 +84,7 @@ final class NeonAdapter implements Nette\DI\Config\Adapter
 				} else {
 					$tmp = $this->process([$val->value]);
 					if (is_string($tmp[0]) && strpos($tmp[0], '?') !== false) {
-						trigger_error("Operator ? is deprecated in config files (used in '$this->file')", E_USER_DEPRECATED);
+						throw new Nette\DI\InvalidConfigurationException("Operator ? is deprecated in config file (used in '$this->file')");
 					}
 
 					$val = new Statement($tmp[0], $this->process($val->attributes));
@@ -150,6 +151,7 @@ final class NeonAdapter implements Nette\DI\Config\Adapter
 	}
 
 
+	/** @internal */
 	public function removeUnderscoreVisitor(Neon\Node $node)
 	{
 		if (!$node instanceof Neon\Node\EntityNode) {
@@ -165,7 +167,32 @@ final class NeonAdapter implements Nette\DI\Config\Adapter
 			if ($attr->value instanceof Neon\Node\LiteralNode && $attr->value->value === '_') {
 				unset($node->attributes[$i]);
 				$index = true;
+
+			} elseif ($attr->value instanceof Neon\Node\LiteralNode && $attr->value->value === '...') {
+				trigger_error("Replace ... with _ in configuration file '$this->file'.", E_USER_DEPRECATED);
+				unset($node->attributes[$i]);
+				$index = true;
 			}
+		}
+	}
+
+
+	/** @internal */
+	public function convertAtSignVisitor(Neon\Node $node)
+	{
+		if ($node instanceof Neon\Node\StringNode) {
+			if (substr($node->value, 0, 2) === '@@') {
+				trigger_error("There is no need to escape @ anymore, replace @@ with @ in: '$node->value' (used in $this->file)", E_USER_DEPRECATED);
+			} else {
+				$node->value = preg_replace('#^@#', '$0$0', $node->value); // escape
+			}
+
+		} elseif (
+			$node instanceof Neon\Node\LiteralNode
+			&& is_string($node->value)
+			&& substr($node->value, 0, 2) === '@@'
+		) {
+			trigger_error("There is no need to escape @ anymore, replace @@ with @ and put string in quotes: '$node->value' (used in $this->file)", E_USER_DEPRECATED);
 		}
 	}
 }

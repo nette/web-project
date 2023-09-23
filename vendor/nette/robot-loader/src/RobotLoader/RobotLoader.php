@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Nette\Loaders;
 
 use Nette;
+use Nette\Utils\FileSystem;
 use SplFileInfo;
 
 
@@ -28,46 +29,34 @@ class RobotLoader
 {
 	use Nette\SmartObject;
 
-	private const RETRY_LIMIT = 3;
+	private const RetryLimit = 3;
 
 	/** @var string[] */
-	public $ignoreDirs = ['.*', '*.old', '*.bak', '*.tmp', 'temp'];
+	public array $ignoreDirs = ['.*', '*.old', '*.bak', '*.tmp', 'temp'];
 
 	/** @var string[] */
-	public $acceptFiles = ['*.php'];
-
-	/** @var bool */
-	private $autoRebuild = true;
-
-	/** @var bool */
-	private $reportParseErrors = true;
+	public array $acceptFiles = ['*.php'];
+	private bool $autoRebuild = true;
+	private bool $reportParseErrors = true;
 
 	/** @var string[] */
-	private $scanPaths = [];
+	private array $scanPaths = [];
 
 	/** @var string[] */
-	private $excludeDirs = [];
+	private array $excludeDirs = [];
 
 	/** @var array<string, array{string, int}>  class => [file, time] */
-	private $classes = [];
-
-	/** @var bool */
-	private $cacheLoaded = false;
-
-	/** @var bool */
-	private $refreshed = false;
+	private array $classes = [];
+	private bool $cacheLoaded = false;
+	private bool $refreshed = false;
 
 	/** @var array<string, int>  class => counter */
-	private $missingClasses = [];
+	private array $missingClasses = [];
 
 	/** @var array<string, int>  file => mtime */
-	private $emptyFiles = [];
-
-	/** @var string|null */
-	private $tempDirectory;
-
-	/** @var bool */
-	private $needSave = false;
+	private array $emptyFiles = [];
+	private ?string $tempDirectory = null;
+	private bool $needSave = false;
 
 
 	public function __construct()
@@ -89,7 +78,7 @@ class RobotLoader
 	/**
 	 * Register autoloader.
 	 */
-	public function register(bool $prepend = false): self
+	public function register(bool $prepend = false): static
 	{
 		spl_autoload_register([$this, 'tryLoad'], true, $prepend);
 		return $this;
@@ -104,7 +93,7 @@ class RobotLoader
 		$this->loadCache();
 
 		$missing = $this->missingClasses[$type] ?? null;
-		if ($missing >= self::RETRY_LIMIT) {
+		if ($missing >= self::RetryLimit) {
 			return;
 		}
 
@@ -126,7 +115,7 @@ class RobotLoader
 
 			if (!$file || !is_file($file)) {
 				$this->missingClasses[$type] = ++$missing;
-				$this->needSave = $this->needSave || $file || ($missing <= self::RETRY_LIMIT);
+				$this->needSave = $this->needSave || $file || ($missing <= self::RetryLimit);
 				unset($this->classes[$type]);
 				$file = null;
 			}
@@ -140,20 +129,15 @@ class RobotLoader
 
 	/**
 	 * Add path or paths to list.
-	 * @param  string  ...$paths  absolute path
 	 */
-	public function addDirectory(...$paths): self
+	public function addDirectory(string ...$paths): static
 	{
-		if (is_array($paths[0] ?? null)) {
-			trigger_error(__METHOD__ . '() use variadics ...$paths to add an array of paths.', E_USER_WARNING);
-			$paths = $paths[0];
-		}
 		$this->scanPaths = array_merge($this->scanPaths, $paths);
 		return $this;
 	}
 
 
-	public function reportParseErrors(bool $on = true): self
+	public function reportParseErrors(bool $on = true): static
 	{
 		$this->reportParseErrors = $on;
 		return $this;
@@ -162,14 +146,9 @@ class RobotLoader
 
 	/**
 	 * Excludes path or paths from list.
-	 * @param  string  ...$paths  absolute path
 	 */
-	public function excludeDirectory(...$paths): self
+	public function excludeDirectory(string ...$paths): static
 	{
-		if (is_array($paths[0] ?? null)) {
-			trigger_error(__METHOD__ . '() use variadics ...$paths to add an array of paths.', E_USER_WARNING);
-			$paths = $paths[0];
-		}
 		$this->excludeDirs = array_merge($this->excludeDirs, $paths);
 		return $this;
 	}
@@ -185,6 +164,7 @@ class RobotLoader
 		foreach ($this->classes as $class => [$file]) {
 			$res[$class] = $file;
 		}
+
 		return $res;
 	}
 
@@ -228,6 +208,7 @@ class RobotLoader
 			$files[$file] = $mtime;
 			$classes[$file][] = $class;
 		}
+
 		$this->classes = $this->emptyFiles = [];
 
 		foreach ($this->scanPaths as $path) {
@@ -251,8 +232,14 @@ class RobotLoader
 
 				foreach ($foundClasses as $class) {
 					if (isset($this->classes[$class])) {
-						throw new Nette\InvalidStateException("Ambiguous class $class resolution; defined in {$this->classes[$class][0]} and in $file.");
+						throw new Nette\InvalidStateException(sprintf(
+							'Ambiguous class %s resolution; defined in %s and in %s.',
+							$class,
+							$this->classes[$class][0],
+							$file,
+						));
 					}
+
 					$this->classes[$class] = [$file, $mtime];
 					unset($this->missingClasses[$class]);
 				}
@@ -262,57 +249,29 @@ class RobotLoader
 
 
 	/**
-	 * Creates an iterator scaning directory for PHP files, subdirectories and 'netterobots.txt' files.
+	 * Creates an iterator scanning directory for PHP files and subdirectories.
 	 * @throws Nette\IOException if path is not found
 	 */
 	private function createFileIterator(string $dir): Nette\Utils\Finder
 	{
 		if (!is_dir($dir)) {
-			throw new Nette\IOException("File or directory '$dir' not found.");
+			throw new Nette\IOException(sprintf("File or directory '%s' not found.", $dir));
 		}
-		$dir = realpath($dir) ?: $dir; // realpath does not work in phar
 
-		if (is_string($ignoreDirs = $this->ignoreDirs)) {
-			trigger_error(self::class . ': $ignoreDirs must be an array.', E_USER_WARNING);
-			$ignoreDirs = preg_split('#[,\s]+#', $ignoreDirs);
-		}
+		$dir = realpath($dir) ?: $dir; // realpath does not work in phar
 		$disallow = [];
-		foreach (array_merge($ignoreDirs, $this->excludeDirs) as $item) {
+		foreach (array_merge($this->ignoreDirs, $this->excludeDirs) as $item) {
 			if ($item = realpath($item)) {
-				$disallow[str_replace('\\', '/', $item)] = true;
+				$disallow[FileSystem::unixSlashes($item)] = true;
 			}
 		}
 
-		if (is_string($acceptFiles = $this->acceptFiles)) {
-			trigger_error(self::class . ': $acceptFiles must be an array.', E_USER_WARNING);
-			$acceptFiles = preg_split('#[,\s]+#', $acceptFiles);
-		}
-
-		$iterator = Nette\Utils\Finder::findFiles($acceptFiles)
-			->filter(function (SplFileInfo $file) use (&$disallow) {
-				return $file->getRealPath() === false
-					? true
-					: !isset($disallow[str_replace('\\', '/', $file->getRealPath())]);
-			})
+		return Nette\Utils\Finder::findFiles($this->acceptFiles)
+			->filter($filter = fn(SplFileInfo $file) => $file->getRealPath() === false
+				|| !isset($disallow[FileSystem::unixSlashes($file->getRealPath())]))
+			->descentFilter($filter)
 			->from($dir)
-			->exclude($ignoreDirs)
-			->filter($filter = function (SplFileInfo $dir) use (&$disallow) {
-				if ($dir->getRealPath() === false) {
-					return true;
-				}
-				$path = str_replace('\\', '/', $dir->getRealPath());
-				if (is_file("$path/netterobots.txt")) {
-					foreach (file("$path/netterobots.txt") as $s) {
-						if (preg_match('#^(?:disallow\\s*:)?\\s*(\\S+)#i', $s, $matches)) {
-							$disallow[$path . rtrim('/' . ltrim($matches[1], '/'), '/')] = true;
-						}
-					}
-				}
-				return !isset($disallow[$path]);
-			});
-
-		$filter(new SplFileInfo($dir));
-		return $iterator;
+			->exclude($this->ignoreDirs);
 	}
 
 
@@ -333,9 +292,16 @@ class RobotLoader
 				$this->updateFile($prevFile);
 				[$prevFile] = $this->classes[$class] ?? null;
 			}
+
 			if (isset($prevFile)) {
-				throw new Nette\InvalidStateException("Ambiguous class $class resolution; defined in $prevFile and in $file.");
+				throw new Nette\InvalidStateException(sprintf(
+					'Ambiguous class %s resolution; defined in %s and in %s.',
+					$class,
+					$prevFile,
+					$file,
+				));
 			}
+
 			$this->classes[$class] = [$file, filemtime($file)];
 		}
 	}
@@ -354,7 +320,7 @@ class RobotLoader
 		$classes = [];
 
 		try {
-			$tokens = token_get_all($code, TOKEN_PARSE);
+			$tokens = \PhpToken::tokenize($code, TOKEN_PARSE);
 		} catch (\ParseError $e) {
 			if ($this->reportParseErrors) {
 				$rp = new \ReflectionProperty($e, 'file');
@@ -362,59 +328,60 @@ class RobotLoader
 				$rp->setValue($e, $file);
 				throw $e;
 			}
+
 			$tokens = [];
 		}
 
 		foreach ($tokens as $token) {
-			if (is_array($token)) {
-				switch ($token[0]) {
-					case T_COMMENT:
-					case T_DOC_COMMENT:
-					case T_WHITESPACE:
-						continue 2;
+			switch ($token->id) {
+				case T_COMMENT:
+				case T_DOC_COMMENT:
+				case T_WHITESPACE:
+					continue 2;
 
-					case T_STRING:
-					case PHP_VERSION_ID < 80000
-						? T_NS_SEPARATOR
-						: T_NAME_QUALIFIED:
-						if ($expected) {
-							$name .= $token[1];
-						}
-						continue 2;
+				case T_STRING:
+				case T_NAME_QUALIFIED:
+					if ($expected) {
+						$name .= $token->text;
+					}
 
-					case T_NAMESPACE:
-					case T_CLASS:
-					case T_INTERFACE:
-					case T_TRAIT:
-					case PHP_VERSION_ID < 80100
-						? T_CLASS
-						: T_ENUM:
-						$expected = $token[0];
-						$name = '';
-						continue 2;
-					case T_CURLY_OPEN:
-					case T_DOLLAR_OPEN_CURLY_BRACES:
-						$level++;
-				}
+					continue 2;
+
+				case T_NAMESPACE:
+				case T_CLASS:
+				case T_INTERFACE:
+				case T_TRAIT:
+				case PHP_VERSION_ID < 80100
+					? T_CLASS
+					: T_ENUM:
+					$expected = $token->id;
+					$name = '';
+					continue 2;
+
+				case T_CURLY_OPEN:
+				case T_DOLLAR_OPEN_CURLY_BRACES:
+					$level++;
 			}
 
 			if ($expected) {
 				if ($expected === T_NAMESPACE) {
 					$namespace = $name ? $name . '\\' : '';
-					$minLevel = $token === '{' ? 1 : 0;
+					$minLevel = $token->text === '{' ? 1 : 0;
 
 				} elseif ($name && $level === $minLevel) {
 					$classes[] = $namespace . $name;
 				}
+
 				$expected = null;
 			}
 
-			if ($token === '{') {
+			if ($token->text === '{') {
 				$level++;
-			} elseif ($token === '}') {
+			} elseif ($token->text === '}') {
 				$level--;
 			}
 		}
+
 		return $classes;
 	}
 
@@ -425,7 +392,7 @@ class RobotLoader
 	/**
 	 * Sets auto-refresh mode.
 	 */
-	public function setAutoRefresh(bool $on = true): self
+	public function setAutoRefresh(bool $on = true): static
 	{
 		$this->autoRebuild = $on;
 		return $this;
@@ -435,9 +402,9 @@ class RobotLoader
 	/**
 	 * Sets path to temporary directory.
 	 */
-	public function setTempDirectory(string $dir): self
+	public function setTempDirectory(string $dir): static
 	{
-		Nette\Utils\FileSystem::createDir($dir);
+		FileSystem::createDir($dir);
 		$this->tempDirectory = $dir;
 		return $this;
 	}
@@ -451,9 +418,10 @@ class RobotLoader
 		if ($this->cacheLoaded) {
 			return;
 		}
+
 		$this->cacheLoaded = true;
 
-		$file = $this->getCacheFile();
+		$file = $this->generateCacheFileName();
 
 		// Solving atomicity to work everywhere is really pain in the ass.
 		// 1) We want to do as little as possible IO calls on production and also directory and file can be not writable (#19)
@@ -472,6 +440,7 @@ class RobotLoader
 		if ($lock) {
 			flock($lock, LOCK_UN); // release shared lock so we can get exclusive
 		}
+
 		$lock = $this->acquireLock("$file.lock", LOCK_EX);
 
 		// while waiting for exclusive lock, someone might have already created the cache
@@ -485,7 +454,7 @@ class RobotLoader
 		$this->refreshClasses();
 		$this->saveCache($lock);
 		// On Windows concurrent creation and deletion of a file can cause a 'permission denied' error,
-		// therefore, we will not delete the lock file. Windows is a piece of shit.
+		// therefore, we will not delete the lock file. Windows is really annoying.
 	}
 
 
@@ -498,14 +467,15 @@ class RobotLoader
 		// we have to acquire a lock to be able safely rename file
 		// on Linux: that another thread does not rename the same named file earlier
 		// on Windows: that the file is not read by another thread
-		$file = $this->getCacheFile();
+		$file = $this->generateCacheFileName();
 		$lock = $lock ?: $this->acquireLock("$file.lock", LOCK_EX);
 		$code = "<?php\nreturn " . var_export([$this->classes, $this->missingClasses, $this->emptyFiles], true) . ";\n";
 
 		if (file_put_contents("$file.tmp", $code) !== strlen($code) || !rename("$file.tmp", $file)) {
 			@unlink("$file.tmp"); // @ file may not exist
-			throw new \RuntimeException("Unable to create '$file'.");
+			throw new \RuntimeException(sprintf("Unable to create '%s'.", $file));
 		}
+
 		if (function_exists('opcache_invalidate')) {
 			@opcache_invalidate($file, true); // @ can be restricted
 		}
@@ -517,24 +487,31 @@ class RobotLoader
 	{
 		$handle = @fopen($file, 'w'); // @ is escalated to exception
 		if (!$handle) {
-			throw new \RuntimeException("Unable to create file '$file'. " . error_get_last()['message']);
+			throw new \RuntimeException(sprintf("Unable to create file '%s'. %s", $file, error_get_last()['message']));
 		} elseif (!@flock($handle, $mode)) { // @ is escalated to exception
-			throw new \RuntimeException('Unable to acquire ' . ($mode & LOCK_EX ? 'exclusive' : 'shared') . " lock on file '$file'. " . error_get_last()['message']);
+			throw new \RuntimeException(sprintf(
+				"Unable to acquire %s lock on file '%s'. %s",
+				$mode & LOCK_EX ? 'exclusive' : 'shared',
+				$file,
+				error_get_last()['message'],
+			));
 		}
+
 		return $handle;
 	}
 
 
-	private function getCacheFile(): string
+	private function generateCacheFileName(): string
 	{
 		if (!$this->tempDirectory) {
 			throw new \LogicException('Set path to temporary directory using setTempDirectory().');
 		}
-		return $this->tempDirectory . '/' . md5(serialize($this->getCacheKey())) . '.php';
+
+		return $this->tempDirectory . '/' . md5(serialize($this->generateCacheKey())) . '.php';
 	}
 
 
-	protected function getCacheKey(): array
+	protected function generateCacheKey(): array
 	{
 		return [$this->ignoreDirs, $this->acceptFiles, $this->scanPaths, $this->excludeDirs, 'v2'];
 	}

@@ -13,14 +13,9 @@ namespace Nette\Neon\Node;
 /** @internal */
 final class InlineArrayNode extends ArrayNode
 {
-	/** @var string */
-	public $bracket;
-
-
-	public function __construct(string $bracket, int $pos = null)
-	{
-		$this->bracket = $bracket;
-		$this->startPos = $this->endPos = $pos;
+	public function __construct(
+		public string $bracket,
+	) {
 	}
 
 

@@ -29,7 +29,7 @@ final class DataClassGenerator
 	public $useSmartObject = true;
 
 
-	public function generateCode(Form $form, string $baseName = null): string
+	public function generateCode(Form $form, ?string $baseName = null): string
 	{
 		$baseName = $baseName ?? preg_replace('~Form$~', '', ucwords((string) $form->getName()));
 		return $this->processContainer($form, $baseName);
@@ -55,11 +55,12 @@ final class DataClassGenerator
 			} elseif ($input instanceof Controls\HiddenField || $input instanceof Controls\TextBase) {
 				$type = 'string';
 				foreach ($input->getRules() as $rule) {
-					if ($rule->validator === Form::INTEGER) {
+					if ($rule->validator === Form::Integer) {
 						$type = 'int';
 						break;
 					}
 				}
+
 				if (!$input->isRequired()) {
 					$type = '?' . $type;
 				}

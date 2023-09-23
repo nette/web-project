@@ -15,14 +15,9 @@ namespace Tracy;
  */
 final class DeferredContent
 {
-	/** @var SessionStorage */
-	private $sessionStorage;
-
-	/** @var string */
-	private $requestId;
-
-	/** @var bool */
-	private $useSession = false;
+	private SessionStorage $sessionStorage;
+	private string $requestId;
+	private bool $useSession = false;
 
 
 	public function __construct(SessionStorage $sessionStorage)
@@ -52,7 +47,7 @@ final class DeferredContent
 	}
 
 
-	public function addSetup(string $method, $argument): void
+	public function addSetup(string $method, mixed $argument): void
 	{
 		$argument = json_encode($argument, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 		$item = &$this->getItems('setup')[$this->requestId];
@@ -66,7 +61,7 @@ final class DeferredContent
 		if (headers_sent($file, $line) || ob_get_length()) {
 			throw new \LogicException(
 				__METHOD__ . '() called after some output has been sent. '
-				. ($file ? "Output started at $file:$line." : 'Try Tracy\OutputDebugger to find where output started.')
+				. ($file ? "Output started at $file:$line." : 'Try Tracy\OutputDebugger to find where output started.'),
 			);
 		}
 
@@ -76,7 +71,10 @@ final class DeferredContent
 			header('Cache-Control: max-age=864000');
 			header_remove('Pragma');
 			header_remove('Set-Cookie');
-			$this->sendJsCss();
+			$str = $this->buildJsCss();
+			header('Content-Length: ' . strlen($str));
+			echo $str;
+			flush();
 			return true;
 		}
 
@@ -92,14 +90,13 @@ final class DeferredContent
 			header('Content-Type: application/javascript; charset=UTF-8');
 			header('Cache-Control: max-age=60');
 			header_remove('Set-Cookie');
-			if (!$ajax) {
-				$this->sendJsCss();
-			}
-
+			$str = $ajax ? '' : $this->buildJsCss();
 			$data = &$this->getItems('setup');
-			echo $data[$requestId]['code'] ?? '';
+			$str .= $data[$requestId]['code'] ?? '';
 			unset($data[$requestId]);
-
+			header('Content-Length: ' . strlen($str));
+			echo $str;
+			flush();
 			return true;
 		}
 
@@ -111,9 +108,10 @@ final class DeferredContent
 	}
 
 
-	private function sendJsCss(): void
+	private function buildJsCss(): string
 	{
 		$css = array_map('file_get_contents', array_merge([
+			__DIR__ . '/../assets/reset.css',
 			__DIR__ . '/../Bar/assets/bar.css',
 			__DIR__ . '/../assets/toggle.css',
 			__DIR__ . '/../assets/table-sort.css',
@@ -123,16 +121,7 @@ final class DeferredContent
 			__DIR__ . '/../BlueScreen/assets/bluescreen.css',
 		], Debugger::$customCssFiles));
 
-		echo "'use strict';
-(function(){
-	var el = document.createElement('style');
-	el.setAttribute('nonce', document.currentScript.getAttribute('nonce') || document.currentScript.nonce);
-	el.className='tracy-debug';
-	el.textContent=" . json_encode(Helpers::minifyCss(implode('', $css))) . ";
-	document.head.appendChild(el);})
-();\n";
-
-		array_map(function ($file) { echo '(function() {', file_get_contents($file), '})();'; }, [
+		$js1 = array_map(fn($file) => '(function() {' . file_get_contents($file) . '})();', [
 			__DIR__ . '/../Bar/assets/bar.js',
 			__DIR__ . '/../assets/toggle.js',
 			__DIR__ . '/../assets/table-sort.js',
@@ -140,7 +129,18 @@ final class DeferredContent
 			__DIR__ . '/../Dumper/assets/dumper.js',
 			__DIR__ . '/../BlueScreen/assets/bluescreen.js',
 		]);
-		array_map('readfile', Debugger::$customJsFiles);
+		$js2 = array_map('file_get_contents', Debugger::$customJsFiles);
+
+		$str = "'use strict';
+(function(){
+	var el = document.createElement('style');
+	el.setAttribute('nonce', document.currentScript.getAttribute('nonce') || document.currentScript.nonce);
+	el.className='tracy-debug';
+	el.textContent=" . json_encode(Helpers::minifyCss(implode('', $css))) . ";
+	document.head.appendChild(el);})
+();\n" . implode('', $js1) . implode('', $js2);
+
+		return $str;
 	}
 
 
@@ -148,9 +148,7 @@ final class DeferredContent
 	{
 		foreach ($this->sessionStorage->getData() as &$items) {
 			$items = array_slice((array) $items, -10, null, true);
-			$items = array_filter($items, function ($item) {
-				return isset($item['time']) && $item['time'] > time() - 60;
-			});
+			$items = array_filter($items, fn($item) => isset($item['time']) && $item['time'] > time() - 60);
 		}
 	}
 }

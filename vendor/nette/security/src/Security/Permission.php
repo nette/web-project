@@ -16,8 +16,6 @@ use Nette;
  * Access control list (ACL) functionality and privileges management.
  *
  * This solution is mostly based on Zend_Acl (c) Zend Technologies USA Inc. (https://www.zend.com), new BSD license
- *
- * @copyright  Copyright (c) 2005, 2007 Zend Technologies USA Inc.
  */
 class Permission implements Authorizator
 {
@@ -234,7 +232,7 @@ class Permission implements Authorizator
 	 * @throws Nette\InvalidStateException
 	 * @return static
 	 */
-	public function addResource(string $resource, string $parent = null)
+	public function addResource(string $resource, ?string $parent = null)
 	{
 		$this->checkResource($resource, false);
 
@@ -393,7 +391,7 @@ class Permission implements Authorizator
 		$roles = self::ALL,
 		$resources = self::ALL,
 		$privileges = self::ALL,
-		callable $assertion = null
+		?callable $assertion = null
 	) {
 		$this->setRule(true, self::ALLOW, $roles, $resources, $privileges, $assertion);
 		return $this;
@@ -413,7 +411,7 @@ class Permission implements Authorizator
 		$roles = self::ALL,
 		$resources = self::ALL,
 		$privileges = self::ALL,
-		callable $assertion = null
+		?callable $assertion = null
 	) {
 		$this->setRule(true, self::DENY, $roles, $resources, $privileges, $assertion);
 		return $this;
@@ -458,7 +456,7 @@ class Permission implements Authorizator
 	 * @throws Nette\InvalidStateException
 	 * @return static
 	 */
-	protected function setRule(bool $toAdd, bool $type, $roles, $resources, $privileges, callable $assertion = null)
+	protected function setRule(bool $toAdd, bool $type, $roles, $resources, $privileges, ?callable $assertion = null)
 	{
 		// ensure that all specified Roles exist; normalize input to array of Roles or null
 		if ($roles === self::ALL) {
@@ -514,7 +512,6 @@ class Permission implements Authorizator
 					}
 				}
 			}
-
 		} else { // remove from the rules
 			foreach ($resources as $resource) {
 				foreach ($roles as $role) {
@@ -522,6 +519,7 @@ class Permission implements Authorizator
 					if ($rules === null) {
 						continue;
 					}
+
 					if (count($privileges) === 0) {
 						if ($resource === self::ALL && $role === self::ALL) {
 							if ($type === $rules['allPrivileges']['type']) {
@@ -533,8 +531,10 @@ class Permission implements Authorizator
 									'byPrivilege' => [],
 								];
 							}
+
 							continue;
 						}
+
 						if ($type === $rules['allPrivileges']['type']) {
 							unset($rules['allPrivileges']);
 						}
@@ -550,6 +550,7 @@ class Permission implements Authorizator
 				}
 			}
 		}
+
 		return $this;
 	}
 
@@ -577,6 +578,7 @@ class Permission implements Authorizator
 			if ($role instanceof Role) {
 				$role = $role->getRoleId();
 			}
+
 			$this->checkRole($role);
 		}
 
@@ -585,6 +587,7 @@ class Permission implements Authorizator
 			if ($resource instanceof Resource) {
 				$resource = $resource->getResourceId();
 			}
+
 			$this->checkResource($resource);
 		}
 
@@ -604,6 +607,7 @@ class Permission implements Authorizator
 							break 2;
 						}
 					}
+
 					if (($result = $this->getRuleType($resource, null, null)) !== null) {
 						break;
 					}
@@ -662,6 +666,7 @@ class Permission implements Authorizator
 			if (isset($dfs['visited'][$role])) {
 				continue;
 			}
+
 			if ($all) {
 				if ($rules = $this->getRules($resource, $role)) {
 					foreach ($rules['byPrivilege'] as $privilege2 => $rule) {
@@ -669,6 +674,7 @@ class Permission implements Authorizator
 							return self::DENY;
 						}
 					}
+
 					if (($type = $this->getRuleType($resource, $role, null)) !== null) {
 						return $type;
 					}
@@ -687,6 +693,7 @@ class Permission implements Authorizator
 				$dfs['stack'][] = $roleParent;
 			}
 		}
+
 		return null;
 	}
 
@@ -748,8 +755,10 @@ class Permission implements Authorizator
 				if (!$create) {
 					return $null;
 				}
+
 				$this->rules['byResource'][$resource] = [];
 			}
+
 			$visitor = &$this->rules['byResource'][$resource];
 		}
 
@@ -758,8 +767,10 @@ class Permission implements Authorizator
 				if (!$create) {
 					return $null;
 				}
+
 				$visitor['allRoles']['byPrivilege'] = [];
 			}
+
 			return $visitor['allRoles'];
 		}
 
@@ -767,6 +778,7 @@ class Permission implements Authorizator
 			if (!$create) {
 				return $null;
 			}
+
 			$visitor['byRole'][$role]['byPrivilege'] = [];
 		}
 

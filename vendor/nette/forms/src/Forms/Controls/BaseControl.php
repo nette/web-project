@@ -126,7 +126,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 	 */
 	public function loadHttpData(): void
 	{
-		$this->setValue($this->getHttpData(Form::DATA_TEXT));
+		$this->setValue($this->getHttpData(Form::DataText));
 	}
 
 
@@ -134,7 +134,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 	 * Loads HTTP data.
 	 * @return mixed
 	 */
-	protected function getHttpData($type, string $htmlTail = null)
+	protected function getHttpData($type, ?string $htmlTail = null)
 	{
 		return $this->getForm()->getHttpData($type, $this->getHtmlName() . $htmlTail);
 	}
@@ -194,6 +194,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 		if ($this->isDisabled() || !$form || !$form->isAnchored() || !$form->isSubmitted()) {
 			$this->setValue($value);
 		}
+
 		return $this;
 	}
 
@@ -210,6 +211,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 		} elseif (($form = $this->getForm(false)) && $form->isAnchored() && $form->isSubmitted()) {
 			$this->loadHttpData();
 		}
+
 		return $this;
 	}
 
@@ -335,6 +337,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 				: $form->getName() . '-';
 			$this->control->id = sprintf(self::$idMask, $prefix . $this->lookupPath());
 		}
+
 		return $this->control->id;
 	}
 
@@ -355,6 +358,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 		) {
 			$this->loadHttpData();
 		}
+
 		return $this;
 	}
 
@@ -393,6 +397,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 				? $this->getForm()->getTranslator()
 				: null;
 		}
+
 		return $this->translator;
 	}
 
@@ -411,6 +416,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 				}
 			}
 		}
+
 		return $value;
 	}
 
@@ -495,6 +501,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 		if ($this->isDisabled()) {
 			return;
 		}
+
 		$this->cleanErrors();
 		$this->rules->validate();
 	}
@@ -554,6 +561,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 		} else {
 			$this->options[$key] = $value;
 		}
+
 		return $this;
 	}
 
@@ -562,9 +570,12 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 	 * Returns user-specific option.
 	 * @return mixed
 	 */
-	public function getOption($key, $default = null)
+	public function getOption($key)
 	{
-		return $this->options[$key] ?? $default;
+		if (func_num_args() > 1) {
+			$default = func_get_arg(1);
+		}
+		return $this->options[$key] ?? $default ?? null;
 	}
 
 
@@ -587,8 +598,10 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 			if (isset(self::$extMethods[$name][$class])) {
 				return (self::$extMethods[$name][$class])($this, ...$args);
 			}
+
 			$class = get_parent_class($class);
 		} while ($class);
+
 		return parent::__call($name, $args);
 	}
 
@@ -598,6 +611,7 @@ abstract class BaseControl extends Nette\ComponentModel\Component implements Con
 		if (strpos($name, '::') !== false) { // back compatibility
 			[, $name] = explode('::', $name);
 		}
+
 		self::$extMethods[$name][static::class] = $callback;
 	}
 }

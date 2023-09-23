@@ -23,27 +23,27 @@ class Validator
 
 	/** @var array */
 	public static $messages = [
-		Controls\CsrfProtection::PROTECTION => 'Your session has expired. Please return to the home page and try again.',
-		Form::EQUAL => 'Please enter %s.',
-		Form::NOT_EQUAL => 'This value should not be %s.',
-		Form::FILLED => 'This field is required.',
-		Form::BLANK => 'This field should be blank.',
-		Form::MIN_LENGTH => 'Please enter at least %d characters.',
-		Form::MAX_LENGTH => 'Please enter no more than %d characters.',
-		Form::LENGTH => 'Please enter a value between %d and %d characters long.',
-		Form::EMAIL => 'Please enter a valid email address.',
+		Controls\CsrfProtection::Protection => 'Your session has expired. Please return to the home page and try again.',
+		Form::Equal => 'Please enter %s.',
+		Form::NotEqual => 'This value should not be %s.',
+		Form::Filled => 'This field is required.',
+		Form::Blank => 'This field should be blank.',
+		Form::MinLength => 'Please enter at least %d characters.',
+		Form::MaxLength => 'Please enter no more than %d characters.',
+		Form::Length => 'Please enter a value between %d and %d characters long.',
+		Form::Email => 'Please enter a valid email address.',
 		Form::URL => 'Please enter a valid URL.',
-		Form::INTEGER => 'Please enter a valid integer.',
-		Form::FLOAT => 'Please enter a valid number.',
-		Form::MIN => 'Please enter a value greater than or equal to %d.',
-		Form::MAX => 'Please enter a value less than or equal to %d.',
-		Form::RANGE => 'Please enter a value between %d and %d.',
-		Form::MAX_FILE_SIZE => 'The size of the uploaded file can be up to %d bytes.',
-		Form::MAX_POST_SIZE => 'The uploaded data exceeds the limit of %d bytes.',
-		Form::MIME_TYPE => 'The uploaded file is not in the expected format.',
-		Form::IMAGE => 'The uploaded file must be image in format JPEG, GIF, PNG or WebP.',
-		Controls\SelectBox::VALID => 'Please select a valid option.',
-		Controls\UploadControl::VALID => 'An error occurred during file upload.',
+		Form::Integer => 'Please enter a valid integer.',
+		Form::Float => 'Please enter a valid number.',
+		Form::Min => 'Please enter a value greater than or equal to %d.',
+		Form::Max => 'Please enter a value less than or equal to %d.',
+		Form::Range => 'Please enter a value between %d and %d.',
+		Form::MaxFileSize => 'The size of the uploaded file can be up to %d bytes.',
+		Form::MaxPostSize => 'The uploaded data exceeds the limit of %d bytes.',
+		Form::MimeType => 'The uploaded file is not in the expected format.',
+		Form::Image => 'The uploaded file must be image in format JPEG, GIF, PNG or WebP.',
+		Controls\SelectBox::Valid => 'Please select a valid option.',
+		Controls\UploadControl::Valid => 'An error occurred during file upload.',
 	];
 
 
@@ -84,6 +84,7 @@ class Validator
 							: ($translator ? $translator->translate($caption) : $caption);
 						return rtrim((string) $caption, ':');
 					}
+
 					return '';
 				case 'value': return $withValue
 						? $rule->control->getValue()
@@ -91,7 +92,9 @@ class Validator
 				default:
 					$args = is_array($rule->arg) ? $rule->arg : [$rule->arg];
 					$i = (int) $m[1] ? (int) $m[1] - 1 : $i + 1;
-					return isset($args[$i]) ? ($args[$i] instanceof Control ? ($withValue ? $args[$i]->getValue() : "%$i") : $args[$i]) : '';
+					return isset($args[$i])
+						? ($args[$i] instanceof Control ? ($withValue ? $args[$i]->getValue() : "%$i") : $args[$i])
+						: '';
 			}
 		}, $message);
 		return $message;
@@ -112,12 +115,18 @@ class Validator
 
 		foreach ($values as $val) {
 			foreach ($args as $item) {
+				if ($item instanceof \BackedEnum) {
+					$item = $item->value;
+				}
+
 				if ((string) $val === (string) $item) {
 					continue 2;
 				}
 			}
+
 			return false;
 		}
+
 		return (bool) $values;
 	}
 
@@ -206,6 +215,7 @@ class Validator
 		if (!is_array($range)) {
 			$range = [$range, $range];
 		}
+
 		$value = $control->getValue();
 		return Validators::isInRange(is_array($value) ? count($value) : Strings::length((string) $value), $range);
 	}
@@ -256,11 +266,13 @@ class Validator
 		if (Validators::isUrl($value)) {
 			return true;
 		}
+
 		$value = "https://$value";
 		if (Validators::isUrl($value)) {
 			$control->setValue($value);
 			return true;
 		}
+
 		return false;
 	}
 
@@ -273,11 +285,12 @@ class Validator
 	{
 		$regexp = "\x01^(?:$pattern)$\x01Du" . ($caseInsensitive ? 'i' : '');
 		foreach (static::toArray($control->getValue()) as $item) {
-			$value = $item instanceof Nette\Http\FileUpload ? $item->getName() : $item;
+			$value = $item instanceof Nette\Http\FileUpload ? $item->getUntrustedName() : $item;
 			if (!Strings::match((string) $value, $regexp)) {
 				return false;
 			}
 		}
+
 		return true;
 	}
 
@@ -311,6 +324,7 @@ class Validator
 			$control->setValue($tmp);
 			return true;
 		}
+
 		return false;
 	}
 
@@ -324,10 +338,12 @@ class Validator
 		if (is_string($value)) {
 			$value = str_replace([' ', ','], ['', '.'], $value);
 		}
+
 		if (Validators::isNumeric($value)) {
 			$control->setValue((float) $value);
 			return true;
 		}
+
 		return false;
 	}
 
@@ -342,6 +358,7 @@ class Validator
 				return false;
 			}
 		}
+
 		return true;
 	}
 
@@ -359,6 +376,7 @@ class Validator
 				return false;
 			}
 		}
+
 		return true;
 	}
 
@@ -373,6 +391,7 @@ class Validator
 				return false;
 			}
 		}
+
 		return true;
 	}
 

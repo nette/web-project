@@ -103,26 +103,22 @@ abstract class Component extends Nette\ComponentModel\Container implements Signa
 	protected function tryCall(string $method, array $params): bool
 	{
 		$rc = $this->getReflection();
-		if ($rc->hasMethod($method)) {
-			$rm = $rc->getMethod($method);
-			if ($rm->isPrivate()) {
-				throw new Nette\InvalidStateException('Method ' . $rm->getName() . '() can not be called because it is private.');
-			}
-
-			if (!$rm->isAbstract() && !$rm->isStatic()) {
-				$this->checkRequirements($rm);
-				try {
-					$args = $rc->combineArgs($rm, $params);
-				} catch (Nette\InvalidArgumentException $e) {
-					throw new Nette\Application\BadRequestException($e->getMessage());
-				}
-
-				$rm->invokeArgs($this, $args);
-				return true;
-			}
+		if (!$rc->hasMethod($method)) {
+			return false;
+		} elseif (!$rc->hasCallableMethod($method)) {
+			throw new Nette\InvalidStateException('Method ' . Nette\Utils\Reflection::toString($rc->getMethod($method)) . ' is not callable.');
 		}
 
-		return false;
+		$rm = $rc->getMethod($method);
+		$this->checkRequirements($rm);
+		try {
+			$args = $rc->combineArgs($rm, $params);
+		} catch (Nette\InvalidArgumentException $e) {
+			throw new Nette\Application\BadRequestException($e->getMessage());
+		}
+
+		$rm->invokeArgs($this, $args);
+		return true;
 	}
 
 
@@ -196,9 +192,12 @@ abstract class Component extends Nette\ComponentModel\Container implements Signa
 	 * Returns component param.
 	 * @return mixed
 	 */
-	final public function getParameter(string $name, $default = null)
+	final public function getParameter(string $name)
 	{
-		return $this->params[$name] ?? $default;
+		if (func_num_args() > 1) {
+			$default = func_get_arg(1);
+		}
+		return $this->params[$name] ?? $default ?? null;
 	}
 
 
@@ -306,6 +305,7 @@ abstract class Component extends Nette\ComponentModel\Container implements Signa
 	 * Redirect to another presenter, action or signal.
 	 * @param  string   $destination in format "[//] [[[module:]presenter:]action | signal! | this] [#fragment]"
 	 * @param  array|mixed  $args
+	 * @return never
 	 * @throws Nette\Application\AbortException
 	 */
 	public function redirect(string $destination, $args = []): void
@@ -322,6 +322,7 @@ abstract class Component extends Nette\ComponentModel\Container implements Signa
 	 * Permanently redirects to presenter, action or signal.
 	 * @param  string   $destination in format "[//] [[[module:]presenter:]action | signal! | this] [#fragment]"
 	 * @param  array|mixed  $args
+	 * @return never
 	 * @throws Nette\Application\AbortException
 	 */
 	public function redirectPermanent(string $destination, $args = []): void

@@ -17,11 +17,10 @@ class TestCase
 {
 	/** @internal */
 	public const
-		LIST_METHODS = 'nette-tester-list-methods',
-		METHOD_PATTERN = '#^test[A-Z0-9_]#';
+		ListMethods = 'nette-tester-list-methods',
+		MethodPattern = '#^test[A-Z0-9_]#';
 
-	/** @var bool */
-	private $handleErrors = false;
+	private bool $handleErrors = false;
 
 	/** @var callable|false|null */
 	private $prevErrorHandler = false;
@@ -36,13 +35,14 @@ class TestCase
 			throw new \LogicException('Calling TestCase::run($method) is deprecated. Use TestCase::runTest($method) instead.');
 		}
 
-		$methods = array_values(preg_grep(self::METHOD_PATTERN, array_map(function (\ReflectionMethod $rm): string {
-			return $rm->getName();
-		}, (new \ReflectionObject($this))->getMethods())));
+		$methods = array_values(preg_grep(
+			self::MethodPattern,
+			array_map(fn(\ReflectionMethod $rm): string => $rm->getName(), (new \ReflectionObject($this))->getMethods())
+		));
 
 		if (isset($_SERVER['argv']) && ($tmp = preg_filter('#--method=([\w-]+)$#Ai', '$1', $_SERVER['argv']))) {
 			$method = reset($tmp);
-			if ($method === self::LIST_METHODS) {
+			if ($method === self::ListMethods) {
 				$this->sendMethodList($methods);
 				return;
 			}
@@ -52,13 +52,16 @@ class TestCase
 			} catch (TestCaseSkippedException $e) {
 				Environment::skip($e->getMessage());
 			}
-
 		} else {
 			foreach ($methods as $method) {
 				try {
 					$this->runTest($method);
+					Environment::print(Dumper::color('lime', '√') . " $method");
 				} catch (TestCaseSkippedException $e) {
-					echo "\nSkipped:\n{$e->getMessage()}\n";
+					Environment::print("s $method {$e->getMessage()}");
+				} catch (\Throwable $e) {
+					Environment::print(Dumper::color('red', '×') . " $method\n\n");
+					throw $e;
 				}
 			}
 		}
@@ -69,11 +72,11 @@ class TestCase
 	 * Runs the test method.
 	 * @param  array  $args  test method parameters (dataprovider bypass)
 	 */
-	public function runTest(string $method, array $args = null): void
+	public function runTest(string $method, ?array $args = null): void
 	{
 		if (!method_exists($this, $method)) {
 			throw new TestCaseException("Method '$method' does not exist.");
-		} elseif (!preg_match(self::METHOD_PATTERN, $method)) {
+		} elseif (!preg_match(self::MethodPattern, $method)) {
 			throw new TestCaseException("Method '$method' is not a testing method.");
 		}
 
@@ -109,7 +112,6 @@ class TestCase
 			});
 		}
 
-
 		foreach ($data as $k => $params) {
 			try {
 				$this->setUp();
@@ -127,11 +129,12 @@ class TestCase
 					} else {
 						[$this, $method->getName()](...$params);
 					}
-				} catch (\Exception $e) {
+				} catch (\Throwable $e) {
 					$this->handleErrors = false;
 					$this->silentTearDown();
 					throw $e;
 				}
+
 				$this->handleErrors = false;
 
 				$this->tearDown();
@@ -149,12 +152,9 @@ class TestCase
 	}
 
 
-	/**
-	 * @return mixed
-	 */
 	protected function getData(string $provider)
 	{
-		if (strpos($provider, '.') === false) {
+		if (!str_contains($provider, '.')) {
 			return $this->$provider();
 		} else {
 			$rc = new \ReflectionClass($this);
@@ -184,11 +184,12 @@ class TestCase
 
 	private function silentTearDown(): void
 	{
-		set_error_handler(function () {});
+		set_error_handler(fn() => null);
 		try {
 			$this->tearDown();
-		} catch (\Exception $e) {
+		} catch (\Throwable $e) {
 		}
+
 		restore_error_handler();
 	}
 
@@ -224,6 +225,7 @@ class TestCase
 				$reflections[] = $rt;
 			}
 		}
+
 		echo 'Dependency:' . implode("\nDependency:", array_keys($dependentFiles)) . "\n";
 	}
 
@@ -246,7 +248,7 @@ class TestCase
 
 			foreach ($res as $k => $set) {
 				if (!is_array($set)) {
-					$type = is_object($set) ? get_class($set) : gettype($set);
+					$type = get_debug_type($set);
 					throw new TestCaseException("Data provider $provider() item '$k' must be an array, $type given.");
 				}
 
@@ -260,8 +262,10 @@ class TestCase
 			if ($method->getNumberOfRequiredParameters()) {
 				throw new TestCaseException("Method {$method->getName()}() has arguments, but @dataProvider is missing.");
 			}
+
 			$data[] = [];
 		}
+
 		return $data;
 	}
 }

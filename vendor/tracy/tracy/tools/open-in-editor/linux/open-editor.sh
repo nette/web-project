@@ -18,7 +18,10 @@ declare -A mapping
 # PHPStorm
 # To enable PHPStorm command-line interface, folow this guide: https://www.jetbrains.com/help/phpstorm/working-with-the-ide-features-from-command-line.html
 #editor='phpstorm --line $LINE "$FILE"'
-
+# VS Codium
+#editor='codium --goto "$FILE":"$LINE"'
+# Visual Studio Code
+#editor='code --goto "$FILE":"$LINE"'
 
 #
 # Optionally configure custom mapping here:
@@ -48,7 +51,7 @@ if [ "${url:0:9}" != "editor://" ]; then
 fi
 
 # Parse action and essential data from the URI.
-regex='editor\:\/\/(open|create|fix)\/\?(.*)'
+regex='editor\:\/\/(open|create|fix)\/?\?(.*)'
 action=`echo $url | sed -r "s/$regex/\1/i"`
 uri_params=`echo $url | sed -r "s/$regex/\2/i"`
 

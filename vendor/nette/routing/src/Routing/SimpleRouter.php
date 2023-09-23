@@ -47,7 +47,9 @@ class SimpleRouter implements Router
 	{
 		// remove default values; null values are retain
 		foreach ($this->defaults as $key => $value) {
-			if (isset($params[$key]) && (string) $params[$key] === (string) $value) {
+			if (isset($params[$key])
+				&& (is_scalar($params[$key]) ? (string) $params[$key] : $params[$key]) === (is_scalar($value) ? (string) $value : $value)
+			) {
 				unset($params[$key]);
 			}
 		}
@@ -58,6 +60,7 @@ class SimpleRouter implements Router
 		if ($query !== '') {
 			$url .= '?' . $query;
 		}
+
 		return $url;
 	}
 

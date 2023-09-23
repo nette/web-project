@@ -137,22 +137,20 @@ final class Helpers
 
 
 	/**
-	 * Removes ... and process constants recursively.
+	 * Process constants recursively.
 	 */
 	public static function filterArguments(array $args): array
 	{
 		foreach ($args as $k => $v) {
-			if ($v === '...') {
-				unset($args[$k]);
-			} elseif (
+			if (
 				PHP_VERSION_ID >= 80100
 				&& is_string($v)
 				&& preg_match('#^([\w\\\\]+)::\w+$#D', $v, $m)
 				&& enum_exists($m[1])
 			) {
 				$args[$k] = new Nette\PhpGenerator\PhpLiteral($v);
-			} elseif (is_string($v) && preg_match('#^[\w\\\\]*::[A-Z][A-Z0-9_]*$#D', $v)) {
-				$args[$k] = constant(ltrim($v, ':'));
+			} elseif (is_string($v) && preg_match('#^[\w\\\\]*::[A-Z][a-zA-Z0-9_]*$#D', $v)) {
+				$args[$k] = new Nette\PhpGenerator\PhpLiteral(ltrim($v, ':'));
 			} elseif (is_string($v) && preg_match('#^@[\w\\\\]+$#D', $v)) {
 				$args[$k] = new Reference(substr($v, 1));
 			} elseif (is_array($v)) {
@@ -230,12 +228,12 @@ final class Helpers
 	}
 
 
-	public static function ensureClassType(?Type $type, string $hint): string
+	public static function ensureClassType(?Type $type, string $hint, bool $allowNullable = false): string
 	{
 		if (!$type) {
 			throw new ServiceCreationException(sprintf('%s is not declared.', ucfirst($hint)));
-		} elseif (!$type->isClass() || $type->isUnion()) {
-			throw new ServiceCreationException(sprintf("%s is not expected to be nullable/union/intersection/built-in, '%s' given.", ucfirst($hint), $type));
+		} elseif (!$type->isClass() || (!$allowNullable && $type->allows('null'))) {
+			throw new ServiceCreationException(sprintf("%s is expected to not be %sbuilt-in/complex, '%s' given.", ucfirst($hint), $allowNullable ? '' : 'nullable/', $type));
 		}
 
 		$class = $type->getSingleName();

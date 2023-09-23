@@ -14,6 +14,7 @@ use Nette\DI\Definitions\Definition;
 use Nette\DI\Definitions\Reference;
 use Nette\DI\Definitions\Statement;
 use Nette\PhpGenerator\Helpers as PhpHelpers;
+use Nette\Utils\Arrays;
 use Nette\Utils\Callback;
 use Nette\Utils\Reflection;
 use Nette\Utils\Strings;
@@ -112,8 +113,8 @@ class Resolver
 			}
 
 			try {
-				/** @var \ReflectionMethod|\ReflectionFunction $reflection */
 				$reflection = Callback::toReflection($entity[0] === '' ? $entity[1] : $entity);
+				assert($reflection instanceof \ReflectionMethod || $reflection instanceof \ReflectionFunction);
 				$refClass = $reflection instanceof \ReflectionMethod
 					? $reflection->getDeclaringClass()
 					: null;
@@ -129,9 +130,13 @@ class Resolver
 
 			$this->addDependency($reflection);
 
-			$type = Nette\Utils\Type::fromReflection($reflection) ?? Helpers::getReturnTypeAnnotation($reflection);
-			if ($type && !in_array((string) $type, ['object', 'mixed'], true)) {
-				return Helpers::ensureClassType($type, sprintf('return type of %s()', Callback::toString($entity)));
+			$type = Nette\Utils\Type::fromReflection($reflection) ?? ($annotation = Helpers::getReturnTypeAnnotation($reflection));
+			if ($type && !in_array($type->getSingleName(), ['object', 'mixed'], true)) {
+				if (isset($annotation)) {
+					trigger_error('Annotation @return should be replaced with native return type at ' . Callback::toString($entity), E_USER_DEPRECATED);
+				}
+
+				return Helpers::ensureClassType($type, sprintf('return type of %s()', Callback::toString($entity)), true);
 			}
 
 			return null;
@@ -143,7 +148,7 @@ class Resolver
 			if (!class_exists($entity)) {
 				throw new ServiceCreationException(sprintf(
 					interface_exists($entity)
-						? "Interface %s can not be used as 'factory', did you mean 'implement'?"
+						? "Interface %s can not be used as 'create' or 'factory', did you mean 'implement'?"
 						: "Class '%s' not found.",
 					$entity
 				));
@@ -194,12 +199,8 @@ class Resolver
 				break;
 
 			case $entity === 'not':
-				if (count($arguments) > 1) {
-					throw new ServiceCreationException(sprintf(
-						'Function %s() expects at most 1 parameter, %s given.',
-						$entity,
-						count($arguments)
-					));
+				if (count($arguments) !== 1) {
+					throw new ServiceCreationException(sprintf('Function %s() expects 1 parameter, %s given.', $entity, count($arguments)));
 				}
 
 				$entity = ['', '!'];
@@ -209,12 +210,8 @@ class Resolver
 			case $entity === 'int':
 			case $entity === 'float':
 			case $entity === 'string':
-				if (count($arguments) > 1) {
-					throw new ServiceCreationException(sprintf(
-						'Function %s() expects at most 1 parameter, %s given.',
-						$entity,
-						count($arguments)
-					));
+				if (count($arguments) !== 1) {
+					throw new ServiceCreationException(sprintf('Function %s() expects 1 parameter, %s given.', $entity, count($arguments)));
 				}
 
 				$arguments = [$arguments[0], $entity];
@@ -241,7 +238,7 @@ class Resolver
 				break;
 
 			case $entity instanceof Reference:
-				$entity = [new Reference(ContainerBuilder::THIS_CONTAINER), Container::getMethodName($entity->getValue())];
+				$entity = [new Reference(ContainerBuilder::ThisContainer), Container::getMethodName($entity->getValue())];
 				break;
 
 			case is_array($entity):
@@ -254,7 +251,7 @@ class Resolver
 
 				switch (true) {
 					case $entity[0] === '': // function call
-						if (!Nette\Utils\Arrays::isList($arguments)) {
+						if (!Arrays::isList($arguments)) {
 							throw new ServiceCreationException(sprintf(
 								'Unable to pass specified arguments to %s.',
 								$entity[0]
@@ -294,7 +291,7 @@ class Resolver
 								$arguments = self::autowireArguments($rm, $arguments, $getter);
 								$this->addDependency($rm);
 
-							} elseif (!Nette\Utils\Arrays::isList($arguments)) {
+							} elseif (!Arrays::isList($arguments)) {
 								throw new ServiceCreationException(sprintf('Unable to pass specified arguments to %s::%s().', $type, $entity[1]));
 							}
 						}
@@ -386,7 +383,7 @@ class Resolver
 			}
 
 			return $this->currentService && $service === $this->currentService->getName()
-				? new Reference(Reference::SELF)
+				? new Reference(Reference::Self)
 				: $ref;
 		}
 
@@ -418,7 +415,7 @@ class Resolver
 			&& $this->currentServiceAllowed
 			&& is_a($this->currentServiceType, $type, true)
 		) {
-			return new Reference(Reference::SELF);
+			return new Reference(Reference::Self);
 		}
 
 		$name = $this->builder->getByType($type, true);
@@ -509,7 +506,7 @@ class Resolver
 				$pair = explode('::', substr($val, 1), 2);
 				if (!isset($pair[1])) { // @service
 					$val = new Reference($pair[0]);
-				} elseif (preg_match('#^[A-Z][A-Z0-9_]*$#D', $pair[1], $m)) { // @service::CONSTANT
+				} elseif (preg_match('#^[A-Z][a-zA-Z0-9_]*$#D', $pair[1], $m)) { // @service::CONSTANT
 					$val = ContainerBuilder::literal($this->resolveReferenceType(new Reference($pair[0])) . '::' . $pair[1]);
 				} else { // @service::property
 					$val = new Statement([new Reference($pair[0]), '$' . $pair[1]]);
@@ -531,7 +528,8 @@ class Resolver
 		\ReflectionFunctionAbstract $method,
 		array $arguments,
 		callable $getter
-	): array {
+	): array
+	{
 		$optCount = 0;
 		$useName = false;
 		$num = -1;
@@ -541,38 +539,21 @@ class Resolver
 			$paramName = $param->name;
 
 			if ($param->isVariadic()) {
-				if (array_key_exists($paramName, $arguments)) {
-					if (!is_array($arguments[$paramName])) {
-						throw new ServiceCreationException(sprintf(
-							'Parameter %s must be array, %s given.',
-							Reflection::toString($param),
-							gettype($arguments[$paramName])
-						));
-					}
-
-					$variadics = $arguments[$paramName];
-					unset($arguments[$paramName]);
-				} else {
-					$variadics = array_merge($arguments);
-					$arguments = [];
+				if ($useName && Arrays::some($arguments, function ($val, $key) { return is_int($key); })) {
+					throw new ServiceCreationException(sprintf(
+						'Cannot use positional argument after named or omitted argument in %s.',
+						Reflection::toString($param)
+					));
 				}
 
-				if ($useName) {
-					$res[$paramName] = $variadics;
-				} else {
-					$res = array_merge($res, $variadics);
-				}
-
+				$res = array_merge($res, $arguments);
+				$arguments = [];
 				$optCount = 0;
 				break;
 
-			} elseif (array_key_exists($paramName, $arguments)) {
-				$res[$useName ? $paramName : $num] = $arguments[$paramName];
-				unset($arguments[$paramName], $arguments[$num]);
-
-			} elseif (array_key_exists($num, $arguments)) {
-				$res[$useName ? $paramName : $num] = $arguments[$num];
-				unset($arguments[$num]);
+			} elseif (array_key_exists($key = $paramName, $arguments) || array_key_exists($key = $num, $arguments)) {
+				$res[$useName ? $paramName : $num] = $arguments[$key];
+				unset($arguments[$key], $arguments[$num]); // unset $num to enable overwriting in configuration
 
 			} elseif (($aw = self::autowireArgument($param, $getter)) !== null) {
 				$res[$useName ? $paramName : $num] = $aw;
@@ -582,12 +563,23 @@ class Resolver
 					$useName = true;
 				} else {
 					$res[$num] = null;
+					trigger_error(sprintf(
+						'The parameter %s should have a declared value in the configuration.',
+						Reflection::toString($param)
+					), E_USER_DEPRECATED);
 				}
 
 			} else {
 				$res[$num] = $param->isDefaultValueAvailable()
 					? Reflection::getParameterDefaultValue($param)
 					: null;
+
+				if (!$param->isOptional()) {
+					trigger_error(sprintf(
+						'The parameter %s should have a declared value in the configuration.',
+						Reflection::toString($param)
+					), E_USER_DEPRECATED);
+				}
 			}
 
 			if (PHP_VERSION_ID < 80000) {
@@ -624,17 +616,10 @@ class Resolver
 	 */
 	private static function autowireArgument(\ReflectionParameter $parameter, callable $getter)
 	{
-		$method = $parameter->getDeclaringFunction();
 		$desc = Reflection::toString($parameter);
 		$type = Nette\Utils\Type::fromReflection($parameter);
 
-		if ($parameter->getType() instanceof \ReflectionIntersectionType) {
-			throw new ServiceCreationException(sprintf(
-				'Parameter %s has intersection type, so its value must be specified.',
-				$desc
-			));
-
-		} elseif ($type && $type->isClass()) {
+		if ($type && $type->isClass()) {
 			$class = $type->getSingleName();
 			try {
 				$res = $getter($class, true);
@@ -659,13 +644,8 @@ class Resolver
 					$desc
 				));
 			}
-		} elseif (
-			$method instanceof \ReflectionMethod
-			&& $type && $type->getSingleName() === 'array'
-			&& preg_match('#@param[ \t]+([\w\\\\]+)\[\][ \t]+\$' . $parameter->name . '#', (string) $method->getDocComment(), $m)
-			&& ($itemType = Reflection::expandClassName($m[1], $method->getDeclaringClass()))
-			&& (class_exists($itemType) || interface_exists($itemType))
-		) {
+
+		} elseif ($itemType = self::isArrayOf($parameter, $type)) {
 			return $getter($itemType, false);
 
 		} elseif (
@@ -683,8 +663,26 @@ class Resolver
 			throw new ServiceCreationException(sprintf(
 				'Parameter %s has %s, so its value must be specified.',
 				$desc,
-				$type && $type->isUnion() ? 'union type and no default value' : 'no class type or default value'
+				$type && !$type->isSingle() ? 'complex type and no default value' : 'no class type or default value'
 			));
 		}
+	}
+
+
+	private static function isArrayOf(\ReflectionParameter $parameter, ?Nette\Utils\Type $type): ?string
+	{
+		$method = $parameter->getDeclaringFunction();
+		return $method instanceof \ReflectionMethod
+			&& $type
+			&& $type->getSingleName() === 'array'
+			&& preg_match(
+				'#@param[ \t]+(?|([\w\\\\]+)\[\]|array<int,\s*([\w\\\\]+)>)[ \t]+\$' . $parameter->name . '#',
+				(string) $method->getDocComment(),
+				$m
+			)
+			&& ($itemType = Reflection::expandClassName($m[1], $method->getDeclaringClass()))
+			&& (class_exists($itemType) || interface_exists($itemType))
+				? $itemType
+				: null;
 	}
 }

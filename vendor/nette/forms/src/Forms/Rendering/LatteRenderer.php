@@ -53,11 +53,11 @@ final class LatteRenderer
 				}
 
 
-				public function getOption($key, $default = null)
+				public function getOption($key)
 				{
 					return $key === 'rendered'
 						? parent::getOption($key)
-						: $this->inner->getOption($key, $default);
+						: $this->inner->getOption($key);
 				}
 			};
 			$dummyInput->inner = $input;
@@ -70,6 +70,7 @@ final class LatteRenderer
 			foreach ($group->getOptions() as $k => $v) {
 				$dummyGroup->setOption($k, $v);
 			}
+
 			foreach ($group->getControls() as $control) {
 				if ($dict[$control]) {
 					$dummyGroup->add($dict[$control]);

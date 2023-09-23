@@ -15,17 +15,20 @@ namespace Nette\PhpGenerator;
  */
 class Literal
 {
-	/** @var string */
-	private $value;
-
-	/** @var ?array */
-	private $args;
-
-
-	public function __construct(string $value, array $args = null)
+	/**
+	 * Creates a literal representing the creation of an object using the new operator.
+	 */
+	public static function new(string $class, array $args = []): self
 	{
-		$this->value = $value;
-		$this->args = $args;
+		return new self('new ' . $class . '(...?:)', [$args]);
+	}
+
+
+	public function __construct(
+		private string $value,
+		/** @var ?mixed[] */
+		private ?array $args = null,
+	) {
 	}
 
 

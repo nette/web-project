@@ -15,15 +15,15 @@
 		}
 	],
 	"require": {
-		"php": ">=7.2 <8.2",
-		"nette/utils": "^3.1"
+		"php": ">=7.2 <8.3",
+		"nette/utils": "^3.2.1 || ~4.0.0"
 	},
 	"require-dev": {
 		"nette/di": "^3.0",
-		"nette/tester": "^2.0",
+		"nette/tester": "^2.4",
 		"nette/security": "^3.0",
-		"tracy/tracy": "^2.4",
-		"phpstan/phpstan": "^0.12"
+		"tracy/tracy": "^2.8",
+		"phpstan/phpstan": "^1.0"
 	},
 	"conflict": {
 		"nette/di": "<3.0.3",
@@ -42,7 +42,7 @@
 	},
 	"extra": {
 		"branch-alias": {
-			"dev-master": "3.1-dev"
+			"dev-master": "3.2-dev"
 		}
 	}
 }

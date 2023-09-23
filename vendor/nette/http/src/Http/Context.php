@@ -37,11 +37,12 @@ class Context
 	 * Attempts to cache the sent entity by its last modification date.
 	 * @param  string|int|\DateTimeInterface  $lastModified
 	 */
-	public function isModified($lastModified = null, string $etag = null): bool
+	public function isModified($lastModified = null, ?string $etag = null): bool
 	{
 		if ($lastModified) {
 			$this->response->setHeader('Last-Modified', Helpers::formatDate($lastModified));
 		}
+
 		if ($etag) {
 			$this->response->setHeader('ETag', '"' . addslashes($etag) . '"');
 		}
@@ -76,7 +77,7 @@ class Context
 			return true;
 		}
 
-		$this->response->setCode(IResponse::S304_NOT_MODIFIED);
+		$this->response->setCode(IResponse::S304_NotModified);
 		return false;
 	}
 

@@ -21,7 +21,7 @@ class Helpers
 {
 	use Nette\StaticClass;
 
-	private const UNSAFE_NAMES = [
+	private const UnsafeNames = [
 		'attributes', 'children', 'elements', 'focus', 'length', 'reset', 'style', 'submit', 'onsubmit', 'form',
 		'presenter', 'action',
 	];
@@ -29,7 +29,7 @@ class Helpers
 
 	/**
 	 * Extracts and sanitizes submitted form data for single control.
-	 * @param  int  $type  type Form::DATA_TEXT, DATA_LINE, DATA_FILE, DATA_KEYS
+	 * @param  int  $type  type Form::DataText, DataLine, DataFile, DataKeys
 	 * @return string|string[]
 	 * @internal
 	 */
@@ -37,21 +37,24 @@ class Helpers
 	{
 		$name = explode('[', str_replace(['[]', ']', '.'], ['', '', '_'], $htmlName));
 		$data = Nette\Utils\Arrays::get($data, $name, null);
-		$itype = $type & ~Form::DATA_KEYS;
+		$itype = $type & ~Form::DataKeys;
 
 		if (substr($htmlName, -2) === '[]') {
 			if (!is_array($data)) {
 				return [];
 			}
+
 			foreach ($data as $k => $v) {
 				$data[$k] = $v = static::sanitize($itype, $v);
 				if ($v === null) {
 					unset($data[$k]);
 				}
 			}
-			if ($type & Form::DATA_KEYS) {
+
+			if ($type & Form::DataKeys) {
 				return $data;
 			}
+
 			return array_values($data);
 		} else {
 			return static::sanitize($itype, $data);
@@ -61,17 +64,17 @@ class Helpers
 
 	private static function sanitize(int $type, $value)
 	{
-		if ($type === Form::DATA_TEXT) {
+		if ($type === Form::DataText) {
 			return is_scalar($value)
 				? Strings::normalizeNewLines($value)
 				: null;
 
-		} elseif ($type === Form::DATA_LINE) {
+		} elseif ($type === Form::DataLine) {
 			return is_scalar($value)
 				? Strings::trim(strtr((string) $value, "\r\n", '  '))
 				: null;
 
-		} elseif ($type === Form::DATA_FILE) {
+		} elseif ($type === Form::DataFile) {
 			return $value instanceof Nette\Http\FileUpload ? $value : null;
 
 		} else {
@@ -89,9 +92,11 @@ class Helpers
 		if ($count) {
 			$name = substr_replace($name, '', strpos($name, ']'), 1) . ']';
 		}
-		if (is_numeric($name) || in_array($name, self::UNSAFE_NAMES, true)) {
+
+		if (is_numeric($name) || in_array($name, self::UnsafeNames, true)) {
 			$name = '_' . $name;
 		}
+
 		return $name;
 	}
 
@@ -104,6 +109,7 @@ class Helpers
 				if ($rule->branch) {
 					continue;
 				}
+
 				break;
 			}
 
@@ -128,6 +134,7 @@ class Helpers
 				if ($msg instanceof Nette\HtmlStringable) {
 					$msg = html_entity_decode(strip_tags((string) $msg), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 				}
+
 				$item = ['op' => ($rule->isNegative ? '~' : '') . $op, 'msg' => $msg];
 			}
 
@@ -146,16 +153,18 @@ class Helpers
 
 			$payload[] = $item;
 		}
+
 		return $payload;
 	}
 
 
 	public static function createInputList(
 		array $items,
-		array $inputAttrs = null,
-		array $labelAttrs = null,
+		?array $inputAttrs = null,
+		?array $labelAttrs = null,
 		$wrapper = null
-	): string {
+	): string
+	{
 		[$inputAttrs, $inputTag] = self::prepareAttrs($inputAttrs, 'input');
 		[$labelAttrs, $labelTag] = self::prepareAttrs($labelAttrs, 'label');
 		$res = '';
@@ -167,26 +176,30 @@ class Helpers
 			foreach ($inputAttrs as $k => $v) {
 				$input->attrs[$k] = $v[$value] ?? null;
 			}
+
 			foreach ($labelAttrs as $k => $v) {
 				$label->attrs[$k] = $v[$value] ?? null;
 			}
+
 			$input->value = $value;
 			$res .= ($res === '' && $wrapperEnd === '' ? '' : $wrapper)
 				. $labelTag . $label->attributes() . '>'
-				. $inputTag . $input->attributes() . (Html::$xhtml ? ' />' : '>')
+				. $inputTag . $input->attributes() . (isset(Html::$xhtml) && Html::$xhtml ? ' />' : '>')
 				. ($caption instanceof Nette\HtmlStringable ? $caption : htmlspecialchars((string) $caption, ENT_NOQUOTES, 'UTF-8'))
 				. '</label>'
 				. $wrapperEnd;
 		}
+
 		return $res;
 	}
 
 
-	public static function createSelectBox(array $items, array $optionAttrs = null, $selected = null): Html
+	public static function createSelectBox(array $items, ?array $optionAttrs = null, $selected = null): Html
 	{
 		if ($selected !== null) {
 			$optionAttrs['selected?'] = $selected;
 		}
+
 		[$optionAttrs, $optionTag] = self::prepareAttrs($optionAttrs, 'option');
 		$option = Html::el();
 		$res = $tmp = '';
@@ -197,11 +210,13 @@ class Helpers
 			} else {
 				$subitems = [$group => $subitems];
 			}
+
 			foreach ($subitems as $value => $caption) {
 				$option->value = $value;
 				foreach ($optionAttrs as $k => $v) {
 					$option->attrs[$k] = $v[$value] ?? null;
 				}
+
 				if ($caption instanceof Html) {
 					$caption = clone $caption;
 					$res .= $caption->setName('option')->addAttributes($option->attrs);
@@ -210,13 +225,16 @@ class Helpers
 						. htmlspecialchars((string) $caption, ENT_NOQUOTES, 'UTF-8')
 						. '</option>';
 				}
+
 				if ($selected === $value) {
 					unset($optionAttrs['selected'], $option->attrs['selected']);
 				}
 			}
+
 			$res .= $tmp;
 			$tmp = '';
 		}
+
 		return Html::el('select')->setHtml($res);
 	}
 
@@ -237,6 +255,7 @@ class Helpers
 				}
 			}
 		}
+
 		return [$dynamic, '<' . $name . Html::el(null, $attrs)->attributes()];
 	}
 
@@ -249,5 +268,21 @@ class Helpers
 		return isset($units[$ch = strtolower(substr($value, -1))])
 			? (int) $value << $units[$ch]
 			: (int) $value;
+	}
+
+
+	/** @internal */
+	public static function getSingleType($reflection): ?string
+	{
+		$type = Nette\Utils\Type::fromReflection($reflection);
+		if (!$type) {
+			return null;
+		} elseif ($res = $type->getSingleName()) {
+			return $res;
+		} else {
+			throw new Nette\InvalidStateException(
+				Nette\Utils\Reflection::toString($reflection) . " has unsupported type '$type'."
+			);
+		}
 	}
 }

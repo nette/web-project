@@ -19,8 +19,7 @@ class FileLoader implements Latte\Loader
 {
 	use Latte\Strict;
 
-	/** @var string|null */
-	protected $baseDir;
+	protected ?string $baseDir = null;
 
 
 	public function __construct(?string $baseDir = null)
@@ -32,10 +31,10 @@ class FileLoader implements Latte\Loader
 	/**
 	 * Returns template source code.
 	 */
-	public function getContent($fileName): string
+	public function getContent(string $fileName): string
 	{
 		$file = $this->baseDir . $fileName;
-		if ($this->baseDir && !Latte\Helpers::startsWith($this->normalizePath($file), $this->baseDir)) {
+		if ($this->baseDir && !str_starts_with($this->normalizePath($file), $this->baseDir)) {
 			throw new Latte\RuntimeException("Template '$file' is not within the allowed path '{$this->baseDir}'.");
 
 		} elseif (!is_file($file)) {
@@ -51,7 +50,7 @@ class FileLoader implements Latte\Loader
 	}
 
 
-	public function isExpired($file, $time): bool
+	public function isExpired(string $file, int $time): bool
 	{
 		$mtime = @filemtime($this->baseDir . $file); // @ - stat may fail
 		return !$mtime || $mtime > $time;
@@ -61,7 +60,7 @@ class FileLoader implements Latte\Loader
 	/**
 	 * Returns referred template name.
 	 */
-	public function getReferredName($file, $referringFile): string
+	public function getReferredName(string $file, string $referringFile): string
 	{
 		if ($this->baseDir || !preg_match('#/|\\\\|[a-z][a-z0-9+.-]*:#iA', $file)) {
 			$file = $this->normalizePath($referringFile . '/../' . $file);
@@ -74,7 +73,7 @@ class FileLoader implements Latte\Loader
 	/**
 	 * Returns unique identifier for caching.
 	 */
-	public function getUniqueId($file): string
+	public function getUniqueId(string $file): string
 	{
 		return $this->baseDir . strtr($file, '/', DIRECTORY_SEPARATOR);
 	}

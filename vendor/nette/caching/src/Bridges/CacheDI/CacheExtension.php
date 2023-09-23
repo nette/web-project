@@ -17,8 +17,7 @@ use Nette;
  */
 final class CacheExtension extends Nette\DI\CompilerExtension
 {
-	/** @var string */
-	private $tempDir;
+	private string $tempDir;
 
 
 	public function __construct(string $tempDir)
@@ -51,6 +50,7 @@ final class CacheExtension extends Nette\DI\CompilerExtension
 			if (extension_loaded('pdo_sqlite')) {
 				$builder->addAlias('nette.cacheJournal', $this->prefix('journal'));
 			}
+
 			$builder->addAlias('cacheStorage', $this->prefix('storage'));
 		}
 	}

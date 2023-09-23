@@ -20,7 +20,8 @@ final class Helpers
 {
 	use Nette\StaticClass;
 
-	public const PREVENT_MERGING = '_prevent_merging';
+	public const PreventMerging = '_prevent_merging';
+	public const PREVENT_MERGING = self::PreventMerging;
 
 
 	/**
@@ -29,8 +30,8 @@ final class Helpers
 	 */
 	public static function merge($value, $base)
 	{
-		if (is_array($value) && isset($value[self::PREVENT_MERGING])) {
-			unset($value[self::PREVENT_MERGING]);
+		if (is_array($value) && isset($value[self::PreventMerging])) {
+			unset($value[self::PreventMerging]);
 			return $value;
 		}
 
@@ -44,6 +45,7 @@ final class Helpers
 					$base[$key] = static::merge($val, $base[$key] ?? null);
 				}
 			}
+
 			return $base;
 
 		} elseif ($value === null && is_array($base)) {
@@ -67,6 +69,7 @@ final class Helpers
 				return Reflection::expandClassName($m[0], $class);
 			}, $type);
 		}
+
 		return null;
 	}
 
@@ -80,10 +83,12 @@ final class Helpers
 		if (!Reflection::areCommentsAvailable()) {
 			throw new Nette\InvalidStateException('You have to enable phpDoc comments in opcode cache.');
 		}
+
 		$re = '#[\s*]@' . preg_quote($name, '#') . '(?=\s|$)(?:[ \t]+([^@\s]\S*))?#';
 		if ($ref->getDocComment() && preg_match($re, trim($ref->getDocComment(), '/*'), $m)) {
 			return $m[1] ?? '';
 		}
+
 		return null;
 	}
 

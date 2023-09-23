@@ -49,8 +49,8 @@ namespace Tester;
  */
 class Expect
 {
-	/** @var array of self|\Closure|\stdClass */
-	private $constraints = [];
+	/** array<self|\Closure|\stdClass> */
+	private array $constraints = [];
 
 
 	public static function __callStatic(string $method, array $args): self
@@ -73,6 +73,7 @@ class Expect
 			$this->constraints[] = (object) ['method' => lcfirst($m[1]), 'args' => $args];
 			return $this;
 		}
+
 		throw new \Error('Call to undefined method ' . self::class . '::' . $method . '()');
 	}
 
@@ -87,7 +88,7 @@ class Expect
 	/**
 	 * Checks the expectations.
 	 */
-	public function __invoke($actual): void
+	public function __invoke(mixed $actual): void
 	{
 		foreach ($this->constraints as $cstr) {
 			if ($cstr instanceof \stdClass) {
@@ -119,6 +120,7 @@ class Expect
 				$res[] = is_string($cstr) ? $cstr : 'user-expectation';
 			}
 		}
+
 		return implode(',', $res);
 	}
 }

@@ -18,7 +18,8 @@ use Nette;
 class SelectBox extends ChoiceControl
 {
 	/** validation rule */
-	public const VALID = ':selectBoxValid';
+	public const Valid = ':selectBoxValid';
+	public const VALID = self::Valid;
 
 	/** @var array of option / optgroup */
 	private $options = [];
@@ -30,7 +31,7 @@ class SelectBox extends ChoiceControl
 	private $optionAttributes = [];
 
 
-	public function __construct($label = null, array $items = null)
+	public function __construct($label = null, ?array $items = null)
 	{
 		parent::__construct($label, $items);
 		$this->setOption('type', 'select');
@@ -38,7 +39,7 @@ class SelectBox extends ChoiceControl
 			return $this->prompt === false
 				&& $this->options
 				&& $this->control->size < 2;
-		})->addRule(Nette\Forms\Form::FILLED, Nette\Forms\Validator::$messages[self::VALID]);
+		})->addRule(Nette\Forms\Form::Filled, Nette\Forms\Validator::$messages[self::Valid]);
 	}
 
 
@@ -82,8 +83,10 @@ class SelectBox extends ChoiceControl
 					$res[(string) $value] = $value;
 				}
 			}
+
 			$items = $res;
 		}
+
 		$this->options = $items;
 		return parent::setItems(Nette\Utils\Arrays::flatten($items, true));
 	}

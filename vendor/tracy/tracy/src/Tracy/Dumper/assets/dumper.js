@@ -54,6 +54,10 @@ class Dumper
 				return false;
 			}
 
+		});
+
+		document.documentElement.addEventListener('tracy-beforetoggle', (e) => {
+			let el;
 			// initializes lazy <span data-tracy-dump> inside <pre data-tracy-snapshot>
 			if ((el = e.target.closest('[data-tracy-snapshot]'))) {
 				let snapshot = JSON.parse(el.getAttribute('data-tracy-snapshot'));
@@ -107,7 +111,7 @@ class Dumper
 
 			let el;
 
-			if (e.target.matches('.tracy-dump-hash') && (el = e.target.closest('.tracy-dump'))) {
+			if (e.target.matches('.tracy-dump-hash') && (el = e.target.closest('tracy-div'))) {
 				el.querySelectorAll('.tracy-dump-hash').forEach((el) => {
 					if (el.textContent === e.target.textContent) {
 						el.classList.add('tracy-dump-highlight');
@@ -239,6 +243,11 @@ function build(data, repository, collapsed, parentIds, keyType) {
 		]);
 
 	} else { // object || resource || array
+		let pos, nameEl;
+		nameEl = data.object && (pos = data.object.lastIndexOf('\\')) > 0
+			? [data.object.substr(0, pos + 1), createEl('b', null, [data.object.substr(pos + 1)])]
+			: [data.object || data.resource];
+
 		let span = data.array !== undefined
 			? [
 				createEl('span', {'class': 'tracy-dump-array'}, ['array']),
@@ -249,7 +258,7 @@ function build(data, repository, collapsed, parentIds, keyType) {
 					'class': data.object ? 'tracy-dump-object' : 'tracy-dump-resource',
 					title: data.editor ? 'Declared in file ' + data.editor.file + ' on line ' + data.editor.line + (data.editor.url ? '\n' + HINT_CTRL : '') + '\n' + HINT_ALT : null,
 					'data-tracy-href': data.editor ? data.editor.url : null
-				}, [data.object || data.resource]),
+				}, nameEl),
 				...(id ? [' ', createEl('span', {'class': 'tracy-dump-hash'}, [data.resource ? '@' + id.substr(1) : '#' + id])] : [])
 			];
 
@@ -322,13 +331,9 @@ function createEl(el, attrs, content) {
 		el.innerHTML = content.html;
 		return el;
 	}
+
 	content = content || [];
-	for (let id = 0; id < content.length; id++) {
-		let child = content[id];
-		if (child !== null) {
-			el.appendChild(child instanceof Node ? child : document.createTextNode(child));
-		}
-	}
+	el.append(...content.filter((child) => (child !== null)));
 	return el;
 }
 

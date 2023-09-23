@@ -87,22 +87,25 @@ final class RoutingPanel implements Tracy\IBarPanel
 	 */
 	private function analyse(
 		Routing\Router $router,
-		Nette\Http\IRequest $httpRequest,
+		?Nette\Http\IRequest $httpRequest,
 		string $module = '',
 		?string $path = null,
-		bool $parentMatches = true,
 		int $level = -1,
 		int $flag = 0
-	): void {
+	): void
+	{
 		if ($router instanceof Routing\RouteList) {
-			try {
-				$parentMatches = $parentMatches && $router->match($httpRequest) !== null;
-			} catch (\Throwable $e) {
+			if ($httpRequest) {
+				try {
+					$httpRequest = $router->match($httpRequest) === null ? null : $httpRequest;
+				} catch (\Throwable $e) {
+					$httpRequest = null;
+				}
 			}
 
 			$prop = (new \ReflectionProperty(Routing\RouteList::class, 'path'));
 			$prop->setAccessible(true);
-			if ($pathPrefix = $prop->getValue($router)) {
+			if ($httpRequest && ($pathPrefix = $prop->getValue($router))) {
 				$path .= $pathPrefix;
 				$url = $httpRequest->getUrl();
 				$httpRequest = $httpRequest->withUrl($url->withPath($url->getPath(), $url->getBasePath() . $pathPrefix));
@@ -113,7 +116,7 @@ final class RoutingPanel implements Tracy\IBarPanel
 			$next = count($this->routers);
 			$flags = $router->getFlags();
 			foreach ($router->getRouters() as $i => $subRouter) {
-				$this->analyse($subRouter, $httpRequest, $module, $path, $parentMatches, $level + 1, $flags[$i]);
+				$this->analyse($subRouter, $httpRequest, $module, $path, $level + 1, $flags[$i]);
 			}
 
 			if ($info = $this->routers[$next] ?? null) {
@@ -130,7 +133,7 @@ final class RoutingPanel implements Tracy\IBarPanel
 		$matched = $flag & Routing\RouteList::ONE_WAY ? 'oneway' : 'no';
 		$params = $e = null;
 		try {
-			$params = $parentMatches
+			$params = $httpRequest
 				? $router->match($httpRequest)
 				: null;
 		} catch (\Throwable $e) {
@@ -177,11 +180,11 @@ final class RoutingPanel implements Tracy\IBarPanel
 		$rc = new \ReflectionClass($class);
 
 		if ($rc->isSubclassOf(Nette\Application\UI\Presenter::class)) {
-			if (isset($params[Presenter::SIGNAL_KEY])) {
-				$method = $class::formatSignalMethod($params[Presenter::SIGNAL_KEY]);
+			if (isset($params[Presenter::SignalKey])) {
+				$method = $class::formatSignalMethod($params[Presenter::SignalKey]);
 
-			} elseif (isset($params[Presenter::ACTION_KEY])) {
-				$action = $params[Presenter::ACTION_KEY];
+			} elseif (isset($params[Presenter::ActionKey])) {
+				$action = $params[Presenter::ActionKey];
 				$method = $class::formatActionMethod($action);
 				if (!$rc->hasMethod($method)) {
 					$method = $class::formatRenderMethod($action);

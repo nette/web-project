@@ -11,6 +11,7 @@ namespace Nette\Bridges\SecurityDI;
 
 use Nette;
 use Nette\Schema\Expect;
+use Tracy;
 
 
 /**
@@ -76,6 +77,7 @@ class SecurityExtension extends Nette\DI\CompilerExtension
 			if ($auth->cookieDomain === 'domain') {
 				$auth->cookieDomain = $builder::literal('$this->getByType(Nette\Http\IRequest::class)->getUrl()->getDomain(2)');
 			}
+
 			$storage->addSetup('setCookieParameters', [$auth->cookieName, $auth->cookieDomain, $auth->cookieSamesite]);
 		}
 
@@ -116,6 +118,7 @@ class SecurityExtension extends Nette\DI\CompilerExtension
 			foreach ($config->roles as $role => $parents) {
 				$authorizator->addSetup('addRole', [$role, $parents]);
 			}
+
 			foreach ($config->resources as $resource => $parents) {
 				$authorizator->addSetup('addResource', [$resource, $parents]);
 			}
@@ -138,7 +141,7 @@ class SecurityExtension extends Nette\DI\CompilerExtension
 
 		if (
 			$this->debugMode &&
-			($this->config->debugger ?? $builder->getByType(\Tracy\Bar::class))
+			($this->config->debugger ?? $builder->getByType(Tracy\Bar::class))
 		) {
 			$builder->getDefinition($this->prefix('user'))->addSetup('@Tracy\Bar::addPanel', [
 				new Nette\DI\Definitions\Statement(Nette\Bridges\SecurityTracy\UserPanel::class),

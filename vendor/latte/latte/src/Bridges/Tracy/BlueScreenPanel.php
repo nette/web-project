@@ -20,9 +20,17 @@ use Tracy\Helpers;
  */
 class BlueScreenPanel
 {
+	private static bool $initialized = false;
+
+
 	public static function initialize(?BlueScreen $blueScreen = null): void
 	{
-		$blueScreen = $blueScreen ?? Tracy\Debugger::getBlueScreen();
+		if (self::$initialized) {
+			return;
+		}
+		self::$initialized = true;
+
+		$blueScreen ??= Tracy\Debugger::getBlueScreen();
 		$blueScreen->addPanel([self::class, 'renderError']);
 		$blueScreen->addAction([self::class, 'renderUnknownMacro']);
 		if (
@@ -30,11 +38,9 @@ class BlueScreenPanel
 			&& version_compare(Tracy\Debugger::VERSION, '3.0', '<')
 		) {
 			Tracy\Debugger::addSourceMapper([self::class, 'mapLatteSourceCode']);
-			$blueScreen->addFileGenerator(function (string $file) {
-				return substr($file, -6) === '.latte'
+			$blueScreen->addFileGenerator(fn(string $file) => substr($file, -6) === '.latte'
 					? "{block content}\n\$END\$"
-					: null;
-			});
+					: null);
 		}
 	}
 
@@ -48,11 +54,11 @@ class BlueScreenPanel
 						? ''
 						: '<p>'
 							. (@is_file($e->sourceName) // @ - may trigger error
-								? '<b>File:</b> ' . Helpers::editorLink($e->sourceName, $e->sourceLine)
-								: '<b>' . htmlspecialchars($e->sourceName . ($e->sourceLine ? ':' . $e->sourceLine : '')) . '</b>')
+								? '<b>File:</b> ' . Helpers::editorLink($e->sourceName, $e->position?->line)
+								: '<b>' . htmlspecialchars($e->sourceName . ($e->position?->line ? ':' . $e->position->line : '')) . '</b>')
 							. '</p>')
-					. '<pre class=code><div>'
-					. BlueScreen::highlightLine(htmlspecialchars($e->sourceCode, ENT_IGNORE, 'UTF-8'), $e->sourceLine)
+					. '<pre class="code tracy-code"><div>'
+					. BlueScreen::highlightLine(htmlspecialchars($e->sourceCode, ENT_IGNORE, 'UTF-8'), $e->position->line ?? 0, 15, $e->position->column ?? 0)
 					. '</div></pre>',
 			];
 
@@ -85,7 +91,7 @@ class BlueScreenPanel
 				|| preg_match('#Unknown attribute (n:\w+), did you mean (n:\w+)\?#A', $e->getMessage(), $m))
 		) {
 			return [
-				'link' => Helpers::editorUri($e->sourceName, $e->sourceLine, 'fix', $m[1], $m[2]),
+				'link' => Helpers::editorUri($e->sourceName, $e->position?->line, 'fix', $m[1], $m[2]),
 				'label' => 'fix it',
 			];
 		}

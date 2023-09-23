@@ -23,29 +23,25 @@ final class Constant
 	use Traits\CommentAware;
 	use Traits\AttributeAware;
 
-	/** @var mixed */
-	private $value;
-
-	/** @var bool */
-	private $final = false;
+	private mixed $value;
+	private bool $final = false;
+	private ?string $type = null;
 
 
-	/** @return static */
-	public function setValue($val): self
+	public function setValue(mixed $val): static
 	{
 		$this->value = $val;
 		return $this;
 	}
 
 
-	public function getValue()
+	public function getValue(): mixed
 	{
 		return $this->value;
 	}
 
 
-	/** @return static */
-	public function setFinal(bool $state = true): self
+	public function setFinal(bool $state = true): static
 	{
 		$this->final = $state;
 		return $this;
@@ -55,5 +51,18 @@ final class Constant
 	public function isFinal(): bool
 	{
 		return $this->final;
+	}
+
+
+	public function setType(?string $type): static
+	{
+		$this->type = Helpers::validateType($type);
+		return $this;
+	}
+
+
+	public function getType(): ?string
+	{
+		return $this->type;
 	}
 }
