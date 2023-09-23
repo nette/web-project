@@ -39,11 +39,11 @@ final class DecoratorExtension extends Nette\DI\CompilerExtension
 			}
 
 			if ($info->inject !== null) {
-				$info->tags[InjectExtension::TAG_INJECT] = $info->inject;
+				$info->tags[InjectExtension::TagInject] = $info->inject;
 			}
 
 			$this->addSetups($type, Nette\DI\Helpers::filterArguments($info->setup));
-			$this->addTags($type, Nette\DI\Helpers::filterArguments($info->tags));
+			$this->addTags($type, $info->tags);
 		}
 	}
 

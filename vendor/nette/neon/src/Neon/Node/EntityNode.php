@@ -16,19 +16,11 @@ use Nette\Neon\Node;
 /** @internal */
 final class EntityNode extends Node
 {
-	/** @var Node */
-	public $value;
-
-	/** @var ArrayItemNode[] */
-	public $attributes = [];
-
-
-	public function __construct(Node $value, array $attributes, int $startPos = null, int $endPos = null)
-	{
-		$this->value = $value;
-		$this->attributes = $attributes;
-		$this->startPos = $startPos;
-		$this->endPos = $endPos ?? $startPos;
+	public function __construct(
+		public Node $value,
+		/** @var ArrayItemNode[] */
+		public array $attributes = [],
+	) {
 	}
 
 
@@ -36,7 +28,7 @@ final class EntityNode extends Node
 	{
 		return new Entity(
 			$this->value->toValue(),
-			ArrayItemNode::itemsToArray($this->attributes)
+			ArrayItemNode::itemsToArray($this->attributes),
 		);
 	}
 
@@ -50,12 +42,12 @@ final class EntityNode extends Node
 	}
 
 
-	public function getSubNodes(): array
+	public function &getIterator(): \Generator
 	{
-		$res = [&$this->value];
+		yield $this->value;
+
 		foreach ($this->attributes as &$item) {
-			$res[] = &$item;
+			yield $item;
 		}
-		return $res;
 	}
 }

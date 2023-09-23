@@ -16,7 +16,7 @@ use Tester\CodeCoverage\PhpParser;
 
 class CloverXMLGenerator extends AbstractGenerator
 {
-	private static $metricAttributesMap = [
+	private static array $metricAttributesMap = [
 		'packageCount' => 'packages',
 		'fileCount' => 'files',
 		'linesOfCode' => 'loc',
@@ -38,6 +38,7 @@ class CloverXMLGenerator extends AbstractGenerator
 		if (!extension_loaded('dom') || !extension_loaded('tokenizer')) {
 			throw new \LogicException('CloverXML generator requires DOM and Tokenizer extensions to be loaded.');
 		}
+
 		parent::__construct($file, $sources);
 	}
 
@@ -91,7 +92,11 @@ class CloverXMLGenerator extends AbstractGenerator
 			$elFile->setAttribute('name', $file);
 			$elFileMetrics = $elFile->appendChild($doc->createElement('metrics'));
 
-			$code = $parser->parse(file_get_contents($file));
+			try {
+				$code = $parser->parse(file_get_contents($file));
+			} catch (\ParseError $e) {
+				throw new \ParseError($e->getMessage() . ' in file ' . $file);
+			}
 
 			$fileMetrics = (object) [
 				'linesOfCode' => $code->linesOfCode,
@@ -121,11 +126,12 @@ class CloverXMLGenerator extends AbstractGenerator
 				self::setMetricAttributes($elClassMetrics, $classMetrics);
 				self::appendMetrics($fileMetrics, $classMetrics);
 			}
+
 			self::setMetricAttributes($elFileMetrics, $fileMetrics);
 
 
 			foreach ((array) $coverageData as $line => $count) {
-				if ($count === self::CODE_DEAD) {
+				if ($count === self::LineDead) {
 					continue;
 				}
 
@@ -149,7 +155,7 @@ class CloverXMLGenerator extends AbstractGenerator
 	}
 
 
-	private function calculateClassMetrics(\stdClass $info, array $coverageData = null): \stdClass
+	private function calculateClassMetrics(\stdClass $info, ?array $coverageData = null): \stdClass
 	{
 		$stats = (object) [
 			'methodCount' => count($info->methods),
@@ -180,7 +186,7 @@ class CloverXMLGenerator extends AbstractGenerator
 	}
 
 
-	private static function analyzeMethod(\stdClass $info, array $coverageData = null): array
+	private static function analyzeMethod(\stdClass $info, ?array $coverageData = null): array
 	{
 		$count = 0;
 		$coveredCount = 0;
@@ -189,7 +195,7 @@ class CloverXMLGenerator extends AbstractGenerator
 			$count = max(1, $info->end - $info->start - 2);
 		} else {
 			for ($i = $info->start; $i <= $info->end; $i++) {
-				if (isset($coverageData[$i]) && $coverageData[$i] !== self::CODE_DEAD) {
+				if (isset($coverageData[$i]) && $coverageData[$i] !== self::LineDead) {
 					$count++;
 					if ($coverageData[$i] > 0) {
 						$coveredCount++;

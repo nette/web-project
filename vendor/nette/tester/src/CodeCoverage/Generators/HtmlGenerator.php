@@ -17,24 +17,20 @@ use Tester\Helpers;
  */
 class HtmlGenerator extends AbstractGenerator
 {
-	private const CLASSES = [
-		self::CODE_TESTED => 't', // tested
-		self::CODE_UNTESTED => 'u', // untested
-		self::CODE_DEAD => 'dead', // dead code
+	private const Classes = [
+		self::LineTested => 't', // tested
+		self::LineUntested => 'u', // untested
+		self::LineDead => 'dead', // dead code
 	];
-
-	/** @var string */
-	private $title;
-
-	/** @var array */
-	private $files = [];
+	private ?string $title;
+	private array $files = [];
 
 
 	/**
 	 * @param  string  $file  path to coverage.dat file
 	 * @param  array   $sources  files/directories
 	 */
-	public function __construct(string $file, array $sources = [], string $title = null)
+	public function __construct(string $file, array $sources = [], ?string $title = null)
 	{
 		parent::__construct($file, $sources);
 		$this->title = $title;
@@ -47,7 +43,7 @@ class HtmlGenerator extends AbstractGenerator
 		$this->parse();
 
 		$title = $this->title;
-		$classes = self::CLASSES;
+		$classes = self::Classes;
 		$files = $this->files;
 		$coveredPercent = $this->getCoveredPercent();
 
@@ -82,13 +78,15 @@ class HtmlGenerator extends AbstractGenerator
 			if ($loaded) {
 				$lines = $this->data[$entry];
 				foreach ($lines as $flag) {
-					if ($flag >= self::CODE_UNTESTED) {
+					if ($flag >= self::LineUntested) {
 						$total++;
 					}
-					if ($flag >= self::CODE_TESTED) {
+
+					if ($flag >= self::LineTested) {
 						$covered++;
 					}
 				}
+
 				$coverage = round($covered * 100 / $total);
 				$this->totalSum += $total;
 				$this->coveredSum += $covered;

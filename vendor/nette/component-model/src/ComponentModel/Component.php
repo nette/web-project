@@ -42,14 +42,15 @@ abstract class Component implements IComponent
 	{
 		if (!isset($this->monitors[$type])) { // not monitored or not processed yet
 			$obj = $this->parent;
-			$path = self::NAME_SEPARATOR . $this->name;
+			$path = self::NameSeparator . $this->name;
 			$depth = 1;
 			while ($obj !== null) {
 				$parent = $obj->getParent();
 				if ($type ? $obj instanceof $type : $parent === null) {
 					break;
 				}
-				$path = self::NAME_SEPARATOR . $obj->getName() . $path;
+
+				$path = self::NameSeparator . $obj->getName() . $path;
 				$depth++;
 				$obj = $parent; // IComponent::getParent()
 				if ($obj === $this) {
@@ -80,7 +81,7 @@ abstract class Component implements IComponent
 	 * Finds the closest ancestor specified by class or interface name and returns backtrace path.
 	 * A path is the concatenation of component names separated by self::NAME_SEPARATOR.
 	 */
-	final public function lookupPath(string $type = null, bool $throw = true): ?string
+	final public function lookupPath(?string $type = null, bool $throw = true): ?string
 	{
 		$this->lookup($type, $throw);
 		return $this->monitors[$type][2];
@@ -90,12 +91,13 @@ abstract class Component implements IComponent
 	/**
 	 * Starts monitoring of ancestors.
 	 */
-	final public function monitor(string $type, callable $attached = null, callable $detached = null): void
+	final public function monitor(string $type, ?callable $attached = null, ?callable $detached = null): void
 	{
 		if (func_num_args() === 1) {
 			$attached = [$this, 'attached'];
 			$detached = [$this, 'detached'];
 		}
+
 		if (
 			($obj = $this->lookup($type, false))
 			&& $attached
@@ -103,6 +105,7 @@ abstract class Component implements IComponent
 		) {
 			$attached($obj);
 		}
+
 		$this->monitors[$type][3][] = [$attached, $detached]; // mark as monitored
 	}
 
@@ -161,7 +164,7 @@ abstract class Component implements IComponent
 	 * @throws Nette\InvalidStateException
 	 * @internal
 	 */
-	public function setParent(?IContainer $parent, string $name = null)
+	public function setParent(?IContainer $parent, ?string $name = null)
 	{
 		if ($parent === null && $this->parent === null && $name !== null) {
 			$this->name = $name; // just rename
@@ -191,6 +194,7 @@ abstract class Component implements IComponent
 			$tmp = [];
 			$this->refreshMonitors(0, $tmp);
 		}
+
 		return $this;
 	}
 
@@ -210,7 +214,7 @@ abstract class Component implements IComponent
 	 * @param  array<string,true>|null  $missing  (array = attaching, null = detaching)
 	 * @param  array<int,array{callable,IComponent}>  $listeners
 	 */
-	private function refreshMonitors(int $depth, array &$missing = null, array &$listeners = []): void
+	private function refreshMonitors(int $depth, ?array &$missing = null, array &$listeners = []): void
 	{
 		if ($this instanceof IContainer) {
 			foreach ($this->getComponents() as $component) {
@@ -233,7 +237,6 @@ abstract class Component implements IComponent
 					}
 				}
 			}
-
 		} else { // attaching
 			foreach ($this->monitors as $type => $rec) {
 				if (isset($rec[0])) { // is in cache yet
@@ -254,6 +257,7 @@ abstract class Component implements IComponent
 					} else {
 						$missing[$type] = true;
 					}
+
 					$this->monitors[$type][3] = $rec[3]; // mark as monitored
 				}
 			}
@@ -287,7 +291,6 @@ abstract class Component implements IComponent
 			if ($this->parent === null) { // not cloning
 				$this->refreshMonitors(0);
 			}
-
 		} else {
 			$this->parent = null;
 			$this->refreshMonitors(0);

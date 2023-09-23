@@ -20,25 +20,25 @@ class SimpleAuthenticator implements Authenticator
 	use Nette\SmartObject;
 
 	/** @var array */
-	private $userlist;
+	private $passwords;
 
 	/** @var array */
-	private $usersRoles;
+	private $roles;
 
 	/** @var array */
-	private $usersData;
+	private $data;
 
 
 	/**
-	 * @param  array  $userlist list of pairs username => password
-	 * @param  array  $usersRoles list of pairs username => role[]
-	 * @param  array  $usersData list of pairs username => mixed[]
+	 * @param  array  $passwords list of pairs username => password
+	 * @param  array  $roles list of pairs username => role[]
+	 * @param  array  $data list of pairs username => mixed[]
 	 */
-	public function __construct(array $userlist, array $usersRoles = [], array $usersData = [])
+	public function __construct(array $passwords, array $roles = [], array $data = [])
 	{
-		$this->userlist = $userlist;
-		$this->usersRoles = $usersRoles;
-		$this->usersData = $usersData;
+		$this->passwords = $passwords;
+		$this->roles = $roles;
+		$this->data = $data;
 	}
 
 
@@ -47,22 +47,24 @@ class SimpleAuthenticator implements Authenticator
 	 * and returns IIdentity on success or throws AuthenticationException
 	 * @throws AuthenticationException
 	 */
-	public function authenticate(/*string*/ $username, string $password = null): IIdentity
+	public function authenticate(string $username, string $password): IIdentity
 	{
-		if (is_array($username)) {
-			[$username, $password] = $username; // back compatibility
-			trigger_error(__METHOD__ . '() now accepts arguments (string $username, string $password).', E_USER_DEPRECATED);
-		}
-
-		foreach ($this->userlist as $name => $pass) {
+		foreach ($this->passwords as $name => $pass) {
 			if (strcasecmp($name, $username) === 0) {
-				if ((string) $pass === (string) $password) {
-					return new SimpleIdentity($name, $this->usersRoles[$name] ?? null, $this->usersData[$name] ?? []);
+				if ($this->verifyPassword($password, $pass)) {
+					return new SimpleIdentity($name, $this->roles[$name] ?? null, $this->data[$name] ?? []);
 				} else {
 					throw new AuthenticationException('Invalid password.', self::INVALID_CREDENTIAL);
 				}
 			}
 		}
+
 		throw new AuthenticationException("User '$username' not found.", self::IDENTITY_NOT_FOUND);
+	}
+
+
+	protected function verifyPassword(string $password, string $passOrHash): bool
+	{
+		return $password === $passOrHash;
 	}
 }

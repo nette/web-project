@@ -33,18 +33,28 @@ abstract class Presenter extends Control implements Application\IPresenter
 {
 	/** bad link handling {@link Presenter::$invalidLinkMode} */
 	public const
-		INVALID_LINK_SILENT = 0b0000,
-		INVALID_LINK_WARNING = 0b0001,
-		INVALID_LINK_EXCEPTION = 0b0010,
-		INVALID_LINK_TEXTUAL = 0b0100;
+		InvalidLinkSilent = 0b0000,
+		InvalidLinkWarning = 0b0001,
+		InvalidLinkException = 0b0010,
+		InvalidLinkTextual = 0b0100;
 
 	/** @internal special parameter key */
 	public const
-		PRESENTER_KEY = 'presenter',
-		SIGNAL_KEY = 'do',
-		ACTION_KEY = 'action',
-		FLASH_KEY = '_fid',
-		DEFAULT_ACTION = 'default';
+		PresenterKey = 'presenter',
+		SignalKey = 'do',
+		ActionKey = 'action',
+		FlashKey = '_fid',
+		DefaultAction = 'default';
+
+	public const INVALID_LINK_SILENT = self::InvalidLinkSilent;
+	public const INVALID_LINK_WARNING = self::InvalidLinkWarning;
+	public const INVALID_LINK_EXCEPTION = self::InvalidLinkException;
+	public const INVALID_LINK_TEXTUAL = self::InvalidLinkTextual;
+	public const PRESENTER_KEY = self::PresenterKey;
+	public const SIGNAL_KEY = self::SignalKey;
+	public const ACTION_KEY = self::ActionKey;
+	public const FLASH_KEY = self::FlashKey;
+	public const DEFAULT_ACTION = self::DefaultAction;
 
 	/** @var int */
 	public $invalidLinkMode;
@@ -63,6 +73,9 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 	/** @var bool  use absolute Urls or paths? */
 	public $absoluteUrls = false;
+
+	/** @var string[] */
+	public $allowedMethods = ['GET', 'POST', 'HEAD', 'PUT', 'DELETE'];
 
 	/** @var Nette\Application\Request|null */
 	private $request;
@@ -205,6 +218,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 		try {
 			// STARTUP
 			$this->checkRequirements(static::getReflection());
+			$this->checkHttpMethod();
 			Arrays::invoke($this->onStartup, $this);
 			$this->startup();
 			if (!$this->startupCheck) {
@@ -315,7 +329,22 @@ abstract class Presenter extends Control implements Application\IPresenter
 	 */
 	public function detectedCsrf(): void
 	{
-		$this->redirect('this');
+		try {
+			$this->redirect('this');
+		} catch (InvalidLinkException $e) {
+			throw new Nette\Application\BadRequestException($e->getMessage());
+		}
+	}
+
+
+	protected function checkHttpMethod(): void
+	{
+		if ($this->allowedMethods &&
+			!in_array($method = $this->httpRequest->getMethod(), $this->allowedMethods, true)
+		) {
+			$this->httpResponse->setHeader('Allow', implode(',', $this->allowedMethods));
+			$this->error("Method $method is not allowed", Nette\Http\IResponse::S405_MethodNotAllowed);
+		}
 	}
 
 
@@ -455,21 +484,26 @@ abstract class Presenter extends Control implements Application\IPresenter
 	{
 		$template = $template ?? $this->getTemplate();
 		if (!$template->getFile()) {
-			$files = $this->formatTemplateFiles();
-			foreach ($files as $file) {
-				if (is_file($file)) {
-					$template->setFile($file);
-					break;
-				}
-			}
+			$template->setFile($this->findTemplateFile());
+		}
+		$this->sendResponse(new Responses\TextResponse($template));
+	}
 
-			if (!$template->getFile()) {
-				$file = strtr(Arrays::first($files), '/', DIRECTORY_SEPARATOR);
-				$this->error("Page not found. Missing template '$file'.");
+
+	/**
+	 * Finds template file name.
+	 */
+	public function findTemplateFile(): string
+	{
+		$files = $this->formatTemplateFiles();
+		foreach ($files as $file) {
+			if (is_file($file)) {
+				return $file;
 			}
 		}
 
-		$this->sendResponse(new Responses\TextResponse($template));
+		$file = strtr(Arrays::first($files), '/', DIRECTORY_SEPARATOR);
+		$this->error("Page not found. Missing template '$file'.");
 	}
 
 
@@ -780,7 +814,8 @@ abstract class Presenter extends Control implements Application\IPresenter
 		string $destination,
 		array $args,
 		string $mode
-	): ?string {
+	): ?string
+	{
 		// note: createRequest supposes that saveState(), run() & tryCall() behaviour is final
 
 		$this->lastCreatedRequest = $this->lastCreatedRequestFlag = null;
@@ -874,7 +909,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 		// PROCESS ARGUMENTS
 		if (is_subclass_of($presenterClass, self::class)) {
 			if ($action === '') {
-				$action = self::DEFAULT_ACTION;
+				$action = self::DefaultAction;
 			}
 
 			$current = ($action === '*' || strcasecmp($action, (string) $this->action) === 0) && $presenterClass === static::class;
@@ -942,16 +977,16 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 		// ADD ACTION & SIGNAL & FLASH
 		if ($action) {
-			$args[self::ACTION_KEY] = $action;
+			$args[self::ActionKey] = $action;
 		}
 
 		if (!empty($signal)) {
-			$args[self::SIGNAL_KEY] = $component->getParameterId($signal);
-			$current = $current && $args[self::SIGNAL_KEY] === $this->getParameter(self::SIGNAL_KEY);
+			$args[self::SignalKey] = $component->getParameterId($signal);
+			$current = $current && $args[self::SignalKey] === $this->getParameter(self::SignalKey);
 		}
 
 		if (($mode === 'redirect' || $mode === 'forward') && $this->hasFlashSession()) {
-			$args[self::FLASH_KEY] = $this->getFlashKey();
+			$args[self::FlashKey] = $this->getFlashKey();
 		}
 
 		$this->lastCreatedRequest = new Application\Request($presenter, Application\Request::FORWARD, $args);
@@ -1006,7 +1041,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 		$url = $this->router->constructUrl($request->toArray(), $this->refUrlCache);
 		if ($url === null) {
 			$params = $request->getParameters();
-			unset($params[self::ACTION_KEY], $params[self::PRESENTER_KEY]);
+			unset($params[self::ActionKey], $params[self::PresenterKey]);
 			$params = urldecode(http_build_query($params, '', ', '));
 			throw new InvalidLinkException("No route for {$request->getPresenterName()}:{$request->getParameter('action')}($params)");
 		}
@@ -1034,7 +1069,8 @@ abstract class Presenter extends Control implements Application\IPresenter
 		array &$args,
 		array $supplemental = [],
 		?array &$missing = null
-	): void {
+	): void
+	{
 		$i = 0;
 		$rm = new \ReflectionMethod($class, $method);
 		foreach ($rm->getParameters() as $param) {
@@ -1098,13 +1134,13 @@ abstract class Presenter extends Control implements Application\IPresenter
 	 */
 	protected function handleInvalidLink(InvalidLinkException $e): string
 	{
-		if ($this->invalidLinkMode & self::INVALID_LINK_EXCEPTION) {
+		if ($this->invalidLinkMode & self::InvalidLinkException) {
 			throw $e;
-		} elseif ($this->invalidLinkMode & self::INVALID_LINK_WARNING) {
+		} elseif ($this->invalidLinkMode & self::InvalidLinkWarning) {
 			trigger_error('Invalid link: ' . $e->getMessage(), E_USER_WARNING);
 		}
 
-		return $this->invalidLinkMode & self::INVALID_LINK_TEXTUAL
+		return $this->invalidLinkMode & self::InvalidLinkTextual
 			? '#error: ' . $e->getMessage()
 			: '#';
 	}
@@ -1143,7 +1179,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 		$request = clone $session[$key][1];
 		unset($session[$key]);
 		$params = $request->getParameters();
-		$params[self::FLASH_KEY] = $this->getFlashKey();
+		$params[self::FlashKey] = $this->getFlashKey();
 		$request->setParameters($params);
 		if ($request->isMethod('POST')) {
 			$request->setFlag(Application\Request::RESTORED, true);
@@ -1278,12 +1314,12 @@ abstract class Presenter extends Control implements Application\IPresenter
 		$selfParams = [];
 
 		$params = $this->request->getParameters();
-		if (($tmp = $this->request->getPost('_' . self::SIGNAL_KEY)) !== null) {
-			$params[self::SIGNAL_KEY] = $tmp;
+		if (($tmp = $this->request->getPost('_' . self::SignalKey)) !== null) {
+			$params[self::SignalKey] = $tmp;
 		} elseif ($this->isAjax()) {
 			$params += $this->request->getPost();
-			if (($tmp = $this->request->getPost(self::SIGNAL_KEY)) !== null) {
-				$params[self::SIGNAL_KEY] = $tmp;
+			if (($tmp = $this->request->getPost(self::SignalKey)) !== null) {
+				$params[self::SignalKey] = $tmp;
 			}
 		}
 
@@ -1298,7 +1334,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 		}
 
 		// init & validate $this->action & $this->view
-		$action = $selfParams[self::ACTION_KEY] ?? self::DEFAULT_ACTION;
+		$action = $selfParams[self::ActionKey] ?? self::DefaultAction;
 		if (!is_string($action) || !Nette\Utils\Strings::match($action, '#^[a-zA-Z0-9][a-zA-Z0-9_\x7f-\xff]*$#D')) {
 			$this->error('Action name is not valid.');
 		}
@@ -1307,8 +1343,8 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 		// init $this->signalReceiver and key 'signal' in appropriate params array
 		$this->signalReceiver = $this->getUniqueId();
-		if (isset($selfParams[self::SIGNAL_KEY])) {
-			$param = $selfParams[self::SIGNAL_KEY];
+		if (isset($selfParams[self::SignalKey])) {
+			$param = $selfParams[self::SignalKey];
 			if (!is_string($param)) {
 				$this->error('Signal name is not string.');
 			}
@@ -1316,7 +1352,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 			$pos = strrpos($param, '-');
 			if ($pos) {
 				$this->signalReceiver = substr($param, 0, $pos);
-				$this->signal = (string) substr($param, $pos + 1);
+				$this->signal = substr($param, $pos + 1);
 			} else {
 				$this->signalReceiver = $this->getUniqueId();
 				$this->signal = $param;
@@ -1348,7 +1384,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 	private function getFlashKey(): ?string
 	{
-		$flashKey = $this->getParameter(self::FLASH_KEY);
+		$flashKey = $this->getParameter(self::FlashKey);
 		return is_string($flashKey) && $flashKey !== ''
 			? $flashKey
 			: null;
@@ -1373,7 +1409,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	{
 		$flashKey = $this->getFlashKey();
 		if ($flashKey === null) {
-			$this->params[self::FLASH_KEY] = $flashKey = Nette\Utils\Random::generate(4);
+			$this->params[self::FlashKey] = $flashKey = Nette\Utils\Random::generate(4);
 		}
 
 		return $this->getSession('Nette.Application.Flash/' . $flashKey);

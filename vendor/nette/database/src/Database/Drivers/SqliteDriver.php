@@ -152,6 +152,7 @@ class SqliteDriver implements Nette\Database\Driver
 				'vendor' => (array) $row,
 			];
 		}
+
 		return $columns;
 	}
 
@@ -160,15 +161,16 @@ class SqliteDriver implements Nette\Database\Driver
 	{
 		$indexes = [];
 		foreach ($this->connection->query("PRAGMA index_list({$this->delimite($table)})") as $row) {
-			$indexes[$row['name']]['name'] = $row['name'];
-			$indexes[$row['name']]['unique'] = (bool) $row['unique'];
-			$indexes[$row['name']]['primary'] = false;
+			$id = $row['name'];
+			$indexes[$id]['name'] = $id;
+			$indexes[$id]['unique'] = (bool) $row['unique'];
+			$indexes[$id]['primary'] = false;
 		}
 
 		foreach ($indexes as $index => $values) {
 			$res = $this->connection->query("PRAGMA index_info({$this->delimite($index)})");
 			while ($row = $res->fetch()) {
-				$indexes[$index]['columns'][$row['seqno']] = $row['name'];
+				$indexes[$index]['columns'][] = $row['name'];
 			}
 		}
 
@@ -182,6 +184,7 @@ class SqliteDriver implements Nette\Database\Driver
 				}
 			}
 		}
+
 		if (!$indexes) { // @see http://www.sqlite.org/lang_createtable.html#rowid
 			foreach ($columns as $column) {
 				if ($column['vendor']['pk']) {
@@ -204,15 +207,13 @@ class SqliteDriver implements Nette\Database\Driver
 	{
 		$keys = [];
 		foreach ($this->connection->query("PRAGMA foreign_key_list({$this->delimite($table)})") as $row) {
-			$keys[$row['id']]['name'] = $row['id']; // foreign key name
-			$keys[$row['id']]['local'] = $row['from']; // local columns
-			$keys[$row['id']]['table'] = $row['table']; // referenced table
-			$keys[$row['id']]['foreign'] = $row['to']; // referenced columns
-
-			if ($keys[$row['id']]['foreign'][0] == null) {
-				$keys[$row['id']]['foreign'] = null;
-			}
+			$id = $row['id'];
+			$keys[$id]['name'] = $id;
+			$keys[$id]['local'] = $row['from'];
+			$keys[$id]['table'] = $row['table'];
+			$keys[$id]['foreign'] = $row['to'];
 		}
+
 		return array_values($keys);
 	}
 
@@ -231,6 +232,7 @@ class SqliteDriver implements Nette\Database\Driver
 				$types[$meta['name']] = Nette\Database\Helpers::detectType($meta['native_type']);
 			}
 		}
+
 		return $types;
 	}
 

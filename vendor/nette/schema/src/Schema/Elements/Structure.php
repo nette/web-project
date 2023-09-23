@@ -87,8 +87,8 @@ final class Structure implements Schema
 
 	public function normalize($value, Context $context)
 	{
-		if ($prevent = (is_array($value) && isset($value[Helpers::PREVENT_MERGING]))) {
-			unset($value[Helpers::PREVENT_MERGING]);
+		if ($prevent = (is_array($value) && isset($value[Helpers::PreventMerging]))) {
+			unset($value[Helpers::PreventMerging]);
 		}
 
 		$value = $this->doNormalize($value, $context);
@@ -105,18 +105,20 @@ final class Structure implements Schema
 					array_pop($context->path);
 				}
 			}
+
 			if ($prevent) {
-				$value[Helpers::PREVENT_MERGING] = true;
+				$value[Helpers::PreventMerging] = true;
 			}
 		}
+
 		return $value;
 	}
 
 
 	public function merge($value, $base)
 	{
-		if (is_array($value) && isset($value[Helpers::PREVENT_MERGING])) {
-			unset($value[Helpers::PREVENT_MERGING]);
+		if (is_array($value) && isset($value[Helpers::PreventMerging])) {
+			unset($value[Helpers::PreventMerging]);
 			$base = null;
 		}
 
@@ -135,6 +137,7 @@ final class Structure implements Schema
 					$base[$key] = $val;
 				}
 			}
+
 			return $base;
 		}
 
@@ -167,7 +170,7 @@ final class Structure implements Schema
 					$hint = Nette\Utils\ObjectHelpers::getSuggestion($keys, (string) $key);
 					$context->addError(
 						'Unexpected item %path%' . ($hint ? ", did you mean '%hint%'?" : '.'),
-						Nette\Schema\Message::UNEXPECTED_ITEM,
+						Nette\Schema\Message::UnexpectedItem,
 						['hint' => $hint]
 					)->path[] = $key;
 				}
@@ -184,6 +187,7 @@ final class Structure implements Schema
 					$value[$itemKey] = $default;
 				}
 			}
+
 			array_pop($context->path);
 		}
 

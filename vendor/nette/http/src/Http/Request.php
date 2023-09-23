@@ -63,14 +63,14 @@ class Request implements IRequest
 
 	public function __construct(
 		UrlScript $url,
-		array $post = null,
-		array $files = null,
-		array $cookies = null,
-		array $headers = null,
-		string $method = null,
-		string $remoteAddress = null,
-		string $remoteHost = null,
-		callable $rawBodyCallback = null
+		?array $post = null,
+		?array $files = null,
+		?array $cookies = null,
+		?array $headers = null,
+		?string $method = null,
+		?string $remoteAddress = null,
+		?string $remoteHost = null,
+		?callable $rawBodyCallback = null
 	) {
 		$this->url = $url;
 		$this->post = (array) $post;
@@ -113,13 +113,14 @@ class Request implements IRequest
 	 * If no key is passed, returns the entire array.
 	 * @return mixed
 	 */
-	public function getQuery(string $key = null)
+	public function getQuery(?string $key = null)
 	{
 		if (func_num_args() === 0) {
 			return $this->url->getQueryParameters();
 		} elseif (func_num_args() > 1) {
 			trigger_error(__METHOD__ . '() parameter $default is deprecated, use operator ??', E_USER_DEPRECATED);
 		}
+
 		return $this->url->getQueryParameter($key);
 	}
 
@@ -129,13 +130,14 @@ class Request implements IRequest
 	 * If no key is passed, returns the entire array.
 	 * @return mixed
 	 */
-	public function getPost(string $key = null)
+	public function getPost(?string $key = null)
 	{
 		if (func_num_args() === 0) {
 			return $this->post;
 		} elseif (func_num_args() > 1) {
 			trigger_error(__METHOD__ . '() parameter $default is deprecated, use operator ??', E_USER_DEPRECATED);
 		}
+
 		return $this->post[$key] ?? null;
 	}
 
@@ -170,6 +172,7 @@ class Request implements IRequest
 		if (func_num_args() > 1) {
 			trigger_error(__METHOD__ . '() parameter $default is deprecated, use operator ??', E_USER_DEPRECATED);
 		}
+
 		return $this->cookies[$key] ?? null;
 	}
 
@@ -212,6 +215,7 @@ class Request implements IRequest
 		if (func_num_args() > 1) {
 			trigger_error(__METHOD__ . '() parameter $default is deprecated, use operator ??', E_USER_DEPRECATED);
 		}
+
 		$header = strtolower($header);
 		return $this->headers[$header] ?? null;
 	}
@@ -228,12 +232,29 @@ class Request implements IRequest
 
 	/**
 	 * What URL did the user come from? Beware, it is not reliable at all.
+	 * @deprecated  deprecated in favor of the getOrigin()
 	 */
 	public function getReferer(): ?UrlImmutable
 	{
 		return isset($this->headers['referer'])
 			? new UrlImmutable($this->headers['referer'])
 			: null;
+	}
+
+
+	/**
+	 * What origin did the user come from? It contains scheme, hostname and port.
+	 */
+	public function getOrigin(): ?UrlImmutable
+	{
+		$header = $this->headers['origin'] ?? 'null';
+		try {
+			return $header === 'null'
+				? null
+				: new UrlImmutable($header);
+		} catch (Nette\InvalidArgumentException $e) {
+			return null;
+		}
 	}
 
 
@@ -251,7 +272,7 @@ class Request implements IRequest
 	 */
 	public function isSameSite(): bool
 	{
-		return isset($this->cookies[Helpers::STRICT_COOKIE_NAME]);
+		return isset($this->cookies[Helpers::StrictCookieName]);
 	}
 
 
@@ -281,6 +302,7 @@ class Request implements IRequest
 		if ($this->remoteHost === null && $this->remoteAddress !== null) {
 			$this->remoteHost = gethostbyaddr($this->remoteAddress);
 		}
+
 		return $this->remoteHost;
 	}
 
@@ -291,6 +313,25 @@ class Request implements IRequest
 	public function getRawBody(): ?string
 	{
 		return $this->rawBodyCallback ? ($this->rawBodyCallback)() : null;
+	}
+
+
+	/**
+	 * Returns basic HTTP authentication credentials.
+	 * @return array{string, string}|null
+	 */
+	public function getBasicCredentials(): ?array
+	{
+		return preg_match(
+			'~^Basic (\S+)$~',
+			$this->headers['authorization'] ?? '',
+			$t
+		)
+			&& ($t = base64_decode($t[1], true))
+			&& ($t = explode(':', $t, 2))
+			&& (count($t) === 2)
+			? $t
+			: null;
 	}
 
 

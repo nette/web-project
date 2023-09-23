@@ -15,16 +15,16 @@
 		}
 	],
 	"require": {
-		"php": ">=7.1 <8.2",
+		"php": "8.0 - 8.3",
 		"ext-json": "*",
 		"ext-tokenizer": "*"
 	},
 	"require-dev": {
-		"nette/tester": "~2.0",
+		"nette/tester": "^2.0",
 		"tracy/tracy": "^2.3",
 		"nette/utils": "^3.0",
-		"phpstan/phpstan": "^0.12",
-		"nette/php-generator": "^3.3.4"
+		"phpstan/phpstan": "^1",
+		"nette/php-generator": "^3.6 || ^4.0"
 	},
 	"suggest": {
 		"ext-iconv": "to use filters |reverse, |substring",
@@ -34,7 +34,8 @@
 		"nette/php-generator": "to use tag {templatePrint}"
 	},
 	"conflict": {
-		"nette/application": "<2.4.1"
+		"nette/application": "<3.1.7",
+		"nette/caching": "<3.1.4"
 	},
 	"autoload": {
 		"classmap": ["src/"]
@@ -47,7 +48,7 @@
 	},
 	"extra": {
 		"branch-alias": {
-			"dev-master": "2.10-dev"
+			"dev-master": "3.0-dev"
 		}
 	}
 }

@@ -9,64 +9,55 @@ declare(strict_types=1);
 
 namespace Nette\Neon\Node;
 
+use Nette\Neon\Exception;
 use Nette\Neon\Node;
 
 
 /** @internal */
 final class LiteralNode extends Node
 {
-	private const SIMPLE_TYPES = [
-		'true' => true, 'True' => true, 'TRUE' => true, 'yes' => true, 'Yes' => true, 'YES' => true, 'on' => true, 'On' => true, 'ON' => true,
-		'false' => false, 'False' => false, 'FALSE' => false, 'no' => false, 'No' => false, 'NO' => false, 'off' => false, 'Off' => false, 'OFF' => false,
+	private const SimpleTypes = [
+		'true' => true, 'True' => true, 'TRUE' => true, 'yes' => true, 'Yes' => true, 'YES' => true,
+		'false' => false, 'False' => false, 'FALSE' => false, 'no' => false, 'No' => false, 'NO' => false,
 		'null' => null, 'Null' => null, 'NULL' => null,
 	];
 
-	private const DEPRECATED_TYPES = ['on' => 1, 'On' => 1, 'ON' => 1, 'off' => 1, 'Off' => 1, 'OFF' => 1];
-
-	private const PATTERN_DATETIME = '#\d\d\d\d-\d\d?-\d\d?(?:(?:[Tt]| ++)\d\d?:\d\d:\d\d(?:\.\d*+)? *+(?:Z|[-+]\d\d?(?::?\d\d)?)?)?$#DA';
-	private const PATTERN_HEX = '#0x[0-9a-fA-F]++$#DA';
-	private const PATTERN_OCTAL = '#0o[0-7]++$#DA';
-	private const PATTERN_BINARY = '#0b[0-1]++$#DA';
-
-	/** @var mixed */
-	public $value;
+	private const PatternDatetime = '#\d\d\d\d-\d\d?-\d\d?(?:(?:[Tt]| ++)\d\d?:\d\d:\d\d(?:\.\d*+)? *+(?:Z|[-+]\d\d?(?::?\d\d)?)?)?$#DA';
+	private const PatternHex = '#0x[0-9a-fA-F]++$#DA';
+	private const PatternOctal = '#0o[0-7]++$#DA';
+	private const PatternBinary = '#0b[0-1]++$#DA';
 
 
-	public function __construct($value, int $pos = null)
-	{
-		$this->value = $value;
-		$this->startPos = $this->endPos = $pos;
+	public function __construct(
+		public mixed $value,
+	) {
 	}
 
 
-	public function toValue()
+	public function toValue(): mixed
 	{
 		return $this->value;
 	}
 
 
-	/** @return mixed */
-	public static function parse(string $value, bool $isKey = false)
+	public static function parse(string $value, bool $isKey = false): mixed
 	{
-		if (!$isKey && array_key_exists($value, self::SIMPLE_TYPES)) {
-			if (isset(self::DEPRECATED_TYPES[$value])) {
-				trigger_error("Neon: keyword '$value' is deprecated, use true/yes or false/no.", E_USER_DEPRECATED);
-			}
-			return self::SIMPLE_TYPES[$value];
+		if (!$isKey && array_key_exists($value, self::SimpleTypes)) {
+			return self::SimpleTypes[$value];
 
 		} elseif (is_numeric($value)) {
 			return $value * 1;
 
-		} elseif (preg_match(self::PATTERN_HEX, $value)) {
+		} elseif (preg_match(self::PatternHex, $value)) {
 			return hexdec($value);
 
-		} elseif (preg_match(self::PATTERN_OCTAL, $value)) {
+		} elseif (preg_match(self::PatternOctal, $value)) {
 			return octdec($value);
 
-		} elseif (preg_match(self::PATTERN_BINARY, $value)) {
+		} elseif (preg_match(self::PatternBinary, $value)) {
 			return bindec($value);
 
-		} elseif (!$isKey && preg_match(self::PATTERN_DATETIME, $value)) {
+		} elseif (!$isKey && preg_match(self::PatternDatetime, $value)) {
 			return new \DateTimeImmutable($value);
 
 		} else {
@@ -84,8 +75,11 @@ final class LiteralNode extends Node
 			return $this->value;
 
 		} elseif (is_float($this->value)) {
+			if (!is_finite($this->value)) {
+				throw new Exception('INF and NAN cannot be encoded to NEON');
+			}
 			$res = json_encode($this->value);
-			return strpos($res, '.') === false ? $res . '.0' : $res;
+			return str_contains($res, '.') ? $res : $res . '.0';
 
 		} elseif (is_int($this->value) || is_bool($this->value) || $this->value === null) {
 			return json_encode($this->value);

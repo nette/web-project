@@ -16,15 +16,10 @@ use Nette\Neon\Node;
 /** @internal */
 final class EntityChainNode extends Node
 {
-	/** @var EntityNode[] */
-	public $chain = [];
-
-
-	public function __construct(array $chain = [], int $startPos = null, int $endPos = null)
-	{
-		$this->chain = $chain;
-		$this->startPos = $startPos;
-		$this->endPos = $endPos ?? $startPos;
+	public function __construct(
+		/** @var EntityNode[] */
+		public array $chain = [],
+	) {
 	}
 
 
@@ -34,22 +29,21 @@ final class EntityChainNode extends Node
 		foreach ($this->chain as $item) {
 			$entities[] = $item->toValue();
 		}
-		return new Neon\Entity(Neon\Neon::CHAIN, $entities);
+
+		return new Neon\Entity(Neon\Neon::Chain, $entities);
 	}
 
 
 	public function toString(): string
 	{
-		return implode('', array_map(function ($entity) { return $entity->toString(); }, $this->chain));
+		return implode('', array_map(fn($entity) => $entity->toString(), $this->chain));
 	}
 
 
-	public function getSubNodes(): array
+	public function &getIterator(): \Generator
 	{
-		$res = [];
 		foreach ($this->chain as &$item) {
-			$res[] = &$item;
+			yield $item;
 		}
-		return $res;
 	}
 }

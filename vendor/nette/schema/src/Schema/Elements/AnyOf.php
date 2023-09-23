@@ -32,6 +32,7 @@ final class AnyOf implements Schema
 		if (!$set) {
 			throw new Nette\InvalidStateException('The enumeration must not be empty.');
 		}
+
 		$this->set = $set;
 	}
 
@@ -68,10 +69,11 @@ final class AnyOf implements Schema
 
 	public function merge($value, $base)
 	{
-		if (is_array($value) && isset($value[Helpers::PREVENT_MERGING])) {
-			unset($value[Helpers::PREVENT_MERGING]);
+		if (is_array($value) && isset($value[Helpers::PreventMerging])) {
+			unset($value[Helpers::PreventMerging]);
 			return $value;
 		}
+
 		return Helpers::merge($value, $base);
 	}
 
@@ -88,6 +90,7 @@ final class AnyOf implements Schema
 					$context->warnings = array_merge($context->warnings, $dolly->warnings);
 					return $this->doFinalize($res, $context);
 				}
+
 				foreach ($dolly->errors as $error) {
 					if ($error->path !== $context->path || empty($error->variables['expected'])) {
 						$innerErrors[] = $error;
@@ -99,6 +102,7 @@ final class AnyOf implements Schema
 				if ($item === $value) {
 					return $this->doFinalize($value, $context);
 				}
+
 				$expecteds[] = Nette\Schema\Helpers::formatValue($item);
 			}
 		}
@@ -108,7 +112,7 @@ final class AnyOf implements Schema
 		} else {
 			$context->addError(
 				'The %label% %path% expects to be %expected%, %value% given.',
-				Nette\Schema\Message::TYPE_MISMATCH,
+				Nette\Schema\Message::TypeMismatch,
 				[
 					'value' => $value,
 					'expected' => implode('|', array_unique($expecteds)),
@@ -123,13 +127,15 @@ final class AnyOf implements Schema
 		if ($this->required) {
 			$context->addError(
 				'The mandatory item %path% is missing.',
-				Nette\Schema\Message::MISSING_ITEM
+				Nette\Schema\Message::MissingItem
 			);
 			return null;
 		}
+
 		if ($this->default instanceof Schema) {
 			return $this->default->completeDefault($context);
 		}
+
 		return $this->default;
 	}
 }

@@ -15,20 +15,14 @@ use Nette\Neon\Node;
 /** @internal */
 final class ArrayItemNode extends Node
 {
-	/** @var ?Node */
-	public $key;
-
-	/** @var Node */
-	public $value;
+	public ?Node $key = null;
+	public Node $value;
 
 
-	public function __construct(int $pos = null)
-	{
-		$this->startPos = $this->endPos = $pos;
-	}
-
-
-	/** @param  self[]  $items */
+	/**
+	 * @param  self[]  $items
+	 * @return mixed[]
+	 */
 	public static function itemsToArray(array $items): array
 	{
 		$res = [];
@@ -39,6 +33,7 @@ final class ArrayItemNode extends Node
 				$res[(string) $item->key->toValue()] = $item->value->toValue();
 			}
 		}
+
 		return $res;
 	}
 
@@ -52,6 +47,7 @@ final class ArrayItemNode extends Node
 				. ($item->key ? $item->key->toString() . ': ' : '')
 				. $item->value->toString();
 		}
+
 		return $res;
 	}
 
@@ -67,11 +63,12 @@ final class ArrayItemNode extends Node
 					? "\n" . $v . (substr($v, -2, 1) === "\n" ? '' : "\n")
 					: ' ' . $v . "\n");
 		}
+
 		return $res;
 	}
 
 
-	public function toValue()
+	public function toValue(): mixed
 	{
 		throw new \LogicException;
 	}
@@ -83,8 +80,11 @@ final class ArrayItemNode extends Node
 	}
 
 
-	public function getSubNodes(): array
+	public function &getIterator(): \Generator
 	{
-		return $this->key ? [&$this->key, &$this->value] : [&$this->value];
+		if ($this->key) {
+			yield $this->key;
+		}
+		yield $this->value;
 	}
 }

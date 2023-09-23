@@ -90,7 +90,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 		Explorer $explorer,
 		Conventions $conventions,
 		string $tableName,
-		Nette\Caching\IStorage $cacheStorage = null
+		?Nette\Caching\IStorage $cacheStorage = null
 	) {
 		$this->explorer = $this->context = $explorer;
 		$this->conventions = $conventions;
@@ -131,6 +131,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 		if ($this->primary === null && $throw) {
 			throw new \LogicException("Table '{$this->name}' does not have a primary key.");
 		}
+
 		return $this->primary;
 	}
 
@@ -219,7 +220,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 	 * @return mixed
 	 * @deprecated
 	 */
-	public function fetchField(string $column = null)
+	public function fetchField(?string $column = null)
 	{
 		if ($column) {
 			$this->select($column);
@@ -360,13 +361,14 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 	 * More calls appends with AND.
 	 * @param  array  $parameters ['column1' => 1, 'column2 > ?' => 2, 'full condition']
 	 * @return static
-	 * @throws \Nette\InvalidArgumentException
+	 * @throws Nette\InvalidArgumentException
 	 */
 	public function whereOr(array $parameters)
 	{
 		if (count($parameters) < 2) {
 			return $this->where($parameters);
 		}
+
 		$columns = [];
 		$values = [];
 		foreach ($parameters as $key => $val) {
@@ -380,10 +382,12 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 				if ($qNumber > 1 && (!is_array($val) || $qNumber !== count($val))) {
 					throw new Nette\InvalidArgumentException('Argument count does not match placeholder count.');
 				}
+
 				$columns[] = $key;
 				$values = array_merge($values, $qNumber > 1 ? $val : [$val]);
 			}
 		}
+
 		$columnsString = '(' . implode(') OR (', $columns) . ')';
 		return $this->where($columnsString, $values);
 	}
@@ -406,7 +410,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 	 * Sets limit clause, more calls rewrite old values.
 	 * @return static
 	 */
-	public function limit(?int $limit, int $offset = null)
+	public function limit(?int $limit, ?int $offset = null)
 	{
 		$this->emptyResultSet();
 		$this->sqlBuilder->setLimit($limit, $offset);
@@ -423,9 +427,11 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 		if (func_num_args() > 2) {
 			$numOfPages = (int) ceil($this->count('*') / $itemsPerPage);
 		}
+
 		if ($page < 1) {
 			$itemsPerPage = 0;
 		}
+
 		return $this->limit($itemsPerPage, ($page - 1) * $itemsPerPage);
 	}
 
@@ -473,7 +479,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 	 * @param  string  $function  select call in "FUNCTION(column)" format
 	 * @return mixed
 	 */
-	public function aggregation(string $function, string $groupFunction = null)
+	public function aggregation(string $function, ?string $groupFunction = null)
 	{
 		$selection = $this->createSelectionInstance();
 		$selection->getSqlBuilder()->importConditions($this->getSqlBuilder());
@@ -494,12 +500,13 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 	 * Counts number of rows.
 	 * @param  string  $column  if it is not provided returns count of result rows, otherwise runs new sql counting query
 	 */
-	public function count(string $column = null): int
+	public function count(?string $column = null): int
 	{
 		if (!$column) {
 			$this->execute();
 			return count($this->data);
 		}
+
 		return (int) $this->aggregation("COUNT($column)", 'SUM');
 	}
 
@@ -570,6 +577,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 			$usedPrimary = $usedPrimary && $primary !== '';
 			$this->rows[$usedPrimary ? $primary : $key] = $row;
 		}
+
 		$this->data = $this->rows;
 
 		if ($usedPrimary && $this->accessedColumns !== false) {
@@ -586,7 +594,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 	}
 
 
-	public function createSelectionInstance(string $table = null): self
+	public function createSelectionInstance(?string $table = null): self
 	{
 		return new self($this->explorer, $this->conventions, $table ?: $this->name, $this->cache ? $this->cache->getStorage() : null);
 	}
@@ -769,6 +777,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 				}
 			}
 		}
+
 		return $this->dataRefreshed;
 	}
 
@@ -814,6 +823,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 			if ($data instanceof \Traversable) {
 				$data = iterator_to_array($data);
 			}
+
 			$return = $this->explorer->query($this->sqlBuilder->buildInsertQuery() . ' ?values', $data);
 		}
 
@@ -847,7 +857,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 				}
 			}
 
-			// Primary without autoincrement, try get primary from inserting data
+		// Primary without autoincrement, try get primary from inserting data
 		} elseif ($this->primary && isset($data[$this->primary])) {
 			$primaryKey = $data[$this->primary];
 
@@ -918,15 +928,17 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 	 * Returns referenced row.
 	 * @return ActiveRow|false|null  null if the row does not exist, false if the relationship does not exist
 	 */
-	public function getReferencedTable(ActiveRow $row, ?string $table, string $column = null)
+	public function getReferencedTable(ActiveRow $row, ?string $table, ?string $column = null)
 	{
 		if (!$column) {
 			$belongsTo = $this->conventions->getBelongsToReference($this->name, $table);
 			if (!$belongsTo) {
 				return false;
 			}
+
 			[$table, $column] = $belongsTo;
 		}
+
 		if (!$row->accessColumn($column)) {
 			return false;
 		}
@@ -964,7 +976,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 	 * Returns referencing rows.
 	 * @param  int|string  $active  primary key
 	 */
-	public function getReferencingTable(string $table, string $column = null, $active = null): ?GroupedSelection
+	public function getReferencingTable(string $table, ?string $column = null, $active = null): ?GroupedSelection
 	{
 		if (strpos($table, '.') !== false) {
 			[$table, $column] = explode('.', $table);
@@ -973,6 +985,7 @@ class Selection implements \Iterator, IRowContainer, \ArrayAccess, \Countable
 			if (!$hasMany) {
 				return null;
 			}
+
 			[$table, $column] = $hasMany;
 		}
 

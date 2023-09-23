@@ -16,7 +16,7 @@ use Nette\Utils\Html;
 
 
 /**
- * Runtime helpers for Latte.
+ * Runtime helpers for Latte v2 & v3.
  * @internal
  */
 class Runtime
@@ -32,12 +32,14 @@ class Runtime
 		foreach ($form->getControls() as $control) {
 			$control->setOption('rendered', false);
 		}
+
 		$el = $form->getElementPrototype();
 		$el->action = (string) $el->action;
 		$el = clone $el;
 		if ($form->isMethod('get')) {
 			$el->action = preg_replace('~\?[^#]*~', '', $el->action, 1);
 		}
+
 		$el->addAttributes($attrs);
 		return $withTags ? $el->startTag() : $el->attributes();
 	}
@@ -77,9 +79,11 @@ class Runtime
 	/**
 	 * Generates blueprint of form.
 	 */
-	public static function renderBlueprint(Form $form): void
+	public static function renderFormPrint(Form $form): void
 	{
-		$blueprint = new Latte\Runtime\Blueprint;
+		$blueprint = class_exists(Latte\Runtime\Blueprint::class)
+			? new Latte\Runtime\Blueprint
+			: new Latte\Essential\Blueprint;
 		$end = $blueprint->printCanvas();
 		$blueprint->printHeader('Form ' . $form->getName());
 		$blueprint->printCode((new Nette\Forms\Rendering\LatteRenderer)->render($form), 'latte');
@@ -92,7 +96,9 @@ class Runtime
 	 */
 	public static function renderFormClassPrint(Form $form): void
 	{
-		$blueprint = new Latte\Runtime\Blueprint;
+		$blueprint = class_exists(Latte\Runtime\Blueprint::class)
+			? new Latte\Runtime\Blueprint
+			: new Latte\Essential\Blueprint;
 		$end = $blueprint->printCanvas();
 		$blueprint->printHeader('Form Data Class ' . $form->getName());
 		$generator = new Nette\Forms\Rendering\DataClassGenerator;
@@ -101,6 +107,20 @@ class Runtime
 			$generator->propertyPromotion = true;
 			$blueprint->printCode($generator->generateCode($form));
 		}
+
 		echo $end;
+	}
+
+
+	public static function item($item, $global): object
+	{
+		if (is_object($item)) {
+			return $item;
+		}
+		$form = end($global->formsStack);
+		if (!$form) {
+			throw new \LogicException('Form declaration is missing, did you use {form} or <form n:name> tag?');
+		}
+		return $form[$item];
 	}
 }

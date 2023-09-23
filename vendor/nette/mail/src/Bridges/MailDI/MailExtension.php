@@ -24,22 +24,22 @@ class MailExtension extends Nette\DI\CompilerExtension
 			'smtp' => Expect::bool(false),
 			'host' => Expect::string()->dynamic(),
 			'port' => Expect::int()->dynamic(),
-			'username' => Expect::string()->dynamic(),
-			'password' => Expect::string()->dynamic(),
-			'secure' => Expect::anyOf(null, 'ssl', 'tls')->dynamic(),
-			'timeout' => Expect::int()->dynamic(),
+			'username' => Expect::string('')->dynamic(),
+			'password' => Expect::string('')->dynamic(),
+			'secure' => Expect::anyOf(null, 'ssl', 'tls')->dynamic(), // deprecated
+			'encryption' => Expect::anyOf(null, 'ssl', 'tls')->dynamic(),
+			'timeout' => Expect::int(20)->dynamic(),
 			'context' => Expect::arrayOf('array')->dynamic(),
 			'clientHost' => Expect::string()->dynamic(),
 			'persistent' => Expect::bool(false)->dynamic(),
 			'dkim' => Expect::anyOf(
 				Expect::null(),
 				Expect::structure([
-					'domain' => Expect::string()->dynamic(),
-					'selector' => Expect::string()->dynamic(),
+					'domain' => Expect::string()->required()->dynamic(),
+					'selector' => Expect::string()->required()->dynamic(),
 					'privateKey' => Expect::string()->required(),
 					'passPhrase' => Expect::string()->dynamic(),
-					'testMode' => Expect::bool(false)->dynamic(),
-				])->castTo('array')
+				])->castTo('array'),
 			),
 		])->castTo('array');
 	}
@@ -59,13 +59,24 @@ class MailExtension extends Nette\DI\CompilerExtension
 
 			$signer = $builder->addDefinition($this->prefix('signer'))
 				->setType(Nette\Mail\Signer::class)
-				->setFactory(Nette\Mail\DkimSigner::class, [$dkim]);
+				->setFactory(Nette\Mail\DkimSigner::class, $dkim);
 
 			$mailer->addSetup('setSigner', [$signer]);
 		}
 
 		if ($this->config['smtp']) {
-			$mailer->setFactory(Nette\Mail\SmtpMailer::class, [$this->config]);
+			$mailer->setFactory(Nette\Mail\SmtpMailer::class, [
+				'host' => $this->config['host'] ?? ini_get('SMTP'),
+				'port' => isset($this->config['host']) ? $this->config['port'] : (int) ini_get('smtp_port'),
+				'username' => $this->config['username'],
+				'password' => $this->config['password'],
+				'encryption' => $this->config['encryption'] ?? $this->config['secure'],
+				'persistent' => $this->config['persistent'],
+				'timeout' => $this->config['timeout'],
+				'clientHost' => $this->config['clientHost'],
+				'streamOptions' => $this->config['context'] ?: null,
+			]);
+
 		} else {
 			$mailer->setFactory(Nette\Mail\SendmailMailer::class);
 		}

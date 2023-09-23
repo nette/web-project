@@ -37,7 +37,7 @@ Install via Composer:
 composer require nette/neon
 ```
 
-It requires PHP version 7.1 and supports PHP up to 8.1. Documentation can be found on the [website](https://doc.nette.org/neon).
+It requires PHP version 8.0 up to 8.3. Documentation can be found on the [website](https://doc.nette.org/neon).
 
 `Neon::encode()` returns `$value` converted to NEON. As the second parameter `$blockMode` you can pass true, which will create multiline output. The third parameter `$indentation` specifies the characters used for indentation (default is tab).
 
@@ -362,7 +362,7 @@ Which is parsed in PHP as follows:
 
 ```php
 // PHP
-new Nette\Neon\Entity(Nette\Neon\Neon::CHAIN, [
+new Nette\Neon\Entity(Nette\Neon\Neon::Chain, [
 	new Nette\Neon\Entity('Column', ['type' => 'int', 'nulls' => true]),
 	new Nette\Neon\Entity('Field', ['id' => 1]),
 ])

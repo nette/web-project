@@ -51,6 +51,7 @@ class ControlGroup
 				throw new Nette\InvalidArgumentException("Control or Container items expected, $type given.");
 			}
 		}
+
 		return $this;
 	}
 
@@ -97,6 +98,7 @@ class ControlGroup
 		} else {
 			$this->options[$key] = $value;
 		}
+
 		return $this;
 	}
 
@@ -105,9 +107,12 @@ class ControlGroup
 	 * Returns user-specific option.
 	 * @return mixed
 	 */
-	public function getOption(string $key, $default = null)
+	public function getOption(string $key)
 	{
-		return $this->options[$key] ?? $default;
+		if (func_num_args() > 1) {
+			$default = func_get_arg(1);
+		}
+		return $this->options[$key] ?? $default ?? null;
 	}
 
 

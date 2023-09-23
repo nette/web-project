@@ -18,7 +18,8 @@ use Nette\Application\UI\Presenter;
  */
 class CsrfProtection extends HiddenField
 {
-	public const PROTECTION = 'Nette\Forms\Controls\CsrfProtection::validateCsrf';
+	public const Protection = 'Nette\Forms\Controls\CsrfProtection::validateCsrf';
+	public const PROTECTION = self::Protection;
 
 	/** @var Nette\Http\Session|null */
 	public $session;
@@ -32,7 +33,7 @@ class CsrfProtection extends HiddenField
 		parent::__construct();
 		$this->setOmitted()
 			->setRequired()
-			->addRule(self::PROTECTION, $errorMessage);
+			->addRule(self::Protection, $errorMessage);
 
 		$this->monitor(Presenter::class, function (Presenter $presenter): void {
 			if (!$this->session) {
@@ -62,7 +63,7 @@ class CsrfProtection extends HiddenField
 
 	public function loadHttpData(): void
 	{
-		$this->value = $this->getHttpData(Nette\Forms\Form::DATA_TEXT);
+		$this->value = $this->getHttpData(Nette\Forms\Form::DataText);
 	}
 
 
@@ -71,19 +72,22 @@ class CsrfProtection extends HiddenField
 		if (!$this->session) {
 			throw new Nette\InvalidStateException('Session initialization error');
 		}
+
 		$session = $this->session->getSection(self::class);
 		if (!isset($session->token)) {
 			$session->token = Nette\Utils\Random::generate();
 		}
+
 		return $session->token ^ $this->session->getId();
 	}
 
 
-	private function generateToken(string $random = null): string
+	private function generateToken(?string $random = null): string
 	{
 		if ($random === null) {
 			$random = Nette\Utils\Random::generate(10);
 		}
+
 		return $random . base64_encode(sha1($this->getToken() . $random, true));
 	}
 

@@ -40,9 +40,9 @@ class HttpExtension extends Nette\DI\CompilerExtension
 			'csp' => Expect::arrayOf('array|scalar|null'), // Content-Security-Policy
 			'cspReportOnly' => Expect::arrayOf('array|scalar|null'), // Content-Security-Policy-Report-Only
 			'featurePolicy' => Expect::arrayOf('array|scalar|null'), // Feature-Policy
-			'cookiePath' => Expect::string(),
-			'cookieDomain' => Expect::string(),
-			'cookieSecure' => Expect::anyOf('auto', null, true, false)->firstIsDefault(), // Whether the cookie is available only through HTTPS
+			'cookiePath' => Expect::string()->dynamic(),
+			'cookieDomain' => Expect::string()->dynamic(),
+			'cookieSecure' => Expect::anyOf('auto', null, true, false)->firstIsDefault()->dynamic(), // Whether the cookie is available only through HTTPS
 			'disableNetteCookie' => Expect::bool(false), // disables cookie use by Nette
 		]);
 	}
@@ -105,6 +105,7 @@ class HttpExtension extends Nette\DI\CompilerExtension
 			} elseif (preg_match('#^https?:#', $frames)) {
 				$frames = "ALLOW-FROM $frames";
 			}
+
 			$headers['X-Frame-Options'] = $frames;
 		}
 
@@ -112,6 +113,7 @@ class HttpExtension extends Nette\DI\CompilerExtension
 			if (empty($config->$key)) {
 				continue;
 			}
+
 			$value = self::buildPolicy($config->$key);
 			if (strpos($value, "'nonce'")) {
 				$this->initialization->addBody('$cspNonce = base64_encode(random_bytes(16));');
@@ -120,6 +122,7 @@ class HttpExtension extends Nette\DI\CompilerExtension
 					["'nonce", "'nonce-", $value]
 				);
 			}
+
 			$headers['Content-Security-Policy' . ($key === 'csp' ? '' : '-Report-Only')] = $value;
 		}
 
@@ -145,24 +148,28 @@ class HttpExtension extends Nette\DI\CompilerExtension
 
 	private static function buildPolicy(array $config): string
 	{
-		static $nonQuoted = ['require-sri-for' => 1, 'sandbox' => 1];
+		$nonQuoted = ['require-sri-for' => 1, 'sandbox' => 1];
 		$value = '';
 		foreach ($config as $type => $policy) {
 			if ($policy === false) {
 				continue;
 			}
+
 			$policy = $policy === true ? [] : (array) $policy;
 			$value .= $type;
 			foreach ($policy as $item) {
 				if (is_array($item)) {
 					$item = key($item) . ':';
 				}
+
 				$value .= !isset($nonQuoted[$type]) && preg_match('#^[a-z-]+$#D', $item)
 					? " '$item'"
 					: " $item";
 			}
+
 			$value .= '; ';
 		}
+
 		return $value;
 	}
 }

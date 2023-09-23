@@ -89,9 +89,11 @@ class PgSqlDriver implements Nette\Database\Driver
 		if ($limit < 0 || $offset < 0) {
 			throw new Nette\InvalidArgumentException('Negative offset or limit.');
 		}
+
 		if ($limit !== null) {
 			$sql .= ' LIMIT ' . $limit;
 		}
+
 		if ($offset) {
 			$sql .= ' OFFSET ' . $offset;
 		}
@@ -113,7 +115,7 @@ class PgSqlDriver implements Nette\Database\Driver
 				pg_catalog.pg_class AS c
 				JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
 			WHERE
-				c.relkind IN ('r', 'v', 'm')
+				c.relkind IN ('r', 'v', 'm', 'p')
 				AND n.nspname = ANY (pg_catalog.current_schemas(FALSE))
 			ORDER BY
 				c.relname
@@ -148,7 +150,7 @@ class PgSqlDriver implements Nette\Database\Driver
 				LEFT JOIN pg_catalog.pg_attrdef AS ad ON ad.adrelid = c.oid AND ad.adnum = a.attnum
 				LEFT JOIN pg_catalog.pg_constraint AS co ON co.connamespace = c.relnamespace AND contype = 'p' AND co.conrelid = c.oid AND a.attnum = ANY(co.conkey)
 			WHERE
-				c.relkind IN ('r', 'v')
+				c.relkind IN ('r', 'v', 'm', 'p')
 				AND c.oid = {$this->connection->quote($this->delimiteFQN($table))}::regclass
 				AND a.attnum > 0
 				AND NOT a.attisdropped
@@ -181,13 +183,14 @@ class PgSqlDriver implements Nette\Database\Driver
 				JOIN pg_catalog.pg_class AS c2 ON i.indexrelid = c2.oid
 				LEFT JOIN pg_catalog.pg_attribute AS a ON c1.oid = a.attrelid AND a.attnum = ANY(i.indkey)
 			WHERE
-				c1.relkind = 'r'
+				c1.relkind IN ('r', 'p')
 				AND c1.oid = {$this->connection->quote($this->delimiteFQN($table))}::regclass
 		") as $row) {
-			$indexes[$row['name']]['name'] = $row['name'];
-			$indexes[$row['name']]['unique'] = $row['unique'];
-			$indexes[$row['name']]['primary'] = $row['primary'];
-			$indexes[$row['name']]['columns'][] = $row['column'];
+			$id = $row['name'];
+			$indexes[$id]['name'] = $id;
+			$indexes[$id]['unique'] = $row['unique'];
+			$indexes[$id]['primary'] = $row['primary'];
+			$indexes[$id]['columns'][] = $row['column'];
 		}
 
 		return array_values($indexes);
@@ -225,6 +228,7 @@ class PgSqlDriver implements Nette\Database\Driver
 		if ($item === null) {
 			$item = Nette\Database\Helpers::detectTypes($statement);
 		}
+
 		return $item;
 	}
 

@@ -11,6 +11,7 @@ namespace Nette\Bridges\DatabaseDI;
 
 use Nette;
 use Nette\Schema\Expect;
+use Tracy;
 
 
 /**
@@ -66,9 +67,12 @@ class DatabaseExtension extends Nette\DI\CompilerExtension
 		$builder = $this->getContainerBuilder();
 
 		foreach ($this->config as $name => $config) {
-			if ($config->debugger ?? $builder->getByType(\Tracy\BlueScreen::class)) {
+			if ($config->debugger ?? $builder->getByType(Tracy\BlueScreen::class)) {
 				$connection = $builder->getDefinition($this->prefix("$name.connection"));
-				$connection->addSetup([Nette\Database\Helpers::class, 'initializeTracy'], [$connection, $this->debugMode, $name, !empty($config->explain)]);
+				$connection->addSetup(
+					[Nette\Bridges\DatabaseTracy\ConnectionPanel::class, 'initialize'],
+					[$connection, $this->debugMode, $name, !empty($config->explain)]
+				);
 			}
 		}
 	}
@@ -82,6 +86,7 @@ class DatabaseExtension extends Nette\DI\CompilerExtension
 			if (is_string($value) && preg_match('#^PDO::\w+$#D', $value)) {
 				$config->options[$key] = $value = constant($value);
 			}
+
 			if (preg_match('#^PDO::\w+$#D', $key)) {
 				unset($config->options[$key]);
 				$config->options[constant($key)] = $value;
@@ -122,14 +127,16 @@ class DatabaseExtension extends Nette\DI\CompilerExtension
 			$conventions = Nette\DI\Helpers::filterArguments([$config->conventions])[0];
 		}
 
-		$builder->addDefinition($this->prefix("$name.context"))
+		$builder->addDefinition($this->prefix("$name.explorer"))
 			->setFactory(Nette\Database\Explorer::class, [$connection, $structure, $conventions])
 			->setAutowired($config->autowired);
+
+		$builder->addAlias($this->prefix("$name.context"), $this->prefix("$name.explorer"));
 
 		if ($this->name === 'database') {
 			$builder->addAlias($this->prefix($name), $this->prefix("$name.connection"));
 			$builder->addAlias("nette.database.$name", $this->prefix($name));
-			$builder->addAlias("nette.database.$name.context", $this->prefix("$name.context"));
+			$builder->addAlias("nette.database.$name.context", $this->prefix("$name.explorer"));
 		}
 	}
 }

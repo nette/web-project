@@ -10,26 +10,26 @@ declare(strict_types=1);
 namespace Nette\Neon;
 
 
-/** @internal */
-abstract class Node
+/**
+ * @implements \IteratorAggregate<Node>
+ */
+abstract class Node implements \IteratorAggregate
 {
-	/** @var ?int */
-	public $startPos;
+	public ?int $startTokenPos = null;
+	public ?int $endTokenPos = null;
+	public ?int $startLine = null;
+	public ?int $endLine = null;
 
-	/** @var ?int */
-	public $endPos;
 
-
-	/** @return mixed */
-	abstract public function toValue();
+	abstract public function toValue(): mixed;
 
 
 	abstract public function toString(): string;
 
 
-	/** @return self[] */
-	public function getSubNodes(): array
+	public function &getIterator(): \Generator
 	{
-		return [];
+		return;
+		yield;
 	}
 }

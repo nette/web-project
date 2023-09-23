@@ -17,17 +17,10 @@ use Tester\Helpers;
  */
 class PhpInterpreter
 {
-	/** @var string */
-	private $commandLine;
-
-	/** @var bool is CGI? */
-	private $cgi;
-
-	/** @var \stdClass  created by info.php */
-	private $info;
-
-	/** @var string */
-	private $error;
+	private string $commandLine;
+	private bool $cgi;
+	private \stdClass $info;
+	private string $error;
 
 
 	public function __construct(string $path, array $args = [])
@@ -44,14 +37,16 @@ class PhpInterpreter
 		if ($proc === false) {
 			throw new \Exception("Cannot run PHP interpreter $path. Use -p option.");
 		}
+
 		fclose($pipes[0]);
 		$output = stream_get_contents($pipes[1]);
 		proc_close($proc);
 
 		$args = ' ' . implode(' ', array_map([Helpers::class, 'escapeArg'], $args));
-		if (strpos($output, 'phpdbg') !== false) {
+		if (str_contains($output, 'phpdbg')) {
 			$args = ' -qrrb -S cli' . $args;
 		}
+
 		$this->commandLine .= rtrim($args);
 
 		$proc = proc_open(
@@ -75,9 +70,6 @@ class PhpInterpreter
 		if (!$this->info) {
 			throw new \Exception("Unable to detect PHP version (output: $output).");
 
-		} elseif ($this->info->phpDbgVersion && version_compare($this->info->version, '7.0.0', '<')) {
-			throw new \Exception('Unable to use phpdbg on PHP < 7.0.0.');
-
 		} elseif ($this->cgi && $this->error) {
 			$this->error .= "\n(note that PHP CLI generates better error messages)";
 		}
@@ -87,7 +79,7 @@ class PhpInterpreter
 	/**
 	 * @return static
 	 */
-	public function withPhpIniOption(string $name, string $value = null): self
+	public function withPhpIniOption(string $name, ?string $value = null): self
 	{
 		$me = clone $this;
 		$me->commandLine .= ' -d ' . Helpers::escapeArg($name . ($value === null ? '' : "=$value"));

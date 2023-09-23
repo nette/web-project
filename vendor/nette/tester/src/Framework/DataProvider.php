@@ -26,16 +26,13 @@ class DataProvider
 		}
 
 		if (pathinfo($file, PATHINFO_EXTENSION) === 'php') {
-			$data = (function () {
-				return require func_get_arg(0);
-			})(realpath($file));
+			$data = (fn() => require func_get_arg(0))(realpath($file));
 
 			if ($data instanceof \Traversable) {
 				$data = iterator_to_array($data);
 			} elseif (!is_array($data)) {
 				throw new \Exception("Data provider '$file' did not return array or Traversable.");
 			}
-
 		} else {
 			$data = @parse_ini_file($file, true); // @ is escalated to exception
 			if ($data === false) {
@@ -55,7 +52,7 @@ class DataProvider
 
 	public static function testQuery(string $input, string $query): bool
 	{
-		static $replaces = ['' => '=', '=>' => '>=', '=<' => '<='];
+		$replaces = ['' => '=', '=>' => '>=', '=<' => '<='];
 		$tokens = preg_split('#\s+#', $input);
 		preg_match_all('#\s*,?\s*(<=|=<|<|==|=|!=|<>|>=|=>|>)?\s*([^\s,]+)#A', $query, $queryParts, PREG_SET_ORDER);
 		foreach ($queryParts as [, $operator, $operand]) {
@@ -68,32 +65,22 @@ class DataProvider
 				return false;
 			}
 		}
+
 		return true;
 	}
 
 
-	private static function compare($l, string $operator, $r): bool
+	private static function compare(mixed $l, string $operator, mixed $r): bool
 	{
-		switch ($operator) {
-			case '>':
-				return $l > $r;
-			case '=>':
-			case '>=':
-				return $l >= $r;
-			case '<':
-				return $l < $r;
-			case '=<':
-			case '<=':
-				return $l <= $r;
-			case '=':
-			case '==':
-				return $l == $r;
-			case '!':
-			case '!=':
-			case '<>':
-				return $l != $r;
-		}
-		throw new \InvalidArgumentException("Unknown operator $operator.");
+		return match ($operator) {
+			'>' => $l > $r,
+			'>=', '=>' => $l >= $r,
+			'<' => $l < $r,
+			'=<', '<=' => $l <= $r,
+			'=', '==' => $l == $r,
+			'!', '!=', '<>' => $l != $r,
+			default => throw new \InvalidArgumentException("Unknown operator '$operator'"),
+		};
 	}
 
 
@@ -105,6 +92,7 @@ class DataProvider
 		if (!preg_match('#^(\??)\s*([^,\s]+)\s*,?\s*(\S.*)?()#', $annotation, $m)) {
 			throw new \Exception("Invalid @dataProvider value '$annotation'.");
 		}
+
 		return [dirname($file) . DIRECTORY_SEPARATOR . $m[2], $m[3], (bool) $m[1]];
 	}
 }

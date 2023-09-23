@@ -41,6 +41,7 @@ abstract class TextBase extends BaseControl
 		} elseif (!is_scalar($value) && !(is_object($value) && method_exists($value, '__toString'))) {
 			throw new Nette\InvalidArgumentException(sprintf("Value must be scalar or null, %s given in field '%s'.", gettype($value), $this->name));
 		}
+
 		$this->value = $value;
 		$this->rawValue = (string) $value;
 		return $this;
@@ -108,9 +109,11 @@ abstract class TextBase extends BaseControl
 		if ($this->emptyValue !== '') {
 			$el->attrs['data-nette-empty-value'] = Strings::trim($this->translate($this->emptyValue));
 		}
+
 		if (isset($el->placeholder)) {
 			$el->placeholder = $this->translate($el->placeholder);
 		}
+
 		return $el;
 	}
 
@@ -132,7 +135,7 @@ abstract class TextBase extends BaseControl
 			}
 		}
 
-		if ($validator === Form::LENGTH || $validator === Form::MAX_LENGTH) {
+		if ($validator === Form::Length || $validator === Form::MaxLength) {
 			$tmp = is_array($arg) ? $arg[1] : $arg;
 			if (is_scalar($tmp)) {
 				$this->control->maxlength = isset($this->control->maxlength)
@@ -140,6 +143,7 @@ abstract class TextBase extends BaseControl
 					: $tmp;
 			}
 		}
+
 		return parent::addRule($validator, $errorMessage, $arg);
 	}
 }

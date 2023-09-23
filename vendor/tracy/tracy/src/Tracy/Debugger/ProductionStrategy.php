@@ -40,13 +40,10 @@ final class ProductionStrategy
 				header('Content-Type: text/html; charset=UTF-8');
 			}
 
-			(function ($logged) use ($exception) {
-				require Debugger::$errorTemplate ?: __DIR__ . '/assets/error.500.phtml';
-			})(empty($e));
+			(fn($logged) => require Debugger::$errorTemplate ?: __DIR__ . '/assets/error.500.phtml')(empty($e));
 
-		} elseif (Helpers::isCli()) {
-			// @ triggers E_NOTICE when strerr is closed since PHP 7.4
-			@fwrite(STDERR, "ERROR: {$exception->getMessage()}\n"
+		} elseif (Helpers::isCli() && is_resource(STDERR)) {
+			fwrite(STDERR, "ERROR: {$exception->getMessage()}\n"
 				. (isset($e)
 					? 'Unable to log error. You may try enable debug mode to inspect the problem.'
 					: 'Check log to see more info.')
@@ -60,14 +57,13 @@ final class ProductionStrategy
 		string $message,
 		string $file,
 		int $line,
-		array $context = null
-	): void {
+	): void
+	{
 		if ($severity & Debugger::$logSeverity) {
 			$err = new ErrorException($message, 0, $severity, $file, $line);
-			$err->context = $context;
 			Helpers::improveException($err);
 		} else {
-			$err = 'PHP ' . Helpers::errorTypeToString($severity) . ': ' . Helpers::improveError($message, (array) $context) . " in $file:$line";
+			$err = 'PHP ' . Helpers::errorTypeToString($severity) . ': ' . Helpers::improveError($message) . " in $file:$line";
 		}
 
 		try {
