@@ -31,8 +31,8 @@ final class Factory
 		bool $withBodies = false,
 	): ClassLike
 	{
-		if ($withBodies && $from->isAnonymous()) {
-			throw new Nette\NotSupportedException('The $withBodies parameter cannot be used for anonymous functions.');
+		if ($withBodies && ($from->isAnonymous() || $from->isInternal())) {
+			throw new Nette\NotSupportedException('The $withBodies parameter cannot be used for anonymous or internal classes.');
 		}
 
 		$enumIface = null;
@@ -101,7 +101,7 @@ final class Factory
 				$methods[] = $m = $this->fromMethodReflection($method);
 				if ($withBodies) {
 					$bodies = &$this->bodyCache[$declaringClass->name];
-					$bodies ??= $this->getExtractor($declaringClass)->extractMethodBodies($declaringClass->name);
+					$bodies ??= $this->getExtractor($declaringClass->getFileName())->extractMethodBodies($declaringClass->name);
 					if (isset($bodies[$declaringMethod->name])) {
 						$m->setBody($bodies[$declaringMethod->name]);
 					}
@@ -177,11 +177,11 @@ final class Factory
 		$function->setReturnType((string) $from->getReturnType());
 
 		if ($withBody) {
-			if ($from->isClosure()) {
-				throw new Nette\NotSupportedException('The $withBody parameter cannot be used for closures.');
+			if ($from->isClosure() || $from->isInternal()) {
+				throw new Nette\NotSupportedException('The $withBody parameter cannot be used for closures or internal functions.');
 			}
 
-			$function->setBody($this->getExtractor($from)->extractFunctionBody($from->name));
+			$function->setBody($this->getExtractor($from->getFileName())->extractFunctionBody($from->name));
 		}
 
 		return $function;
@@ -309,16 +309,10 @@ final class Factory
 	}
 
 
-	private function getExtractor($from): Extractor
+	private function getExtractor(string $file): Extractor
 	{
-		$file = $from->getFileName();
 		$cache = &$this->extractorCache[$file];
-		if ($cache !== null) {
-			return $cache;
-		} elseif (!$file) {
-			throw new Nette\InvalidStateException("Source code of $from->name not found.");
-		}
-
-		return new Extractor(file_get_contents($file));
+		$cache ??= new Extractor(file_get_contents($file));
+		return $cache;
 	}
 }

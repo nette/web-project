@@ -23,16 +23,20 @@ class Runtime
 {
 	use Nette\StaticClass;
 
-	/**
-	 * Renders form begin.
-	 */
-	public static function renderFormBegin(Form $form, array $attrs, bool $withTags = true): string
+	public static function initializeForm(Form $form): void
 	{
 		$form->fireRenderEvents();
 		foreach ($form->getControls() as $control) {
 			$control->setOption('rendered', false);
 		}
+	}
 
+
+	/**
+	 * Renders form begin.
+	 */
+	public static function renderFormBegin(Form $form, array $attrs, bool $withTags = true): string
+	{
 		$el = $form->getElementPrototype();
 		$el->action = (string) $el->action;
 		$el = clone $el;
@@ -66,10 +70,6 @@ class Runtime
 			if ($control->getOption('type') === 'hidden' && !$control->getOption('rendered')) {
 				$s .= $control->getControl();
 			}
-		}
-
-		if (iterator_count($form->getComponents(true, Nette\Forms\Controls\TextInput::class)) < 2) {
-			$s .= "<!--[if IE]><input type=IEbug disabled style=\"display:none\"><![endif]-->\n";
 		}
 
 		return $s . ($withTags ? $form->getElementPrototype()->endTag() . "\n" : '');

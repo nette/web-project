@@ -35,8 +35,11 @@ class User
 
 	/** Log-out reason */
 	public const
-		LOGOUT_MANUAL = UserStorage::LOGOUT_MANUAL,
-		LOGOUT_INACTIVITY = UserStorage::LOGOUT_INACTIVITY;
+		LogoutManual = UserStorage::LogoutManual,
+		LogoutInactivity = UserStorage::LogoutInactivity;
+
+	public const LOGOUT_MANUAL = self::LogoutManual;
+	public const LOGOUT_INACTIVITY = self::LogoutInactivity;
 
 	/** @var string  default role for unauthenticated user */
 	public $guestRole = 'guest';
@@ -102,7 +105,11 @@ class User
 	 * @param  string|IIdentity  $user  name or Identity
 	 * @throws AuthenticationException if authentication was not successful
 	 */
-	public function login($user, ?string $password = null): void
+	public function login(
+		$user,
+		#[\SensitiveParameter]
+		?string $password = null
+	): void
 	{
 		$this->logout(true);
 		if ($user instanceof IIdentity) {
@@ -335,7 +342,7 @@ class User
 	 * Has a user effective access to the Resource?
 	 * If $resource is null, then the query applies to all resources.
 	 */
-	public function isAllowed($resource = Authorizator::ALL, $privilege = Authorizator::ALL): bool
+	public function isAllowed($resource = Authorizator::All, $privilege = Authorizator::All): bool
 	{
 		foreach ($this->getRoles() as $role) {
 			if ($this->getAuthorizator()->isAllowed($role, $resource, $privilege)) {

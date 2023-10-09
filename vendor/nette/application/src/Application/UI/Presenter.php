@@ -75,7 +75,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	public $absoluteUrls = false;
 
 	/** @var string[] */
-	public $allowedMethods = ['GET', 'POST', 'HEAD', 'PUT', 'DELETE'];
+	public $allowedMethods = ['GET', 'POST', 'HEAD', 'PUT', 'DELETE', 'PATCH'];
 
 	/** @var Nette\Application\Request|null */
 	private $request;
@@ -1285,7 +1285,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 
 	/**
-	 * Saves state informations for next request.
+	 * Saves state information for next request.
 	 */
 	public function saveState(array &$params, ?ComponentReflection $reflection = null): void
 	{

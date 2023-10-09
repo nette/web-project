@@ -20,7 +20,7 @@ Authentication & Authorization library for Nette.
 
 Documentation can be found on the [website](https://doc.nette.org/access-control).
 
-It requires PHP version 7.2 and supports PHP up to 8.2.
+It requires PHP version 7.2 and supports PHP up to 8.3.
 
 
 [Support Me](https://github.com/sponsors/dg)
@@ -305,7 +305,7 @@ $acl->allow('guest', 'poll', 'vote');
 $acl->allow('registered', 'comment', 'add');
 
 // the administrator can view and edit anything
-$acl->allow('administrator', $acl::ALL, ['view', 'edit', 'add']);
+$acl->allow('administrator', $acl::All, ['view', 'edit', 'add']);
 ```
 
 What if we want to **prevent** someone from accessing a resource?

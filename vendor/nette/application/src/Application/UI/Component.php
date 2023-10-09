@@ -152,12 +152,12 @@ abstract class Component extends Nette\ComponentModel\Container implements Signa
 
 
 	/**
-	 * Loads state informations.
+	 * Loads state information.
 	 */
 	public function loadState(array $params): void
 	{
 		$reflection = $this->getReflection();
-		foreach ($reflection->getPersistentParams() as $name => $meta) {
+		foreach ($reflection->getParameters() as $name => $meta) {
 			if (isset($params[$name])) { // nulls are ignored
 				if (!$reflection->convertType($params[$name], $meta['type'])) {
 					throw new Nette\Application\BadRequestException(sprintf(
@@ -180,7 +180,7 @@ abstract class Component extends Nette\ComponentModel\Container implements Signa
 
 
 	/**
-	 * Saves state informations for next request.
+	 * Saves state information for next request.
 	 */
 	public function saveState(array &$params): void
 	{

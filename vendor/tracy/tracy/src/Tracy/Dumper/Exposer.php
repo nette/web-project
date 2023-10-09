@@ -137,12 +137,13 @@ final class Exposer
 		self::exposeObject($obj, $value, $describer);
 		$obj->setFlags($flags);
 		$describer->addPropertyTo($value, 'storage', $obj->getArrayCopy(), Value::PropertyPrivate, null, \ArrayObject::class);
+		$value->value .= ' (' . count($obj) . ')';
 	}
 
 
 	public static function exposeDOMNode(\DOMNode $obj, Value $value, Describer $describer): void
 	{
-		$props = preg_match_all('#^\s*\[([^\]]+)\] =>#m', print_r($obj, true), $tmp) ? $tmp[1] : [];
+		$props = preg_match_all('#^\s*\[([^\]]+)\] =>#m', print_r($obj, return: true), $tmp) ? $tmp[1] : [];
 		sort($props);
 		foreach ($props as $p) {
 			$describer->addPropertyTo($value, $p, $obj->$p, Value::PropertyPublic);
@@ -167,7 +168,7 @@ final class Exposer
 			$r = new \ReflectionGenerator($gen);
 			$describer->addPropertyTo($value, 'file', $r->getExecutingFile() . ':' . $r->getExecutingLine());
 			$describer->addPropertyTo($value, 'this', $r->getThis());
-		} catch (\ReflectionException $e) {
+		} catch (\ReflectionException) {
 			$value->value = $gen::class . ' (terminated)';
 		}
 	}
@@ -193,14 +194,31 @@ final class Exposer
 	}
 
 
-	public static function exposeSplObjectStorage(\SplObjectStorage $obj): array
+	public static function exposeSplObjectStorage(\SplObjectStorage $obj, Value $value, Describer $describer): void
 	{
-		$res = [];
-		foreach (clone $obj as $item) {
-			$res[] = ['object' => $item, 'data' => $obj[$item]];
+		$value->value .= ' (' . count($obj) . ')';
+		foreach (clone $obj as $v) {
+			$pair = new Value(Value::TypeObject, '');
+			$pair->depth = $value->depth + 1;
+			$describer->addPropertyTo($pair, 'key', $v);
+			$describer->addPropertyTo($pair, 'value', $obj[$v]);
+			$describer->addPropertyTo($value, '', null, described: $pair);
+			$value->items[array_key_last($value->items)][0] = '';
 		}
+	}
 
-		return $res;
+
+	public static function exposeWeakMap(\WeakMap $obj, Value $value, Describer $describer): void
+	{
+		$value->value .= ' (' . count($obj) . ')';
+		foreach ($obj as $k => $v) {
+			$pair = new Value(Value::TypeObject, '');
+			$pair->depth = $value->depth + 1;
+			$describer->addPropertyTo($pair, 'key', $k);
+			$describer->addPropertyTo($pair, 'value', $v);
+			$describer->addPropertyTo($value, '', null, described: $pair);
+			$value->items[array_key_last($value->items)][0] = '';
+		}
 	}
 
 

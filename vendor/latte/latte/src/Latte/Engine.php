@@ -19,8 +19,8 @@ class Engine
 {
 	use Strict;
 
-	public const Version = '3.0.9';
-	public const VersionId = 30009;
+	public const Version = '3.0.10';
+	public const VersionId = 30010;
 
 	/** @deprecated use Engine::Version */
 	public const
@@ -146,7 +146,6 @@ class Engine
 	 */
 	public function parse(string $source): TemplateNode
 	{
-		$lexer = new Compiler\TemplateLexer;
 		$parser = new Compiler\TemplateParser;
 		$parser->strict = $this->strictParsing;
 
@@ -158,7 +157,7 @@ class Engine
 		return $parser
 			->setContentType($this->contentType)
 			->setPolicy($this->getPolicy(effective: true))
-			->parse($source, $lexer);
+			->parse($source);
 	}
 
 

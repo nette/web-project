@@ -177,22 +177,26 @@ final class ServiceDefinition extends Definition
 
 		$this->creator = $resolver->completeStatement($this->creator);
 
-		foreach ($this->setup as &$setup) {
-			if (
-				is_string($setup->getEntity())
-				&& strpbrk($setup->getEntity(), ':@?\\') === false
-			) { // auto-prepend @self
-				$setup = new Statement([new Reference(Reference::Self), $setup->getEntity()], $setup->arguments);
-			}
+		foreach ($this->setup as $i => $setup) {
+			$this->setup[$i] = $resolver->completeStatement($this->prependSelf($setup), true);
+		}
+	}
 
-			$setup = $resolver->completeStatement($setup, true);
+
+	private function prependSelf(Statement $setup): Statement
+	{
+		if (is_string($member = $setup->getEntity()) && preg_match('~^\$?[a-z][a-zA-Z0-9[\]]*$~', $member)) {
+			return new Statement([new Reference(Reference::Self), $member], $setup->arguments);
+		} elseif (is_array($setup->getEntity()) && $setup->getEntity()[0] instanceof Statement) {
+			return new Statement([$this->prependSelf($setup->getEntity()[0]), $setup->getEntity()[1]], $setup->arguments);
+		} else {
+			return $setup;
 		}
 	}
 
 
 	public function generateMethod(Nette\PhpGenerator\Method $method, Nette\DI\PhpGenerator $generator): void
 	{
-		$entity = $this->creator->getEntity();
 		$code = $generator->formatStatement($this->creator) . ";\n";
 		if (!$this->setup) {
 			$method->setBody('return ' . $code);

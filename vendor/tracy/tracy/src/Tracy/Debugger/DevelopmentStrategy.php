@@ -54,11 +54,11 @@ final class DevelopmentStrategy
 		}
 
 		if ($logFile && !headers_sent()) {
-			header("X-Tracy-Error-Log: $logFile", false);
+			header("X-Tracy-Error-Log: $logFile", replace: false);
 		}
 
-		if (Helpers::detectColors()) {
-			echo "\n\n" . $this->blueScreen->highlightPhpCli($exception->getFile(), $exception->getLine()) . "\n";
+		if (Helpers::detectColors() && @is_file($exception->getFile())) {
+			echo "\n\n" . CodeHighlighter::highlightPhpCli(file_get_contents($exception->getFile()), $exception->getLine()) . "\n";
 		}
 
 		echo "$exception\n" . ($logFile ? "\n(stored in $logFile)\n" : '');

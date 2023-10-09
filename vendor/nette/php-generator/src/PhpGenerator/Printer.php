@@ -26,6 +26,7 @@ class Printer
 	public string $returnTypeColon = ': ';
 	public bool $bracesOnNextLine = true;
 	public bool $singleParameterOnOneLine = false;
+	public bool $omitEmptyNamespaces = true;
 	protected ?PhpNamespace $namespace = null;
 	protected ?Dumper $dumper;
 	private bool $resolveTypes = true;
@@ -233,7 +234,7 @@ class Printer
 		}
 
 		$line[] = match (true) {
-			$class instanceof ClassType => $class->getName() ? $class->getType() . ' ' . $class->getName() : null,
+			$class instanceof ClassType => $class->getName() ? 'class ' . $class->getName() : null,
 			$class instanceof InterfaceType => 'interface ' . $class->getName(),
 			$class instanceof TraitType => 'trait ' . $class->getName(),
 			$class instanceof EnumType => 'enum ' . $class->getName() . ($enumType ? $this->returnTypeColon . $enumType : ''),
@@ -274,6 +275,10 @@ class Printer
 
 		foreach ($namespace->getFunctions() as $function) {
 			$items[] = $this->printFunction($function, $namespace);
+		}
+
+		if (!$items && $this->omitEmptyNamespaces) {
+			return '';
 		}
 
 		$body = ($uses ? $uses . "\n" : '')
@@ -422,7 +427,7 @@ class Printer
 		foreach ($attrs as $attr) {
 			$args = $this->dumper->format('...?:', $attr->getArguments());
 			$args = Helpers::simplifyTaggedNames($args, $this->namespace);
-			$items[] = $this->printType($attr->getName(), nullable: false) . ($args ? "($args)" : '');
+			$items[] = $this->printType($attr->getName(), nullable: false) . ($args === '' ? '' : "($args)");
 			$inline = $inline && !str_contains($args, "\n");
 		}
 

@@ -169,56 +169,45 @@ final class Extractor
 	public function extractAll(): PhpFile
 	{
 		$phpFile = new PhpFile;
-		$namespace = '';
-		$visitor = new class extends PhpParser\NodeVisitorAbstract {
-			public $callback;
 
-
-			public function enterNode(Node $node)
-			{
-				return ($this->callback)($node);
-			}
-		};
-
-		$visitor->callback = function (Node $node) use (&$class, &$namespace, $phpFile) {
-			if ($node instanceof Node\Stmt\Class_ && !$node->name) {
-				return PhpParser\NodeTraverser::DONT_TRAVERSE_CHILDREN;
-			}
-			match (true) {
-				$node instanceof Node\Stmt\DeclareDeclare
-					&& $node->key->name === 'strict_types'
-					&& $node->value instanceof Node\Scalar\LNumber => $phpFile->setStrictTypes((bool) $node->value->value),
-				$node instanceof Node\Stmt\Namespace_ => $namespace = $node->name?->toString(),
-				$node instanceof Node\Stmt\Use_ => $this->addUseToNamespace($node, $phpFile->addNamespace($namespace)),
-				$node instanceof Node\Stmt\Class_ => $class = $this->addClassToFile($phpFile, $node),
-				$node instanceof Node\Stmt\Interface_ => $class = $this->addInterfaceToFile($phpFile, $node),
-				$node instanceof Node\Stmt\Trait_ => $class = $this->addTraitToFile($phpFile, $node),
-				$node instanceof Node\Stmt\Enum_ => $class = $this->addEnumToFile($phpFile, $node),
-				$node instanceof Node\Stmt\Function_ => $this->addFunctionToFile($phpFile, $node),
-				$node instanceof Node\Stmt\TraitUse => $this->addTraitToClass($class, $node),
-				$node instanceof Node\Stmt\Property => $this->addPropertyToClass($class, $node),
-				$node instanceof Node\Stmt\ClassMethod => $this->addMethodToClass($class, $node),
-				$node instanceof Node\Stmt\ClassConst => $this->addConstantToClass($class, $node),
-				$node instanceof Node\Stmt\EnumCase => $this->addEnumCaseToClass($class, $node),
-				default => null,
-			};
-			if ($node instanceof Node\FunctionLike) {
-				return PhpParser\NodeTraverser::DONT_TRAVERSE_CHILDREN;
-			}
-		};
-
-		if ($this->statements) {
+		if (
+			$this->statements
+			&& !$this->statements[0] instanceof Node\Stmt\ClassLike
+			&& !$this->statements[0] instanceof Node\Stmt\Function_
+		) {
 			$this->addCommentAndAttributes($phpFile, $this->statements[0]);
 		}
 
-		$traverser = new PhpParser\NodeTraverser;
-		$traverser->addVisitor($visitor);
-		$traverser->traverse($this->statements);
+		$namespaces = ['' => $this->statements];
+		foreach ($this->statements as $node) {
+			if ($node instanceof Node\Stmt\Declare_
+				&& $node->declares[0] instanceof Node\Stmt\DeclareDeclare
+				&& $node->declares[0]->key->name === 'strict_types'
+				&& $node->declares[0]->value instanceof Node\Scalar\LNumber
+			) {
+				$phpFile->setStrictTypes((bool) $node->declares[0]->value->value);
+
+			} elseif ($node instanceof Node\Stmt\Namespace_) {
+				$namespaces[$node->name->toString()] = $node->stmts;
+			}
+		}
+
+		foreach ($namespaces as $name => $nodes) {
+			foreach ($nodes as $node) {
+				match (true) {
+					$node instanceof Node\Stmt\Use_ => $this->addUseToNamespace($phpFile->addNamespace($name), $node),
+					$node instanceof Node\Stmt\ClassLike => $this->addClassLikeToFile($phpFile, $node),
+					$node instanceof Node\Stmt\Function_ => $this->addFunctionToFile($phpFile, $node),
+					default => null,
+				};
+			}
+		}
+
 		return $phpFile;
 	}
 
 
-	private function addUseToNamespace(Node\Stmt\Use_ $node, PhpNamespace $namespace): void
+	private function addUseToNamespace(PhpNamespace $namespace, Node\Stmt\Use_ $node): void
 	{
 		$of = [
 			$node::TYPE_NORMAL => PhpNamespace::NameNormal,
@@ -231,62 +220,53 @@ final class Extractor
 	}
 
 
-	private function addClassToFile(PhpFile $phpFile, Node\Stmt\Class_ $node): ClassType
+	private function addClassLikeToFile(PhpFile $phpFile, Node\Stmt\ClassLike $node): ClassLike
 	{
-		$class = $phpFile->addClass($node->namespacedName->toString());
-		if ($node->extends) {
-			$class->setExtends($node->extends->toString());
+		if ($node instanceof Node\Stmt\Class_) {
+			$class = $phpFile->addClass($node->namespacedName->toString());
+			$class->setFinal($node->isFinal());
+			$class->setAbstract($node->isAbstract());
+			$class->setReadOnly(method_exists($node, 'isReadonly') && $node->isReadonly());
+			if ($node->extends) {
+				$class->setExtends($node->extends->toString());
+			}
+			foreach ($node->implements as $item) {
+				$class->addImplement($item->toString());
+			}
+		} elseif ($node instanceof Node\Stmt\Interface_) {
+			$class = $phpFile->addInterface($node->namespacedName->toString());
+			foreach ($node->extends as $item) {
+				$class->addExtend($item->toString());
+			}
+		} elseif ($node instanceof Node\Stmt\Trait_) {
+			$class = $phpFile->addTrait($node->namespacedName->toString());
+
+		} elseif ($node instanceof Node\Stmt\Enum_) {
+			$class = $phpFile->addEnum($node->namespacedName->toString());
+			$class->setType($node->scalarType?->toString());
+			foreach ($node->implements as $item) {
+				$class->addImplement($item->toString());
+			}
 		}
 
-		foreach ($node->implements as $item) {
-			$class->addImplement($item->toString());
-		}
-
-		$class->setFinal($node->isFinal());
-		$class->setAbstract($node->isAbstract());
-		$class->setReadOnly(method_exists($node, 'isReadonly') && $node->isReadonly());
 		$this->addCommentAndAttributes($class, $node);
+		$this->addClassMembers($class, $node);
 		return $class;
 	}
 
 
-	private function addInterfaceToFile(PhpFile $phpFile, Node\Stmt\Interface_ $node): InterfaceType
+	private function addClassMembers(ClassLike $class, Node\Stmt\ClassLike $node): void
 	{
-		$class = $phpFile->addInterface($node->namespacedName->toString());
-		foreach ($node->extends as $item) {
-			$class->addExtend($item->toString());
+		foreach ($node->stmts as $stmt) {
+			match (true) {
+				$stmt instanceof Node\Stmt\TraitUse => $this->addTraitToClass($class, $stmt),
+				$stmt instanceof Node\Stmt\Property => $this->addPropertyToClass($class, $stmt),
+				$stmt instanceof Node\Stmt\ClassMethod => $this->addMethodToClass($class, $stmt),
+				$stmt instanceof Node\Stmt\ClassConst => $this->addConstantToClass($class, $stmt),
+				$stmt instanceof Node\Stmt\EnumCase => $this->addEnumCaseToClass($class, $stmt),
+				default => null,
+			};
 		}
-
-		$this->addCommentAndAttributes($class, $node);
-		return $class;
-	}
-
-
-	private function addTraitToFile(PhpFile $phpFile, Node\Stmt\Trait_ $node): TraitType
-	{
-		$class = $phpFile->addTrait($node->namespacedName->toString());
-		$this->addCommentAndAttributes($class, $node);
-		return $class;
-	}
-
-
-	private function addEnumToFile(PhpFile $phpFile, Node\Stmt\Enum_ $node): EnumType
-	{
-		$enum = $phpFile->addEnum($node->namespacedName->toString());
-		$enum->setType($node->scalarType?->toString());
-		foreach ($node->implements as $item) {
-			$enum->addImplement($item->toString());
-		}
-
-		$this->addCommentAndAttributes($enum, $node);
-		return $enum;
-	}
-
-
-	private function addFunctionToFile(PhpFile $phpFile, Node\Stmt\Function_ $node): void
-	{
-		$function = $phpFile->addFunction($node->namespacedName->toString());
-		$this->setupFunction($function, $node);
 	}
 
 
@@ -312,7 +292,7 @@ final class Extractor
 			$prop->setVisibility($this->toVisibility($node->flags));
 			$prop->setType($node->type ? $this->toPhp($node->type) : null);
 			if ($item->default) {
-				$prop->setValue($this->formatValue($item->default, 1));
+				$prop->setValue($this->toValue($item->default));
 			}
 
 			$prop->setReadOnly(method_exists($node, 'isReadonly') && $node->isReadonly());
@@ -335,7 +315,7 @@ final class Extractor
 	private function addConstantToClass(ClassLike $class, Node\Stmt\ClassConst $node): void
 	{
 		foreach ($node->consts as $item) {
-			$const = $class->addConstant($item->name->toString(), $this->formatValue($item->value, 1));
+			$const = $class->addConstant($item->name->toString(), $this->toValue($item->value));
 			$const->setVisibility($this->toVisibility($node->flags));
 			$const->setFinal(method_exists($node, 'isFinal') && $node->isFinal());
 			$this->addCommentAndAttributes($const, $node);
@@ -348,10 +328,17 @@ final class Extractor
 		$value = match (true) {
 			$node->expr === null => null,
 			$node->expr instanceof Node\Scalar\LNumber, $node->expr instanceof Node\Scalar\String_ => $node->expr->value,
-			default => $this->formatValue($node->expr, 1),
+			default => $this->toValue($node->expr),
 		};
 		$case = $class->addCase($node->name->toString(), $value);
 		$this->addCommentAndAttributes($case, $node);
+	}
+
+
+	private function addFunctionToFile(PhpFile $phpFile, Node\Stmt\Function_ $node): void
+	{
+		$function = $phpFile->addFunction($node->namespacedName->toString());
+		$this->setupFunction($function, $node);
 	}
 
 
@@ -371,11 +358,10 @@ final class Extractor
 			foreach ($group->attrs as $attribute) {
 				$args = [];
 				foreach ($attribute->args as $arg) {
-					$value = $this->formatValue($arg->value, 0);
 					if ($arg->name) {
-						$args[$arg->name->toString()] = $value;
+						$args[$arg->name->toString()] = $this->toValue($arg->value);
 					} else {
-						$args[] = $value;
+						$args[] = $this->toValue($arg->value);
 					}
 				}
 
@@ -399,7 +385,7 @@ final class Extractor
 			$param->setReference($item->byRef);
 			$function->setVariadic($item->variadic);
 			if ($item->default) {
-				$param->setDefaultValue($this->formatValue($item->default, 2));
+				$param->setDefaultValue($this->toValue($item->default));
 			}
 
 			$this->addCommentAndAttributes($param, $item);
@@ -407,15 +393,48 @@ final class Extractor
 
 		$this->addCommentAndAttributes($function, $node);
 		if ($node->getStmts()) {
-			$function->setBody($this->getReformattedContents($node->getStmts(), 2));
+			$indent = $function instanceof GlobalFunction ? 1 : 2;
+			$function->setBody($this->getReformattedContents($node->getStmts(), $indent));
 		}
 	}
 
 
-	private function formatValue(Node\Expr $value, int $level): Literal
+	private function toValue(Node\Expr $node): mixed
 	{
-		$value = $this->getReformattedContents([$value], $level);
-		return new Literal($value);
+		if ($node instanceof Node\Expr\ConstFetch) {
+			return match ($node->name->toLowerString()) {
+				'null' => null,
+				'true' => true,
+				'false' => false,
+				default => new Literal($this->getReformattedContents([$node], 0)),
+			};
+		} elseif ($node instanceof Node\Scalar\LNumber
+			|| $node instanceof Node\Scalar\DNumber
+			|| $node instanceof Node\Scalar\String_
+		) {
+			return $node->value;
+
+		} elseif ($node instanceof Node\Expr\Array_) {
+			$res = [];
+			foreach ($node->items as $item) {
+				if ($item->unpack) {
+					$res[] = new Literal($this->getReformattedContents([$item], 0));
+
+				} elseif ($item->key) {
+					$key = $item->key instanceof Node\Identifier
+						? $item->key->name
+						: $this->toValue($item->key);
+					$res[$key] = $this->toValue($item->value);
+
+				} else {
+					$res[] = $this->toValue($item->value);
+				}
+			}
+			return $res;
+
+		} else {
+			return new Literal($this->getReformattedContents([$node], 0));
+		}
 	}
 
 

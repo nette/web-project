@@ -58,7 +58,7 @@ class Helpers
 		string $replace = '',
 	): ?string
 	{
-		if (Debugger::$editor && $file && ($action === 'create' || is_file($file))) {
+		if (Debugger::$editor && $file && ($action === 'create' || @is_file($file))) { // @ - may trigger error
 			$file = strtr($file, '/', DIRECTORY_SEPARATOR);
 			$file = strtr($file, Debugger::$editorMapping);
 			$search = str_replace("\n", PHP_EOL, $search);
@@ -91,6 +91,12 @@ class Helpers
 	}
 
 
+	public static function htmlToText(string $s): string
+	{
+		return htmlspecialchars_decode(strip_tags($s), ENT_QUOTES | ENT_HTML5);
+	}
+
+
 	public static function findTrace(array $trace, array|string $method, ?int &$index = null): ?array
 	{
 		$m = is_array($method) ? $method : explode('::', $method);
@@ -99,7 +105,7 @@ class Helpers
 				isset($item['function'])
 				&& $item['function'] === end($m)
 				&& isset($item['class']) === isset($m[1])
-				&& (!isset($item['class']) || $m[0] === '*' || is_a($item['class'], $m[0], true))
+				&& (!isset($item['class']) || $m[0] === '*' || is_a($item['class'], $m[0], allow_string: true))
 			) {
 				$index = $i;
 				return $item;
@@ -435,9 +441,11 @@ class Helpers
 	/** @internal */
 	public static function utf8Length(string $s): int
 	{
-		return function_exists('mb_strlen')
-			? mb_strlen($s, 'UTF-8')
-			: strlen(utf8_decode($s));
+		return match (true) {
+			extension_loaded('mbstring') => mb_strlen($s, 'UTF-8'),
+			extension_loaded('iconv') => iconv_strlen($s, 'UTF-8'),
+			default => strlen(@utf8_decode($s)), // deprecated
+		};
 	}
 
 
@@ -449,9 +457,9 @@ class Helpers
 
 
 	/** @internal */
-	public static function truncateString(string $s, int $len, bool $utf): string
+	public static function truncateString(string $s, int $len, bool $utf8): string
 	{
-		if (!$utf) {
+		if (!$utf8) {
 			return $len < 0 ? substr($s, $len) : substr($s, 0, $len);
 		} elseif (function_exists('mb_substr')) {
 			return $len < 0
@@ -463,6 +471,28 @@ class Helpers
 				: preg_match("#^.{0,$len}#us", $s, $m);
 			return $m[0];
 		}
+	}
+
+
+	/** @internal */
+	public static function htmlToAnsi(string $s, array $colors): string
+	{
+		$stack = ['0'];
+		$s = preg_replace_callback(
+			'#<\w+(?: class=["\']tracy-(?:dump-)?([\w-]+)["\'])?[^>]*>|</\w+>#',
+			function ($m) use ($colors, &$stack): string {
+				if ($m[0][1] === '/') {
+					array_pop($stack);
+				} else {
+					$stack[] = isset($m[1], $colors[$m[1]]) ? $colors[$m[1]] : '0';
+				}
+				return "\e[" . end($stack) . 'm';
+			},
+			$s,
+		);
+		$s = preg_replace('/\e\[0m( *)(?=\e)/', '$1', $s);
+		$s = self::htmlToText($s);
+		return $s;
 	}
 
 
