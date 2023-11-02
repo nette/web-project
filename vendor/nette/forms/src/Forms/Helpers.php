@@ -141,20 +141,28 @@ class Helpers
 			if (is_array($rule->arg)) {
 				$item['arg'] = [];
 				foreach ($rule->arg as $key => $value) {
-					$item['arg'][$key] = $value instanceof Control
-						? ['control' => $value->getHtmlName()]
-						: $value;
+					$item['arg'][$key] = self::exportArgument($value, $rule->control);
 				}
 			} elseif ($rule->arg !== null) {
-				$item['arg'] = $rule->arg instanceof Control
-					? ['control' => $rule->arg->getHtmlName()]
-					: $rule->arg;
+				$item['arg'] = self::exportArgument($rule->arg, $rule->control);
 			}
 
 			$payload[] = $item;
 		}
 
 		return $payload;
+	}
+
+
+	private static function exportArgument($value, Control $control)
+	{
+		if ($value instanceof Control) {
+			return ['control' => $value->getHtmlName()];
+		} elseif ($control instanceof Controls\DateTimeControl) {
+			return $control->formatHtmlValue($value);
+		} else {
+			return $value;
+		}
 	}
 
 
@@ -284,5 +292,19 @@ class Helpers
 				Nette\Utils\Reflection::toString($reflection) . " has unsupported type '$type'."
 			);
 		}
+	}
+
+
+	/** @internal */
+	public static function getSupportedImages(): array
+	{
+		$flag = imagetypes();
+		return array_filter([
+			$flag & IMG_GIF ? 'image/gif' : null,
+			$flag & IMG_JPG ? 'image/jpeg' : null,
+			$flag & IMG_PNG ? 'image/png' : null,
+			$flag & IMG_WEBP ? 'image/webp' : null,
+			$flag & 256 ? 'image/avif' : null, // IMG_AVIF
+		]);
 	}
 }

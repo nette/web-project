@@ -110,10 +110,11 @@ final class ServiceDefinition extends Definition
 	 */
 	public function setSetup(array $setup)
 	{
-		foreach ($setup as $v) {
-			if (!$v instanceof Statement) {
+		foreach ($setup as &$entity) {
+			if (!$entity instanceof Statement) {
 				throw new Nette\InvalidArgumentException('Argument must be Nette\DI\Definitions\Statement[].');
 			}
+			$entity = $this->prependSelf($entity);
 		}
 
 		$this->setup = $setup;
@@ -134,9 +135,10 @@ final class ServiceDefinition extends Definition
 	 */
 	public function addSetup($entity, array $args = [])
 	{
-		$this->setup[] = $entity instanceof Statement
+		$entity = $entity instanceof Statement
 			? $entity
 			: new Statement($entity, $args);
+		$this->setup[] = $this->prependSelf($entity);
 		return $this;
 	}
 
@@ -177,21 +179,17 @@ final class ServiceDefinition extends Definition
 
 		$this->creator = $resolver->completeStatement($this->creator);
 
-		foreach ($this->setup as $i => $setup) {
-			$this->setup[$i] = $resolver->completeStatement($this->prependSelf($setup), true);
+		foreach ($this->setup as &$setup) {
+			$setup = $resolver->completeStatement($setup, true);
 		}
 	}
 
 
 	private function prependSelf(Statement $setup): Statement
 	{
-		if (is_string($member = $setup->getEntity()) && preg_match('~^\$?[a-z][a-zA-Z0-9[\]]*$~', $member)) {
-			return new Statement([new Reference(Reference::Self), $member], $setup->arguments);
-		} elseif (is_array($setup->getEntity()) && $setup->getEntity()[0] instanceof Statement) {
-			return new Statement([$this->prependSelf($setup->getEntity()[0]), $setup->getEntity()[1]], $setup->arguments);
-		} else {
-			return $setup;
-		}
+		return is_string($setup->getEntity()) && strpbrk($setup->getEntity(), ':@?\\') === false
+			? new Statement([new Reference(Reference::Self), $setup->getEntity()], $setup->arguments)
+			: $setup;
 	}
 
 

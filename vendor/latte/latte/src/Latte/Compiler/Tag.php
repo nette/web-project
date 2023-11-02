@@ -9,8 +9,8 @@ declare(strict_types=1);
 
 namespace Latte\Compiler;
 
-use Latte;
 use Latte\CompileException;
+use Latte\Compiler\Nodes\AreaNode;
 use Latte\Compiler\Nodes\Html\ElementNode;
 
 
@@ -19,8 +19,6 @@ use Latte\Compiler\Nodes\Html\ElementNode;
  */
 final class Tag
 {
-	use Latte\Strict;
-
 	public const
 		PrefixInner = 'inner',
 		PrefixTag = 'tag',
@@ -46,9 +44,9 @@ final class Tag
 		public /*readonly*/ ?ElementNode $htmlElement = null,
 		public ?self $parent = null,
 		public /*readonly*/ ?string $prefix = null,
-		public ?\stdClass $data = null,
+		public ?AreaNode $node = null,
+		public ?AreaNode $nAttributeNode = null,
 	) {
-		$this->data ??= new \stdClass;
 		$this->parser = new TagParser($tokens);
 	}
 
@@ -86,13 +84,13 @@ final class Tag
 
 
 	/**
-	 * @param  string[]  $names
+	 * @param  class-string[]  $classes
 	 */
-	public function closestTag(array $names, ?callable $condition = null): ?self
+	public function closestTag(array $classes, ?callable $condition = null): ?self
 	{
 		$tag = $this->parent;
 		while ($tag && (
-			!in_array($tag->name, $names, true)
+			(!in_array($tag->node ? $tag->node::class : null, $classes, true) && !in_array($tag->name, $classes, true))
 			|| ($condition && !$condition($tag))
 		)) {
 			$tag = $tag->parent;
@@ -110,9 +108,9 @@ final class Tag
 	}
 
 
-	public function replaceNAttribute(Node $node): void
+	public function replaceNAttribute(AreaNode $node): void
 	{
-		$index = array_search($this->data->node, $this->htmlElement->attributes->children, true);
-		$this->htmlElement->attributes->children[$index] = $node;
+		$index = array_search($this->nAttributeNode, $this->htmlElement->attributes->children, true);
+		$this->htmlElement->attributes->children[$index] = $this->nAttributeNode = $node;
 	}
 }

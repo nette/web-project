@@ -17,6 +17,7 @@ use Latte\Compiler\Nodes\Php\NameNode;
 use Latte\Compiler\Nodes\Php\Scalar;
 
 
+/** @deprecated */
 final class ExpressionBuilder
 {
 	public function __construct(
@@ -69,7 +70,7 @@ final class ExpressionBuilder
 		$name = is_string($name)
 			? new IdentifierNode($name)
 			: ($name instanceof self ? $name->expr : $name);
-		return new self(new Expression\StaticCallNode($this->expr, $name, self::arrayToArgs($args)));
+		return new self(new Expression\StaticMethodCallNode($this->expr, $name, self::arrayToArgs($args)));
 	}
 
 

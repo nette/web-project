@@ -9,7 +9,6 @@ declare(strict_types=1);
 
 namespace Latte\Compiler;
 
-use Latte;
 use Latte\Compiler\Nodes\Php as Nodes;
 use Latte\Compiler\Nodes\Php\Expression;
 use Latte\Compiler\Nodes\Php\Scalar;
@@ -22,8 +21,6 @@ use Latte\ContentType;
  */
 final class PrintContext
 {
-	use Latte\Strict;
-
 	public array $paramsExtraction = [];
 	public array $blocks = [];
 
@@ -298,8 +295,8 @@ final class PrintContext
 			|| $expr instanceof Expression\FunctionCallableNode
 			|| $expr instanceof Expression\MethodCallNode
 			|| $expr instanceof Expression\MethodCallableNode
-			|| $expr instanceof Expression\StaticCallNode
-			|| $expr instanceof Expression\StaticCallableNode
+			|| $expr instanceof Expression\StaticMethodCallNode
+			|| $expr instanceof Expression\StaticMethodCallableNode
 			|| $expr instanceof Expression\ArrayNode
 			? $expr->print($this)
 			: '(' . $expr->print($this) . ')';
@@ -320,8 +317,8 @@ final class PrintContext
 			|| $expr instanceof Expression\FunctionCallableNode
 			|| $expr instanceof Expression\MethodCallNode
 			|| $expr instanceof Expression\MethodCallableNode
-			|| $expr instanceof Expression\StaticCallNode
-			|| $expr instanceof Expression\StaticCallableNode
+			|| $expr instanceof Expression\StaticMethodCallNode
+			|| $expr instanceof Expression\StaticMethodCallableNode
 			|| $expr instanceof Expression\ArrayNode
 			|| $expr instanceof Scalar\StringNode
 			|| $expr instanceof Scalar\BooleanNode

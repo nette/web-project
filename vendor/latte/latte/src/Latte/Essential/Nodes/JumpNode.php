@@ -26,54 +26,57 @@ class JumpNode extends StatementNode
 {
 	public string $type;
 	public ExpressionNode $condition;
-	public ?string $endTag = null;
 
 
 	public static function create(Tag $tag): static
 	{
 		$tag->expectArguments();
-		$allowed = match ($tag->name) {
-			'breakIf', 'continueIf' => ['for', 'foreach', 'while'],
-			'skipIf' => ['foreach'],
-			'exitIf' => ['block', 'define', null],
-		};
+		$tag->outputMode = $tag->name === 'exitIf' // to not be in prepare()
+			? $tag::OutputRemoveIndentation
+			: $tag::OutputNone;
+
 		for (
 			$parent = $tag->parent;
-			in_array($parent?->name, ['if', 'ifset', 'ifcontent'], true);
+			$parent?->node instanceof IfNode || $parent?->node instanceof IfContentNode;
 			$parent = $parent->parent
 		);
-		if (!in_array($parent?->name, $allowed, true)) {
+		$pnode = $parent?->node;
+		if (!match ($tag->name) {
+			'breakIf', 'continueIf' => $pnode instanceof ForNode || $pnode instanceof ForeachNode || $pnode instanceof WhileNode,
+			'skipIf' => $pnode instanceof ForeachNode,
+			'exitIf' => !$pnode || $pnode instanceof BlockNode || $pnode instanceof DefineNode,
+		}) {
 			throw new CompileException("Tag {{$tag->name}} is unexpected here.", $tag->position);
+		}
+
+		$last = $parent?->prefix === Tag::PrefixNone
+			? $parent->htmlElement->parent
+			: $parent?->htmlElement;
+		$el = $tag->htmlElement;
+		while ($el && $el !== $last) {
+			$el->breakable = true;
+			$el = $el->parent;
 		}
 
 		$node = new static;
 		$node->type = $tag->name;
 		$node->condition = $tag->parser->parseExpression();
-		if (isset($tag->htmlElement->nAttributes['foreach'])) {
-			$node->endTag = $tag->htmlElement->name;
-		}
 		return $node;
 	}
 
 
 	public function print(PrintContext $context): string
 	{
-		$cmd = match ($this->type) {
-			'breakIf' => 'break;',
-			'continueIf' => 'continue;',
-			'skipIf' => '{ $iterator->skipRound(); continue; }',
-			'exitIf' => 'return;',
-		};
-
-		if ($this->endTag) {
-			$cmd = "{ echo \"</$this->endTag>\\n\"; $cmd; } ";
-		}
-
 		return $context->format(
 			"if (%node) %line %raw\n",
 			$this->condition,
 			$this->position,
-			$cmd,
+			match ($this->type) {
+				'breakIf' => 'break;',
+				'continueIf' => 'continue;',
+				'skipIf' => '{ $iterator->skipRound(); continue; }',
+				'exitIf' => 'return;',
+			},
 		);
 	}
 

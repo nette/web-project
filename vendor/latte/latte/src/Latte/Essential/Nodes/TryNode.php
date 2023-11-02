@@ -25,9 +25,9 @@ class TryNode extends StatementNode
 
 
 	/** @return \Generator<int, ?array, array{AreaNode, ?Tag}, static> */
-	public static function create(): \Generator
+	public static function create(Tag $tag): \Generator
 	{
-		$node = new static;
+		$node = $tag->node = new static;
 		[$node->try, $nextTag] = yield ['else'];
 		if ($nextTag?->name === 'else') {
 			[$node->else] = yield;
@@ -46,12 +46,11 @@ class TryNode extends StatementNode
 				try %line {
 					%node
 				} catch (Throwable $ʟ_e) {
-					ob_end_clean();
+					ob_clean();
 					if (!($ʟ_e instanceof Latte\Essential\RollbackException) && isset($this->global->coreExceptionHandler)) {
 						($this->global->coreExceptionHandler)($ʟ_e, $this);
 					}
 					%node
-					ob_start();
 				} finally {
 					echo ob_get_clean();
 					$iterator = $ʟ_it = $ʟ_try[%0.dump][0];

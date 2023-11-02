@@ -406,6 +406,36 @@ class Container extends Nette\ComponentModel\Container implements \ArrayAccess
 
 
 	/**
+	 * Adds input for date selection.
+	 * @param  string|object|null  $label
+	 */
+	public function addDate(string $name, $label = null): Controls\DateTimeControl
+	{
+		return $this[$name] = new Controls\DateTimeControl($label, Controls\DateTimeControl::TypeDate);
+	}
+
+
+	/**
+	 * Adds input for time selection.
+	 * @param  string|object|null  $label
+	 */
+	public function addTime(string $name, $label = null, bool $withSeconds = false): Controls\DateTimeControl
+	{
+		return $this[$name] = new Controls\DateTimeControl($label, Controls\DateTimeControl::TypeTime, $withSeconds);
+	}
+
+
+	/**
+	 * Adds input for date and time selection.
+	 * @param  string|object|null  $label
+	 */
+	public function addDateTime(string $name, $label = null, bool $withSeconds = false): Controls\DateTimeControl
+	{
+		return $this[$name] = new Controls\DateTimeControl($label, Controls\DateTimeControl::TypeDateTime, $withSeconds);
+	}
+
+
+	/**
 	 * Adds control that allows the user to upload files.
 	 * @param  string|object|null  $label
 	 */
@@ -489,6 +519,16 @@ class Container extends Nette\ComponentModel\Container implements \ArrayAccess
 	{
 		return $this[$name] = (new Controls\MultiSelectBox($label, $items))
 			->setHtmlAttribute('size', $size > 1 ? $size : null);
+	}
+
+
+	/**
+	 * Adds color picker.
+	 * @param  string|object|null  $label
+	 */
+	public function addColor(string $name, $label = null): Controls\ColorPicker
+	{
+		return $this[$name] = new Controls\ColorPicker($label);
 	}
 
 
