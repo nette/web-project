@@ -1,6 +1,6 @@
 {
 	"name": "nette/web-project",
-	"description": "Nette: Standard Web Project",
+	"description": "Nette: Minimal Web Project",
 	"keywords": ["nette"],
 	"type": "project",
 	"license": ["MIT", "BSD-3-Clause", "GPL-2.0-only", "GPL-3.0-only"],
@@ -22,23 +22,12 @@
 		"tracy/tracy": "^2.10"
 	},
 	"require-dev": {
-		"nette/tester": "^2.5",
-		"phpstan/phpstan-nette": "^2",
-		"symfony/thanks": "^1"
+		"nette/tester": "^2.5"
 	},
 	"autoload": {
 		"psr-4": {
 			"App\\": "app"
 		}
 	},
-	"scripts": {
-		"phpstan": "phpstan analyse",
-		"tester": "tester tests -s"
-	},
-	"minimum-stability": "stable",
-	"config": {
-		"allow-plugins": {
-			"symfony/thanks": true
-		}
-	}
+	"minimum-stability": "stable"
 }
