@@ -22,32 +22,17 @@ use Tracy;
  */
 final class ApplicationExtension extends Nette\DI\CompilerExtension
 {
-	/** @var bool */
-	private $debugMode;
-
-	/** @var array */
-	private $scanDirs;
-
-	/** @var Nette\Loaders\RobotLoader|null */
-	private $robotLoader;
-
-	/** @var int */
-	private $invalidLinkMode;
-
-	/** @var string|null */
-	private $tempDir;
+	private readonly array $scanDirs;
+	private int $invalidLinkMode;
 
 
 	public function __construct(
-		bool $debugMode = false,
+		private readonly bool $debugMode = false,
 		?array $scanDirs = null,
-		?string $tempDir = null,
-		?Nette\Loaders\RobotLoader $robotLoader = null
+		private readonly ?string $tempDir = null,
+		private readonly ?Nette\Loaders\RobotLoader $robotLoader = null,
 	) {
-		$this->debugMode = $debugMode;
 		$this->scanDirs = (array) $scanDirs;
-		$this->tempDir = $tempDir;
-		$this->robotLoader = $robotLoader;
 	}
 
 
@@ -56,11 +41,11 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 		return Expect::structure([
 			'debugger' => Expect::bool(),
 			'errorPresenter' => Expect::string('Nette:Error')->dynamic(),
-			'catchExceptions' => Expect::bool()->dynamic(),
+			'catchExceptions' => Expect::bool(false)->dynamic(),
 			'mapping' => Expect::arrayOf('string|array'),
 			'scanDirs' => Expect::anyOf(
 				Expect::arrayOf('string')->default($this->scanDirs)->mergeDefaults(),
-				false
+				false,
 			)->firstIsDefault(),
 			'scanComposer' => Expect::bool(class_exists(ClassLoader::class)),
 			'scanFilter' => Expect::string('*Presenter'),
@@ -69,7 +54,7 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 	}
 
 
-	public function loadConfiguration()
+	public function loadConfiguration(): void
 	{
 		$config = $this->config;
 		$builder = $this->getContainerBuilder();
@@ -96,7 +81,7 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 			->setType(Nette\Application\IPresenterFactory::class)
 			->setFactory(Nette\Application\PresenterFactory::class, [new Definitions\Statement(
 				Nette\Bridges\ApplicationDI\PresenterFactoryCallback::class,
-				[1 => $this->invalidLinkMode, $touch ?? null]
+				[1 => $this->invalidLinkMode, $touch ?? null],
 			)]);
 
 		if ($config->mapping) {
@@ -115,7 +100,7 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 	}
 
 
-	public function beforeCompile()
+	public function beforeCompile(): void
 	{
 		$builder = $this->getContainerBuilder();
 
@@ -139,7 +124,7 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 		}
 
 		foreach ($all as $def) {
-			$def->addTag(Nette\DI\Extensions\InjectExtension::TAG_INJECT)
+			$def->addTag(Nette\DI\Extensions\InjectExtension::TagInject)
 				->setAutowired(false);
 
 			if (is_subclass_of($def->getType(), UI\Presenter::class) && $def instanceof Definitions\ServiceDefinition) {
@@ -184,9 +169,7 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 			$classFile = dirname($rc->getFileName()) . '/autoload_classmap.php';
 			if (is_file($classFile)) {
 				$this->getContainerBuilder()->addDependency($classFile);
-				$classes = array_merge($classes, array_keys((function ($path) {
-					return require $path;
-				})($classFile)));
+				$classes = array_merge($classes, array_keys((fn($path) => require $path)($classFile)));
 			}
 		}
 
@@ -210,7 +193,7 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 	/** @internal */
 	public static function initializeBlueScreenPanel(
 		Tracy\BlueScreen $blueScreen,
-		Nette\Application\Application $application
+		Nette\Application\Application $application,
 	): void
 	{
 		$blueScreen->addPanel(function (?\Throwable $e) use ($application, $blueScreen): ?array {
@@ -222,17 +205,17 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 			];
 		});
 		if (
-			version_compare(Tracy\Debugger::VERSION, '2.9.0', '>=')
-			&& version_compare(Tracy\Debugger::VERSION, '3.0', '<')
+			version_compare(Tracy\Debugger::Version, '2.9.0', '>=')
+			&& version_compare(Tracy\Debugger::Version, '3.0', '<')
 		) {
-			$blueScreen->addFileGenerator([self::class, 'generateNewPresenterFileContents']);
+			$blueScreen->addFileGenerator(self::generateNewPresenterFileContents(...));
 		}
 	}
 
 
 	public static function generateNewPresenterFileContents(string $file, ?string $class = null): ?string
 	{
-		if (!$class || substr($file, -13) !== 'Presenter.php') {
+		if (!$class || !str_ends_with($file, 'Presenter.php')) {
 			return null;
 		}
 

@@ -17,28 +17,17 @@ use Nette;
  */
 class RouteList implements Router
 {
-	use Nette\SmartObject;
+	protected ?self $parent;
 
-	/** @var self|null */
-	protected $parent;
-
-	/** @var array of [Router, flags] */
-	private $list = [];
+	/** @var array<array{Router, int}> */
+	private array $list = [];
 
 	/** @var Router[][]|null */
-	private $ranks;
-
-	/** @var string */
-	private $cacheKey;
-
-	/** @var string|null */
-	private $domain;
-
-	/** @var string|null */
-	private $path;
-
-	/** @var \SplObjectStorage|null */
-	private $refUrlCache;
+	private ?array $ranks = null;
+	private ?string $cacheKey;
+	private ?string $domain = null;
+	private ?string $path = null;
+	private ?\SplObjectStorage $refUrlCache;
 
 
 	public function __construct()
@@ -107,7 +96,7 @@ class RouteList implements Router
 		if ($this->domain) {
 			if (!isset($this->refUrlCache[$refUrl])) {
 				$this->refUrlCache[$refUrl] = $refUrl->withHost(
-					$this->expandDomain($refUrl->getHost())
+					$this->expandDomain($refUrl->getHost()),
 				);
 			}
 
@@ -147,8 +136,8 @@ class RouteList implements Router
 		// find best key
 		$candidates = [];
 		$routers = [];
-		foreach ($this->list as [$router, $flags]) {
-			if ($flags & self::ONE_WAY) {
+		foreach ($this->list as [$router, $oneWay]) {
+			if ($oneWay) {
 				continue;
 			} elseif ($router instanceof self) {
 				$router->warmupCache();
@@ -197,11 +186,10 @@ class RouteList implements Router
 
 	/**
 	 * Adds a router.
-	 * @return static
 	 */
-	public function add(Router $router, int $flags = 0)
+	public function add(Router $router, int $oneWay = 0): static
 	{
-		$this->list[] = [$router, $flags];
+		$this->list[] = [$router, $oneWay];
 		$this->ranks = null;
 		return $this;
 	}
@@ -210,9 +198,9 @@ class RouteList implements Router
 	/**
 	 * Prepends a router.
 	 */
-	public function prepend(Router $router, int $flags = 0): void
+	public function prepend(Router $router, int $oneWay = 0): void
 	{
-		array_splice($this->list, 0, 0, [[$router, $flags]]);
+		array_splice($this->list, 0, 0, [[$router, $oneWay]]);
 		$this->ranks = null;
 	}
 
@@ -237,18 +225,17 @@ class RouteList implements Router
 	 * @param  array  $metadata  default values or metadata
 	 * @return static
 	 */
-	public function addRoute(string $mask, $metadata = [], int $flags = 0)
+	public function addRoute(string $mask, array $metadata = [], int $oneWay = 0)
 	{
-		$this->add(new Route($mask, $metadata), $flags);
+		$this->add(new Route($mask, $metadata), $oneWay);
 		return $this;
 	}
 
 
 	/**
 	 * Returns an iterator over all routers.
-	 * @return static
 	 */
-	public function withDomain(string $domain)
+	public function withDomain(string $domain): static
 	{
 		$router = new static;
 		$router->domain = $domain;
@@ -259,10 +246,7 @@ class RouteList implements Router
 	}
 
 
-	/**
-	 * @return static
-	 */
-	public function withPath(string $path)
+	public function withPath(string $path): static
 	{
 		$router = new static;
 		$router->path = rtrim($path, '/') . '/';
@@ -273,10 +257,7 @@ class RouteList implements Router
 	}
 
 
-	/**
-	 * @return ?static
-	 */
-	public function end()
+	public function end(): ?self
 	{
 		return $this->parent;
 	}

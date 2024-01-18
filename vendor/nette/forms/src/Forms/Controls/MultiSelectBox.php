@@ -17,11 +17,9 @@ use Nette;
  */
 class MultiSelectBox extends MultiChoiceControl
 {
-	/** @var array of option / optgroup */
-	private $options = [];
-
-	/** @var array */
-	private $optionAttributes = [];
+	/** of option / optgroup */
+	private array $options = [];
+	private array $optionAttributes = [];
 
 
 	public function __construct($label = null, ?array $items = null)
@@ -54,7 +52,7 @@ class MultiSelectBox extends MultiChoiceControl
 		}
 
 		$this->options = $items;
-		return parent::setItems(Nette\Utils\Arrays::flatten($items, true));
+		return parent::setItems(Nette\Utils\Arrays::flatten($items, preserveKeys: true));
 	}
 
 
@@ -70,21 +68,20 @@ class MultiSelectBox extends MultiChoiceControl
 			[
 				'disabled:' => is_array($this->disabled) ? $this->disabled : null,
 			] + $this->optionAttributes,
-			$this->value
+			$this->value,
 		)->addAttributes(parent::getControl()->attrs)->multiple(true);
 	}
 
 
-	/** @return static */
-	public function addOptionAttributes(array $attributes)
+	/** @deprecated use setOptionAttribute() */
+	public function addOptionAttributes(array $attributes): static
 	{
 		$this->optionAttributes = $attributes + $this->optionAttributes;
 		return $this;
 	}
 
 
-	/** @return static */
-	public function setOptionAttribute(string $name, $value = true)
+	public function setOptionAttribute(string $name, mixed $value = true): static
 	{
 		$this->optionAttributes[$name] = $value;
 		return $this;

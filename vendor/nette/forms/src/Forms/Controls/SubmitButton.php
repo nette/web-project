@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Nette\Forms\Controls;
 
 use Nette;
+use Stringable;
 
 
 /**
@@ -23,19 +24,14 @@ class SubmitButton extends Button implements Nette\Forms\SubmitterControl
 	 * Occurs when the button is clicked and form is successfully validated
 	 * @var array<callable(self, array|object): void|callable(Nette\Forms\Form, array|object): void|callable(array|object): void>
 	 */
-	public $onClick = [];
+	public array $onClick = [];
 
 	/** @var array<callable(self): void>  Occurs when the button is clicked and form is not validated */
-	public $onInvalidClick = [];
-
-	/** @var array|null */
-	private $validationScope;
+	public array $onInvalidClick = [];
+	private ?array $validationScope = null;
 
 
-	/**
-	 * @param  string|object  $caption
-	 */
-	public function __construct($caption = null)
+	public function __construct(string|Stringable|null $caption = null)
 	{
 		parent::__construct($caption);
 		$this->control->type = 'submit';
@@ -63,9 +59,8 @@ class SubmitButton extends Button implements Nette\Forms\SubmitterControl
 
 	/**
 	 * Sets the validation scope. Clicking the button validates only the controls within the specified scope.
-	 * @return static
 	 */
-	public function setValidationScope(?iterable $scope)
+	public function setValidationScope(?iterable $scope): static
 	{
 		if ($scope === null) {
 			$this->validationScope = null;

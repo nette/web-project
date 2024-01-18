@@ -20,17 +20,17 @@ use Nette\Database\Explorer;
  */
 class GroupedSelection extends Selection
 {
-	/** @var Selection referenced table */
-	protected $refTable;
+	/** referenced table */
+	protected Selection $refTable;
 
-	/** @var  mixed current assigned referencing array */
-	protected $refCacheCurrent;
+	/** current assigned referencing array */
+	protected mixed $refCacheCurrent;
 
-	/** @var string grouping column name */
-	protected $column;
+	/** grouping column name */
+	protected string $column;
 
-	/** @var int primary key */
-	protected $active;
+	/** primary key */
+	protected int|string $active;
 
 
 	/**
@@ -42,7 +42,7 @@ class GroupedSelection extends Selection
 		string $tableName,
 		string $column,
 		Selection $refTable,
-		?Nette\Caching\IStorage $cacheStorage = null
+		?Nette\Caching\Storage $cacheStorage = null,
 	) {
 		$this->refTable = $refTable;
 		$this->column = $column;
@@ -54,19 +54,15 @@ class GroupedSelection extends Selection
 	 * Sets active group.
 	 * @internal
 	 * @param  int|string  $active  primary key of grouped rows
-	 * @return static
 	 */
-	public function setActive($active)
+	public function setActive(int|string $active): static
 	{
 		$this->active = $active;
 		return $this;
 	}
 
 
-	/**
-	 * @return static
-	 */
-	public function select($columns, ...$params)
+	public function select(string $columns, ...$params): static
 	{
 		if (!$this->sqlBuilder->getSelect()) {
 			$this->sqlBuilder->addSelect("$this->name.$this->column");
@@ -76,10 +72,7 @@ class GroupedSelection extends Selection
 	}
 
 
-	/**
-	 * @return static
-	 */
-	public function order(string $columns, ...$params)
+	public function order(string $columns, ...$params): static
 	{
 		if (!$this->sqlBuilder->getOrder()) {
 			// improve index utilization
@@ -93,10 +86,7 @@ class GroupedSelection extends Selection
 	/********************* aggregations ****************d*g**/
 
 
-	/**
-	 * @return mixed
-	 */
-	public function aggregation(string $function, ?string $groupFunction = null)
+	public function aggregation(string $function, ?string $groupFunction = null): mixed
 	{
 		$aggregation = &$this->getRefTable($refPath)->aggregation[$refPath . $function . $this->sqlBuilder->getSelectQueryHash($this->getPreviousAccessedColumns())];
 
@@ -110,7 +100,7 @@ class GroupedSelection extends Selection
 				$selection->select("$function AS aggregate, $this->name.$this->column AS groupname");
 				$selection->group($selection->getSqlBuilder()->getGroup() . ", $this->name.$this->column");
 				$query = "SELECT $groupFunction(aggregate) AS groupaggregate, groupname FROM (" . $selection->getSql() . ') AS aggregates GROUP BY groupname';
-				foreach ($this->context->query($query, ...$selection->getSqlBuilder()->getParameters()) as $row) {
+				foreach ($this->explorer->query($query, ...$selection->getSqlBuilder()->getParameters()) as $row) {
 					$aggregation[$row->groupname] = $row;
 				}
 			} else {
@@ -135,8 +125,7 @@ class GroupedSelection extends Selection
 
 	public function count(?string $column = null): int
 	{
-		$return = parent::count($column);
-		return $return ?? 0;
+		return parent::count($column);
 	}
 
 
@@ -232,16 +221,16 @@ class GroupedSelection extends Selection
 	}
 
 
-	protected function emptyResultSet(bool $saveCache = true, bool $deleteRererencedCache = true): void
+	protected function emptyResultSet(bool $clearCache = true, bool $deleteReferencedCache = true): void
 	{
-		parent::emptyResultSet($saveCache, false);
+		parent::emptyResultSet($clearCache, deleteReferencedCache: false);
 	}
 
 
 	/********************* manipulation ****************d*g**/
 
 
-	public function insert(iterable $data)
+	public function insert(iterable $data): ActiveRow|array|int|bool
 	{
 		if ($data instanceof \Traversable && !$data instanceof Selection) {
 			$data = iterator_to_array($data);

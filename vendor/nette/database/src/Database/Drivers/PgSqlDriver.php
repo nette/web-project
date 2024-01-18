@@ -17,10 +17,7 @@ use Nette;
  */
 class PgSqlDriver implements Nette\Database\Driver
 {
-	use Nette\SmartObject;
-
-	/** @var Nette\Database\Connection */
-	private $connection;
+	private Nette\Database\Connection $connection;
 
 
 	public function initialize(Nette\Database\Connection $connection, array $options): void
@@ -32,7 +29,7 @@ class PgSqlDriver implements Nette\Database\Driver
 	public function convertException(\PDOException $e): Nette\Database\DriverException
 	{
 		$code = $e->errorInfo[0] ?? null;
-		if ($code === '0A000' && strpos($e->getMessage(), 'truncate') !== false) {
+		if ($code === '0A000' && str_contains($e->getMessage(), 'truncate')) {
 			return Nette\Database\ForeignKeyConstraintViolationException::from($e);
 
 		} elseif ($code === '23502') {
@@ -106,11 +103,11 @@ class PgSqlDriver implements Nette\Database\Driver
 	public function getTables(): array
 	{
 		$tables = [];
-		foreach ($this->connection->query("
+		foreach ($this->connection->query(<<<'X'
 			SELECT DISTINCT ON (c.relname)
 				c.relname::varchar AS name,
 				c.relkind IN ('v', 'm') AS view,
-				n.nspname::varchar || '.' || c.relname::varchar AS \"fullName\"
+				n.nspname::varchar || '.' || c.relname::varchar AS "fullName"
 			FROM
 				pg_catalog.pg_class AS c
 				JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
@@ -119,7 +116,7 @@ class PgSqlDriver implements Nette\Database\Driver
 				AND n.nspname = ANY (pg_catalog.current_schemas(FALSE))
 			ORDER BY
 				c.relname
-		") as $row) {
+			X) as $row) {
 			$tables[] = (array) $row;
 		}
 
@@ -130,7 +127,7 @@ class PgSqlDriver implements Nette\Database\Driver
 	public function getColumns(string $table): array
 	{
 		$columns = [];
-		foreach ($this->connection->query("
+		foreach ($this->connection->query(<<<X
 			SELECT
 				a.attname::varchar AS name,
 				c.relname::varchar AS table,
@@ -140,7 +137,7 @@ class PgSqlDriver implements Nette\Database\Driver
 				pg_catalog.pg_get_expr(ad.adbin, 'pg_catalog.pg_attrdef'::regclass)::varchar AS default,
 				coalesce(co.contype = 'p' AND (seq.relname IS NOT NULL OR strpos(pg_catalog.pg_get_expr(ad.adbin, ad.adrelid), 'nextval') = 1), FALSE) AS autoincrement,
 				coalesce(co.contype = 'p', FALSE) AS primary,
-				coalesce(seq.relname, substring(pg_catalog.pg_get_expr(ad.adbin, 'pg_catalog.pg_attrdef'::regclass) from 'nextval[(]''\"?([^''\"]+)')) AS sequence
+				coalesce(seq.relname, substring(pg_catalog.pg_get_expr(ad.adbin, 'pg_catalog.pg_attrdef'::regclass) from 'nextval[(]''"?([^''"]+)')) AS sequence
 			FROM
 				pg_catalog.pg_attribute AS a
 				JOIN pg_catalog.pg_class AS c ON a.attrelid = c.oid
@@ -156,7 +153,7 @@ class PgSqlDriver implements Nette\Database\Driver
 				AND NOT a.attisdropped
 			ORDER BY
 				a.attnum
-		") as $row) {
+			X) as $row) {
 			$column = (array) $row;
 			$column['vendor'] = $column;
 			unset($column['sequence']);
@@ -171,7 +168,7 @@ class PgSqlDriver implements Nette\Database\Driver
 	public function getIndexes(string $table): array
 	{
 		$indexes = [];
-		foreach ($this->connection->query("
+		foreach ($this->connection->query(<<<X
 			SELECT
 				c2.relname::varchar AS name,
 				i.indisunique AS unique,
@@ -185,7 +182,7 @@ class PgSqlDriver implements Nette\Database\Driver
 			WHERE
 				c1.relkind IN ('r', 'p')
 				AND c1.oid = {$this->connection->quote($this->delimiteFQN($table))}::regclass
-		") as $row) {
+			X) as $row) {
 			$id = $row['name'];
 			$indexes[$id]['name'] = $id;
 			$indexes[$id]['unique'] = $row['unique'];
@@ -199,8 +196,8 @@ class PgSqlDriver implements Nette\Database\Driver
 
 	public function getForeignKeys(string $table): array
 	{
-		/* Does't work with multicolumn foreign keys */
-		return $this->connection->query("
+		/* Doesn't work with multi-column foreign keys */
+		return $this->connection->query(<<<X
 			SELECT
 				co.conname::varchar AS name,
 				al.attname::varchar AS local,
@@ -217,7 +214,7 @@ class PgSqlDriver implements Nette\Database\Driver
 				co.contype = 'f'
 				AND cl.oid = {$this->connection->quote($this->delimiteFQN($table))}::regclass
 				AND nf.nspname = ANY (pg_catalog.current_schemas(FALSE))
-		")->fetchAll();
+			X)->fetchAll();
 	}
 
 
@@ -225,10 +222,7 @@ class PgSqlDriver implements Nette\Database\Driver
 	{
 		static $cache;
 		$item = &$cache[$statement->queryString];
-		if ($item === null) {
-			$item = Nette\Database\Helpers::detectTypes($statement);
-		}
-
+		$item ??= Nette\Database\Helpers::detectTypes($statement);
 		return $item;
 	}
 

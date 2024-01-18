@@ -18,17 +18,10 @@ use Tracy;
  */
 final class DIExtension extends Nette\DI\CompilerExtension
 {
-	/** @var array */
-	public $exportedTags = [];
-
-	/** @var array */
-	public $exportedTypes = [];
-
-	/** @var bool */
-	private $debugMode;
-
-	/** @var float */
-	private $time;
+	public array $exportedTags = [];
+	public array $exportedTypes = [];
+	private bool $debugMode;
+	private float $time;
 
 
 	public function __construct(bool $debugMode = false)
@@ -37,39 +30,33 @@ final class DIExtension extends Nette\DI\CompilerExtension
 		$this->time = microtime(true);
 
 		$this->config = new class {
-			/** @var ?bool */
-			public $debugger;
+			public ?bool $debugger = null;
 
 			/** @var string[] */
-			public $excluded = [];
-
-			/** @var ?string */
-			public $parentClass;
-
-			/** @var object */
-			public $export;
+			public array $excluded = [];
+			public ?string $parentClass = null;
+			public object $export;
 		};
 		$this->config->export = new class {
-			/** @var bool */
-			public $parameters = true;
+			public bool $parameters = true;
 
 			/** @var string[]|bool|null */
-			public $tags = true;
+			public array|bool|null $tags = true;
 
 			/** @var string[]|bool|null */
-			public $types = true;
+			public array|bool|null $types = true;
 		};
 	}
 
 
-	public function loadConfiguration()
+	public function loadConfiguration(): void
 	{
 		$builder = $this->getContainerBuilder();
 		$builder->addExcludedClasses($this->config->excluded);
 	}
 
 
-	public function afterCompile(Nette\PhpGenerator\ClassType $class)
+	public function afterCompile(Nette\PhpGenerator\ClassType $class): void
 	{
 		if ($this->config->parentClass) {
 			$class->setExtends($this->config->parentClass);
@@ -119,7 +106,7 @@ final class DIExtension extends Nette\DI\CompilerExtension
 		$prop = $class->getProperty('wiring');
 		$prop->setValue(array_intersect_key(
 			$prop->getValue(),
-			$this->exportedTypes + (is_array($option) ? array_flip($option) : [])
+			$this->exportedTypes + (is_array($option) ? array_flip($option) : []),
 		));
 	}
 
@@ -130,7 +117,7 @@ final class DIExtension extends Nette\DI\CompilerExtension
 		$this->initialization->addBody($this->getContainerBuilder()->formatPhp('?;', [
 			new Nette\DI\Definitions\Statement(
 				'@Tracy\Bar::addPanel',
-				[new Nette\DI\Definitions\Statement(Nette\Bridges\DITracy\ContainerPanel::class)]
+				[new Nette\DI\Definitions\Statement(Nette\Bridges\DITracy\ContainerPanel::class)],
 			),
 		]));
 	}

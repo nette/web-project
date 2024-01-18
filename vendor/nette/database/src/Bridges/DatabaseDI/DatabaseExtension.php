@@ -19,8 +19,7 @@ use Tracy;
  */
 class DatabaseExtension extends Nette\DI\CompilerExtension
 {
-	/** @var bool */
-	private $debugMode;
+	private bool $debugMode;
 
 
 	public function __construct(bool $debugMode = false)
@@ -42,27 +41,25 @@ class DatabaseExtension extends Nette\DI\CompilerExtension
 				'reflection' => Expect::string(), // BC
 				'conventions' => Expect::string('discovered'), // Nette\Database\Conventions\DiscoveredConventions
 				'autowired' => Expect::bool(),
-			])
-		)->before(function ($val) {
-			return is_array(reset($val)) || reset($val) === null
+			]),
+		)->before(fn($val) => is_array(reset($val)) || reset($val) === null
 				? $val
-				: ['default' => $val];
-		});
+				: ['default' => $val]);
 	}
 
 
-	public function loadConfiguration()
+	public function loadConfiguration(): void
 	{
 		$autowired = true;
 		foreach ($this->config as $name => $config) {
-			$config->autowired = $config->autowired ?? $autowired;
+			$config->autowired ??= $autowired;
 			$autowired = false;
 			$this->setupDatabase($config, $name);
 		}
 	}
 
 
-	public function beforeCompile()
+	public function beforeCompile(): void
 	{
 		$builder = $this->getContainerBuilder();
 
@@ -71,7 +68,7 @@ class DatabaseExtension extends Nette\DI\CompilerExtension
 				$connection = $builder->getDefinition($this->prefix("$name.connection"));
 				$connection->addSetup(
 					[Nette\Bridges\DatabaseTracy\ConnectionPanel::class, 'initialize'],
-					[$connection, $this->debugMode, $name, !empty($config->explain)]
+					[$connection, $this->debugMode, $name, !empty($config->explain)],
 				);
 			}
 		}

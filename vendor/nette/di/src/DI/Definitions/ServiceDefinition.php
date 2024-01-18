@@ -22,11 +22,12 @@ use Nette\DI\ServiceCreationException;
  */
 final class ServiceDefinition extends Definition
 {
-	/** @var Statement */
-	private $creator;
+	use Nette\SmartObject;
+
+	private Statement $creator;
 
 	/** @var Statement[] */
-	private $setup = [];
+	private array $setup = [];
 
 
 	public function __construct()
@@ -35,8 +36,7 @@ final class ServiceDefinition extends Definition
 	}
 
 
-	/** @return static */
-	public function setType(?string $type)
+	public function setType(?string $type): static
 	{
 		return parent::setType($type);
 	}
@@ -44,10 +44,8 @@ final class ServiceDefinition extends Definition
 
 	/**
 	 * Alias for setCreator()
-	 * @param  string|array|Definition|Reference|Statement  $factory
-	 * @return static
 	 */
-	public function setFactory($factory, array $args = [])
+	public function setFactory(string|array|Definition|Reference|Statement $factory, array $args = []): static
 	{
 		return $this->setCreator($factory, $args);
 	}
@@ -62,11 +60,7 @@ final class ServiceDefinition extends Definition
 	}
 
 
-	/**
-	 * @param  string|array|Definition|Reference|Statement  $creator
-	 * @return static
-	 */
-	public function setCreator($creator, array $args = [])
+	public function setCreator(string|array|Definition|Reference|Statement $creator, array $args = []): static
 	{
 		$this->creator = $creator instanceof Statement
 			? $creator
@@ -81,23 +75,20 @@ final class ServiceDefinition extends Definition
 	}
 
 
-	/** @return string|array|Definition|Reference|null */
-	public function getEntity()
+	public function getEntity(): string|array|Definition|Reference|null
 	{
 		return $this->creator->getEntity();
 	}
 
 
-	/** @return static */
-	public function setArguments(array $args = [])
+	public function setArguments(array $args = []): static
 	{
 		$this->creator->arguments = $args;
 		return $this;
 	}
 
 
-	/** @return static */
-	public function setArgument($key, $value)
+	public function setArgument($key, $value): static
 	{
 		$this->creator->arguments[$key] = $value;
 		return $this;
@@ -106,9 +97,8 @@ final class ServiceDefinition extends Definition
 
 	/**
 	 * @param  Statement[]  $setup
-	 * @return static
 	 */
-	public function setSetup(array $setup)
+	public function setSetup(array $setup): static
 	{
 		foreach ($setup as &$entity) {
 			if (!$entity instanceof Statement) {
@@ -129,11 +119,7 @@ final class ServiceDefinition extends Definition
 	}
 
 
-	/**
-	 * @param  string|array|Definition|Reference|Statement  $entity
-	 * @return static
-	 */
-	public function addSetup($entity, array $args = [])
+	public function addSetup(string|array|Definition|Reference|Statement $entity, array $args = []): static
 	{
 		$entity = $entity instanceof Statement
 			? $entity

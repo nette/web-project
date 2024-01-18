@@ -37,16 +37,17 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 		Runner $runner,
 		bool $displaySkipped = false,
 		?string $file = null,
-		bool $ciderMode = false
+		bool $ciderMode = false,
+		private bool $lineMode = false,
 	) {
 		$this->runner = $runner;
 		$this->displaySkipped = $displaySkipped;
 		$this->file = fopen($file ?: 'php://output', 'w');
-		$this->symbols = [
-			Test::Passed => $ciderMode ? Dumper::color('green', '🍎') : '.',
-			Test::Skipped => 's',
-			Test::Failed => $ciderMode ? Dumper::color('red', '🍎') : Dumper::color('white/red', 'F'),
-		];
+		$this->symbols = match (true) {
+			$ciderMode => [Test::Passed => '🍏', Test::Skipped => 's', Test::Failed => '🍎'],
+			$lineMode => [Test::Passed => Dumper::color('lime', 'OK'), Test::Skipped => Dumper::color('yellow', 'SKIP'), Test::Failed => Dumper::color('white/red', 'FAIL')],
+			default => [Test::Passed => '.', Test::Skipped => 's', Test::Failed => Dumper::color('white/red', 'F')],
+		};
 	}
 
 
@@ -74,7 +75,7 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 		} elseif (!str_starts_with($test->getFile(), $this->baseDir)) {
 			$common = array_intersect_assoc(
 				explode(DIRECTORY_SEPARATOR, $this->baseDir),
-				explode(DIRECTORY_SEPARATOR, $test->getFile())
+				explode(DIRECTORY_SEPARATOR, $test->getFile()),
 			);
 			$this->baseDir = '';
 			$prev = 0;
@@ -94,7 +95,12 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 	public function finish(Test $test): void
 	{
 		$this->results[$test->getResult()]++;
-		fwrite($this->file, $this->symbols[$test->getResult()]);
+		fwrite(
+			$this->file,
+			$this->lineMode
+				? $this->generateFinishLine($test)
+				: $this->symbols[$test->getResult()],
+		);
 
 		$title = ($test->title ? "$test->title | " : '') . substr($test->getSignature(), strlen($this->baseDir));
 		$message = '   ' . str_replace("\n", "\n   ", trim((string) $test->message)) . "\n\n";
@@ -120,5 +126,44 @@ class ConsolePrinter implements Tester\Runner\OutputHandler
 			. sprintf('%0.1f', $this->time + microtime(true)) . ' seconds)' . Dumper::color() . "\n");
 
 		$this->buffer = '';
+	}
+
+
+	private function generateFinishLine(Test $test): string
+	{
+		$result = $test->getResult();
+
+		$shortFilePath = str_replace($this->baseDir, '', $test->getFile());
+		$shortDirPath = dirname($shortFilePath) . DIRECTORY_SEPARATOR;
+		$basename = basename($shortFilePath);
+		$fileText = $result === Test::Failed
+			? Dumper::color('red', $shortDirPath) . Dumper::color('white/red', $basename)
+			: Dumper::color('gray', $shortDirPath) . Dumper::color('silver', $basename);
+
+		$header = '· ';
+		$titleText = $test->title
+			? Dumper::color('fuchsia', " [$test->title]")
+			: '';
+
+		// failed tests messages will be printed after all tests are finished
+		$message = '';
+		if ($result !== Test::Failed && $test->message) {
+			$indent = str_repeat(' ', mb_strlen($header));
+			$message = preg_match('#\n#', $test->message)
+				? "\n$indent" . preg_replace('#\r?\n#', '\0' . $indent, $test->message)
+				: Dumper::color('olive', "[$test->message]");
+		}
+
+		return sprintf(
+			"%s%s/%s %s%s %s %s %s\n",
+			$header,
+			array_sum($this->results),
+			$this->count,
+			$fileText,
+			$titleText,
+			$this->symbols[$result],
+			Dumper::color('gray', sprintf('in %.2f s', $test->getDuration())),
+			$message,
+		);
 	}
 }

@@ -21,14 +21,14 @@ class Helpers
 {
 	use Nette\StaticClass;
 
-	/** @var int maximum SQL length */
-	public static $maxLength = 100;
+	/** maximum SQL length */
+	public static int $maxLength = 100;
 
-	/** @var array */
-	public static $typePatterns = [
+	public static array $typePatterns = [
 		'^_' => IStructure::FIELD_TEXT, // PostgreSQL arrays
 		'(TINY|SMALL|SHORT|MEDIUM|BIG|LONG)(INT)?|INT(EGER|\d+| IDENTITY)?|(SMALL|BIG|)SERIAL\d*|COUNTER|YEAR|BYTE|LONGLONG|UNSIGNED BIG INT' => IStructure::FIELD_INTEGER,
-		'(NEW)?DEC(IMAL)?(\(.*)?|NUMERIC|REAL|DOUBLE( PRECISION)?|FLOAT\d*|(SMALL)?MONEY|CURRENCY|NUMBER' => IStructure::FIELD_FLOAT,
+		'(NEW)?DEC(IMAL)?(\(.*)?|NUMERIC|(SMALL)?MONEY|CURRENCY|NUMBER' => IStructure::FIELD_DECIMAL,
+		'REAL|DOUBLE( PRECISION)?|FLOAT\d*' => IStructure::FIELD_FLOAT,
 		'BOOL(EAN)?' => IStructure::FIELD_BOOL,
 		'TIME' => IStructure::FIELD_TIME,
 		'DATE' => IStructure::FIELD_DATE,
@@ -211,7 +211,7 @@ class Helpers
 			} elseif ($type === IStructure::FIELD_INTEGER) {
 				$row[$key] = is_float($tmp = $value * 1) ? $value : $tmp;
 
-			} elseif ($type === IStructure::FIELD_FLOAT) {
+			} elseif ($type === IStructure::FIELD_FLOAT || $type === IStructure::FIELD_DECIMAL) {
 				if (is_string($value) && ($pos = strpos($value, '.')) !== false) {
 					$value = rtrim(rtrim($pos === 0 ? "0$value" : $value, '0'), '.');
 				}
@@ -219,14 +219,15 @@ class Helpers
 				$row[$key] = (float) $value;
 
 			} elseif ($type === IStructure::FIELD_BOOL) {
-				$row[$key] = ((bool) $value) && $value !== 'f' && $value !== 'F';
+				$row[$key] = $value && $value !== 'f' && $value !== 'F';
 
-			} elseif (
-				$type === IStructure::FIELD_DATETIME
-				|| $type === IStructure::FIELD_DATE
-				|| $type === IStructure::FIELD_TIME
-			) {
-				$row[$key] = new Nette\Utils\DateTime($value);
+			} elseif ($type === IStructure::FIELD_DATETIME || $type === IStructure::FIELD_DATE) {
+				$row[$key] = str_starts_with($value, '0000-00')
+					? null
+					: new Nette\Utils\DateTime($value);
+
+			} elseif ($type === IStructure::FIELD_TIME) {
+				$row[$key] = (new Nette\Utils\DateTime($value))->setDate(1, 1, 1);
 
 			} elseif ($type === IStructure::FIELD_TIME_INTERVAL) {
 				preg_match('#^(-?)(\d+)\D(\d+)\D(\d+)(\.\d+)?$#D', $value, $m);
@@ -245,7 +246,7 @@ class Helpers
 
 	/**
 	 * Import SQL dump from file - extremely fast.
-	 * @param  array<callable(int, ?float): void>  $onProgress
+	 * @param  ?array<callable(int, ?float): void>  $onProgress
 	 * @return int  count of commands
 	 */
 	public static function loadFromFile(Connection $connection, string $file, ?callable $onProgress = null): int
@@ -267,7 +268,7 @@ class Helpers
 			if (!strncasecmp($s, 'DELIMITER ', 10)) {
 				$delimiter = trim(substr($s, 10));
 
-			} elseif (substr($ts = rtrim($s), -strlen($delimiter)) === $delimiter) {
+			} elseif (str_ends_with($ts = rtrim($s), $delimiter)) {
 				$sql .= substr($ts, 0, -strlen($delimiter));
 				$pdo->exec($sql);
 				$sql = '';
@@ -299,7 +300,7 @@ class Helpers
 		bool $explain,
 		string $name,
 		Tracy\Bar $bar,
-		Tracy\BlueScreen $blueScreen
+		Tracy\BlueScreen $blueScreen,
 	): ?ConnectionPanel
 	{
 		return ConnectionPanel::initialize($connection, true, $name, $explain, $bar, $blueScreen);
@@ -313,7 +314,7 @@ class Helpers
 		string $name = '',
 		bool $explain = true,
 		?Tracy\Bar $bar = null,
-		?Tracy\BlueScreen $blueScreen = null
+		?Tracy\BlueScreen $blueScreen = null,
 	): ?ConnectionPanel
 	{
 		return ConnectionPanel::initialize($connection, $addBarPanel, $name, $explain, $bar, $blueScreen);
@@ -323,7 +324,7 @@ class Helpers
 	/**
 	 * Reformat source to key -> value pairs.
 	 */
-	public static function toPairs(array $rows, $key = null, $value = null): array
+	public static function toPairs(array $rows, string|int|null $key = null, string|int|null $value = null): array
 	{
 		if (!$rows) {
 			return [];

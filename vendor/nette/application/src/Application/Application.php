@@ -19,59 +19,44 @@ use Nette\Utils\Arrays;
  */
 class Application
 {
-	use Nette\SmartObject;
+	public int $maxLoop = 20;
 
-	/** @var int */
-	public $maxLoop = 20;
-
-	/** @var bool enable fault barrier? */
-	public $catchExceptions;
-
-	/** @var string|null */
-	public $errorPresenter;
+	/** enable fault barrier? */
+	public bool $catchExceptions = false;
+	public ?string $errorPresenter = null;
 
 	/** @var array<callable(self): void>  Occurs before the application loads presenter */
-	public $onStartup = [];
+	public array $onStartup = [];
 
 	/** @var array<callable(self, ?\Throwable): void>  Occurs before the application shuts down */
-	public $onShutdown = [];
+	public array $onShutdown = [];
 
 	/** @var array<callable(self, Request): void>  Occurs when a new request is received */
-	public $onRequest = [];
+	public array $onRequest = [];
 
 	/** @var array<callable(self, IPresenter): void>  Occurs when a presenter is created */
-	public $onPresenter = [];
+	public array $onPresenter = [];
 
 	/** @var array<callable(self, Response): void>  Occurs when a new response is ready for dispatch */
-	public $onResponse = [];
+	public array $onResponse = [];
 
 	/** @var array<callable(self, \Throwable): void>  Occurs when an unhandled exception occurs in the application */
-	public $onError = [];
+	public array $onError = [];
 
 	/** @var Request[] */
-	private $requests = [];
-
-	/** @var IPresenter|null */
-	private $presenter;
-
-	/** @var Nette\Http\IRequest */
-	private $httpRequest;
-
-	/** @var Nette\Http\IResponse */
-	private $httpResponse;
-
-	/** @var IPresenterFactory */
-	private $presenterFactory;
-
-	/** @var Router */
-	private $router;
+	private array $requests = [];
+	private ?IPresenter $presenter = null;
+	private Nette\Http\IRequest $httpRequest;
+	private Nette\Http\IResponse $httpResponse;
+	private IPresenterFactory $presenterFactory;
+	private Router $router;
 
 
 	public function __construct(
 		IPresenterFactory $presenterFactory,
 		Router $router,
 		Nette\Http\IRequest $httpRequest,
-		Nette\Http\IResponse $httpResponse
+		Nette\Http\IResponse $httpResponse,
 	) {
 		$this->httpRequest = $httpRequest;
 		$this->httpResponse = $httpResponse;
@@ -118,7 +103,7 @@ class Application
 			throw new BadRequestException('No route for HTTP request.');
 		} elseif (!is_string($presenter)) {
 			throw new Nette\InvalidStateException('Missing presenter in route definition.');
-		} elseif (Nette\Utils\Strings::startsWith($presenter, 'Nette:') && $presenter !== 'Nette:Micro') {
+		} elseif (str_starts_with($presenter, 'Nette:') && $presenter !== 'Nette:Micro') {
 			throw new BadRequestException('Invalid request. Presenter is not achievable.');
 		}
 
@@ -129,7 +114,6 @@ class Application
 			$params,
 			$this->httpRequest->getPost(),
 			$this->httpRequest->getFiles(),
-			[Request::SECURED => $this->httpRequest->isSecured()]
 		);
 	}
 
@@ -186,7 +170,7 @@ class Application
 		if ($this->presenter instanceof UI\Presenter) {
 			try {
 				$this->presenter->forward(":$this->errorPresenter:", $args);
-			} catch (AbortException $foo) {
+			} catch (AbortException) {
 				$this->processRequest($this->presenter->getLastCreatedRequest());
 			}
 		} else {

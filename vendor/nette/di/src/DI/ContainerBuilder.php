@@ -18,8 +18,6 @@ use Nette\DI\Definitions\Definition;
  */
 class ContainerBuilder
 {
-	use Nette\SmartObject;
-
 	public const
 		ThisService = 'self',
 		ThisContainer = 'container';
@@ -34,22 +32,12 @@ class ContainerBuilder
 	public $parameters = [];
 
 	/** @var Definition[] */
-	private $definitions = [];
-
-	/** @var array of alias => service */
-	private $aliases = [];
-
-	/** @var Autowiring */
-	private $autowiring;
-
-	/** @var bool */
-	private $needsResolve = true;
-
-	/** @var bool */
-	private $resolving = false;
-
-	/** @var array */
-	private $dependencies = [];
+	private array $definitions = [];
+	private array $aliases = [];
+	private Autowiring $autowiring;
+	private bool $needsResolve = true;
+	private bool $resolving = false;
+	private array $dependencies = [];
 
 
 	public function __construct()
@@ -89,7 +77,7 @@ class ContainerBuilder
 					throw new Nette\InvalidStateException(sprintf(
 						"Service '%s' has the same name as '%s' in a case-insensitive manner.",
 						$name,
-						$nm
+						$nm,
 					));
 				}
 			}
@@ -212,9 +200,8 @@ class ContainerBuilder
 
 	/**
 	 * @param  string[]  $types
-	 * @return static
 	 */
-	public function addExcludedClasses(array $types)
+	public function addExcludedClasses(array $types): static
 	{
 		$this->needsResolve = true;
 		$this->autowiring->addExcludedClasses($types);
@@ -224,7 +211,7 @@ class ContainerBuilder
 
 	/**
 	 * Resolves autowired service name by type.
-	 * @param  bool  $throw exception if service doesn't exist?
+	 * @return ($throw is true ? string : ?string)
 	 * @throws MissingServiceException
 	 */
 	public function getByType(string $type, bool $throw = false): ?string
@@ -240,7 +227,7 @@ class ContainerBuilder
 	 */
 	public function getDefinitionByType(string $type): Definition
 	{
-		return $this->getDefinition($this->getByType($type, true));
+		return $this->getDefinition($this->getByType($type, throw: true));
 	}
 
 
@@ -265,7 +252,7 @@ class ContainerBuilder
 		$this->needResolved();
 		$found = [];
 		foreach ($this->definitions as $name => $def) {
-			if (is_a($def->getType(), $type, true)) {
+			if (is_a($def->getType(), $type, allow_string: true)) {
 				$found[$name] = $def;
 			}
 		}
@@ -342,11 +329,9 @@ class ContainerBuilder
 
 	/**
 	 * Adds item to the list of dependencies.
-	 * @param  \ReflectionClass|\ReflectionFunctionAbstract|string  $dep
-	 * @return static
 	 * @internal
 	 */
-	public function addDependency($dep)
+	public function addDependency(\ReflectionClass|\ReflectionFunctionAbstract|string $dep): static
 	{
 		$this->dependencies[] = $dep;
 		return $this;
@@ -402,10 +387,10 @@ class ContainerBuilder
 	}
 
 
-	public static function literal(string $code, ?array $args = null): Nette\PhpGenerator\PhpLiteral
+	public static function literal(string $code, ?array $args = null): Nette\PhpGenerator\Literal
 	{
-		return new Nette\PhpGenerator\PhpLiteral(
-			$args === null ? $code : (new Nette\PhpGenerator\Dumper)->format($code, ...$args)
+		return new Nette\PhpGenerator\Literal(
+			$args === null ? $code : (new Nette\PhpGenerator\Dumper)->format($code, ...$args),
 		);
 	}
 

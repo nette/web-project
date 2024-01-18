@@ -20,8 +20,6 @@ use Nette\Application\UI\Renderable;
  */
 final class SnippetRuntime
 {
-	use Nette\SmartObject;
-
 	public const
 		TypeStatic = 'static',
 		TypeDynamic = 'dynamic',
@@ -57,7 +55,7 @@ final class SnippetRuntime
 			($this->nestingLevel === 0 && $this->control->isControlInvalid($name))
 			|| ($type === self::TypeDynamic && ($previous = end($this->stack)) && $previous[1] === true)
 		) {
-			ob_start(function () {});
+			ob_start(fn() => null);
 			$this->nestingLevel = $type === self::TypeArea ? 0 : 1;
 			$obStarted = true;
 		} elseif ($this->nestingLevel > 0) {

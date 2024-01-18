@@ -20,8 +20,6 @@ use function array_key_exists, is_array, count, strlen;
  */
 class Route implements Router
 {
-	use Nette\SmartObject;
-
 	/** key used in metadata */
 	public const
 		Value = 'value',
@@ -31,14 +29,23 @@ class Route implements Router
 		FilterTable = 'filterTable',
 		FilterStrict = 'filterStrict';
 
-	/** key used in metadata */
-	public const
-		VALUE = self::Value,
-		PATTERN = self::Pattern,
-		FILTER_IN = self::FilterIn,
-		FILTER_OUT = self::FilterOut,
-		FILTER_TABLE = self::FilterTable,
-		FILTER_STRICT = self::FilterStrict;
+	/** @deprecated use Route::Value */
+	public const VALUE = self::Value;
+
+	/** @deprecated use Route::Pattern */
+	public const PATTERN = self::Pattern;
+
+	/** @deprecated use Route::FilterIn */
+	public const FILTER_IN = self::FilterIn;
+
+	/** @deprecated use Route::FilterOut */
+	public const FILTER_OUT = self::FilterOut;
+
+	/** @deprecated use Route::FilterTable */
+	public const FILTER_TABLE = self::FilterTable;
+
+	/** @deprecated use Route::FilterStrict */
+	public const FILTER_STRICT = self::FilterStrict;
 
 	/** key used in metadata */
 	private const
@@ -58,37 +65,31 @@ class Route implements Router
 		InPath = 1, // in brackets is default value = null
 		Constant = 2;
 
-	/** @var array */
-	protected $defaultMeta = [
+	protected array $defaultMeta = [
 		'#' => [ // default style for path parameters
 			self::Pattern => '[^/]+',
 			self::FilterOut => [self::class, 'param2path'],
 		],
 	];
 
-	/** @var string */
-	private $mask;
+	private string $mask;
+	private array $sequence;
 
-	/** @var array */
-	private $sequence;
-
-	/** @var string  regular expression pattern */
-	private $re;
+	/** regular expression pattern */
+	private string $re;
 
 	/** @var string[]  parameter aliases in regular expression */
-	private $aliases = [];
+	private array $aliases = [];
 
 	/** @var array of [value & fixity, filterIn, filterOut] */
-	private $metadata = [];
+	private array $metadata = [];
+	private array $xlat = [];
 
-	/** @var array  */
-	private $xlat = [];
+	/** Host, Path, Relative */
+	private int $type;
 
-	/** @var int HOST, PATH, RELATIVE */
-	private $type;
-
-	/** @var string  http | https */
-	private $scheme;
+	/** http | https */
+	private string $scheme = '';
 
 
 	/**
@@ -406,7 +407,7 @@ class Route implements Router
 			[, $this->scheme, $path] = $m;
 			return $path;
 
-		} elseif (substr($this->mask, 0, 1) === '/') {
+		} elseif (str_starts_with($this->mask, '/')) {
 			$this->type = self::Path;
 
 		} else {
@@ -566,7 +567,7 @@ class Route implements Router
 	private function parseQuery(array $parts): bool
 	{
 		$query = $parts[count($parts) - 2] ?? '';
-		if (substr(ltrim($query), 0, 1) !== '?') {
+		if (!str_starts_with(ltrim($query), '?')) {
 			return false;
 		}
 

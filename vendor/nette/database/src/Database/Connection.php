@@ -10,7 +10,6 @@ declare(strict_types=1);
 namespace Nette\Database;
 
 use JetBrains\PhpStorm\Language;
-use Nette;
 use Nette\Utils\Arrays;
 use PDO;
 use PDOException;
@@ -21,50 +20,29 @@ use PDOException;
  */
 class Connection
 {
-	use Nette\SmartObject;
-
 	/** @var array<callable(self): void>  Occurs after connection is established */
-	public $onConnect = [];
+	public array $onConnect = [];
 
 	/** @var array<callable(self, ResultSet|DriverException): void>  Occurs after query is executed */
-	public $onQuery = [];
-
-	/** @var array */
-	private $params;
-
-	/** @var array */
-	private $options;
-
-	/** @var Driver */
-	private $driver;
-
-	/** @var SqlPreprocessor */
-	private $preprocessor;
-
-	/** @var PDO|null */
-	private $pdo;
+	public array $onQuery = [];
+	private Driver $driver;
+	private SqlPreprocessor $preprocessor;
+	private ?PDO $pdo = null;
 
 	/** @var callable(array, ResultSet): array */
 	private $rowNormalizer = [Helpers::class, 'normalizeRow'];
-
-	/** @var string|null */
-	private $sql;
-
-	/** @var int */
-	private $transactionDepth = 0;
+	private ?string $sql = null;
+	private int $transactionDepth = 0;
 
 
 	public function __construct(
-		string $dsn,
+		private readonly string $dsn,
 		#[\SensitiveParameter]
-		?string $user = null,
+		private readonly ?string $user = null,
 		#[\SensitiveParameter]
-		?string $password = null,
-		?array $options = null
+		private readonly ?string $password = null,
+		private readonly array $options = [],
 	) {
-		$this->params = [$dsn, $user, $password];
-		$this->options = (array) $options;
-
 		if (empty($options['lazy'])) {
 			$this->connect();
 		}
@@ -78,7 +56,7 @@ class Connection
 		}
 
 		try {
-			$this->pdo = new PDO($this->params[0], $this->params[1], $this->params[2], $this->options);
+			$this->pdo = new PDO($this->dsn, $this->user, $this->password, $this->options);
 			$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 		} catch (PDOException $e) {
 			throw ConnectionException::from($e);
@@ -109,7 +87,7 @@ class Connection
 
 	public function getDsn(): string
 	{
-		return $this->params[0];
+		return $this->dsn;
 	}
 
 
@@ -135,7 +113,7 @@ class Connection
 	}
 
 
-	public function setRowNormalizer(?callable $normalizer): self
+	public function setRowNormalizer(?callable $normalizer): static
 	{
 		$this->rowNormalizer = $normalizer;
 		return $this;
@@ -193,10 +171,7 @@ class Connection
 	}
 
 
-	/**
-	 * @return mixed
-	 */
-	public function transaction(callable $callback)
+	public function transaction(callable $callback): mixed
 	{
 		if ($this->transactionDepth === 0) {
 			$this->beginTransaction();
@@ -227,12 +202,7 @@ class Connection
 	 * Generates and executes SQL query.
 	 * @param  literal-string  $sql
 	 */
-	public function query(
-		#[Language('SQL')]
-		string $sql,
-		#[Language('GenericSQL')]
-		...$params
-	): ResultSet
+	public function query(#[Language('SQL')] string $sql, #[Language('GenericSQL')] ...$params): ResultSet
 	{
 		[$this->sql, $params] = $this->preprocess($sql, ...$params);
 		try {
@@ -280,12 +250,7 @@ class Connection
 	 * Shortcut for query()->fetch()
 	 * @param  literal-string  $sql
 	 */
-	public function fetch(
-		#[Language('SQL')]
-		string $sql,
-		#[Language('GenericSQL')]
-		...$params
-	): ?Row
+	public function fetch(#[Language('SQL')] string $sql, #[Language('GenericSQL')] ...$params): ?Row
 	{
 		return $this->query($sql, ...$params)->fetch();
 	}
@@ -294,14 +259,9 @@ class Connection
 	/**
 	 * Shortcut for query()->fetchField()
 	 * @param  literal-string  $sql
-	 * @return mixed
 	 */
-	public function fetchField(
-		#[Language('SQL')]
-		string $sql,
-		#[Language('GenericSQL')]
-		...$params
-	) {
+	public function fetchField(#[Language('SQL')] string $sql, #[Language('GenericSQL')] ...$params): mixed
+	{
 		return $this->query($sql, ...$params)->fetchField();
 	}
 
@@ -310,12 +270,7 @@ class Connection
 	 * Shortcut for query()->fetchFields()
 	 * @param  literal-string  $sql
 	 */
-	public function fetchFields(
-		#[Language('SQL')]
-		string $sql,
-		#[Language('GenericSQL')]
-		...$params
-	): ?array
+	public function fetchFields(#[Language('SQL')] string $sql, #[Language('GenericSQL')] ...$params): ?array
 	{
 		return $this->query($sql, ...$params)->fetchFields();
 	}
@@ -325,12 +280,7 @@ class Connection
 	 * Shortcut for query()->fetchPairs()
 	 * @param  literal-string  $sql
 	 */
-	public function fetchPairs(
-		#[Language('SQL')]
-		string $sql,
-		#[Language('GenericSQL')]
-		...$params
-	): array
+	public function fetchPairs(#[Language('SQL')] string $sql, #[Language('GenericSQL')] ...$params): array
 	{
 		return $this->query($sql, ...$params)->fetchPairs();
 	}
@@ -340,12 +290,7 @@ class Connection
 	 * Shortcut for query()->fetchAll()
 	 * @param  literal-string  $sql
 	 */
-	public function fetchAll(
-		#[Language('SQL')]
-		string $sql,
-		#[Language('GenericSQL')]
-		...$params
-	): array
+	public function fetchAll(#[Language('SQL')] string $sql, #[Language('GenericSQL')] ...$params): array
 	{
 		return $this->query($sql, ...$params)->fetchAll();
 	}

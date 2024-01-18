@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Nette\Forms\Controls;
 
 use Nette\Utils\Html;
+use Stringable;
 
 
 /**
@@ -17,10 +18,7 @@ use Nette\Utils\Html;
  */
 class Button extends BaseControl
 {
-	/**
-	 * @param  string|object  $caption
-	 */
-	public function __construct($caption = null)
+	public function __construct(string|Stringable|null $caption = null)
 	{
 		parent::__construct($caption);
 		$this->control->type = 'button';
@@ -41,14 +39,13 @@ class Button extends BaseControl
 	/**
 	 * Bypasses label generation.
 	 */
-	public function getLabel($caption = null)
+	public function getLabel($caption = null): Html|string|null
 	{
 		return null;
 	}
 
 
-	/** @return static */
-	public function renderAsButton(bool $state = true)
+	public function renderAsButton(bool $state = true): static
 	{
 		$this->control->setName($state ? 'button' : 'input');
 		return $this;
@@ -57,9 +54,8 @@ class Button extends BaseControl
 
 	/**
 	 * Generates control's HTML element.
-	 * @param  string|object  $caption
 	 */
-	public function getControl($caption = null): Html
+	public function getControl(string|Stringable|null $caption = null): Html
 	{
 		$this->setOption('rendered', true);
 		$caption = $this->translate($caption ?? $this->getCaption());

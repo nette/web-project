@@ -9,7 +9,6 @@ declare(strict_types=1);
 
 namespace Nette\Application;
 
-use Nette;
 use Nette\Http\UrlScript;
 use Nette\Routing\Router;
 
@@ -19,23 +18,11 @@ use Nette\Routing\Router;
  */
 final class LinkGenerator
 {
-	use Nette\SmartObject;
-
-	/** @var Router */
-	private $router;
-
-	/** @var UrlScript */
-	private $refUrl;
-
-	/** @var IPresenterFactory|null */
-	private $presenterFactory;
-
-
-	public function __construct(Router $router, UrlScript $refUrl, ?IPresenterFactory $presenterFactory = null)
-	{
-		$this->router = $router;
-		$this->refUrl = $refUrl;
-		$this->presenterFactory = $presenterFactory;
+	public function __construct(
+		private readonly Router $router,
+		private readonly UrlScript $refUrl,
+		private readonly ?IPresenterFactory $presenterFactory = null,
+	) {
 	}
 
 
@@ -53,9 +40,7 @@ final class LinkGenerator
 		[, $presenter, $action, $frag] = $m;
 
 		try {
-			$class = $this->presenterFactory
-				? $this->presenterFactory->getPresenterClass($presenter)
-				: null;
+			$class = $this->presenterFactory?->getPresenterClass($presenter);
 		} catch (InvalidPresenterException $e) {
 			throw new UI\InvalidLinkException($e->getMessage(), 0, $e);
 		}
@@ -96,12 +81,12 @@ final class LinkGenerator
 	}
 
 
-	public function withReferenceUrl(string $url): self
+	public function withReferenceUrl(string $url): static
 	{
 		return new self(
 			$this->router,
 			new UrlScript($url),
-			$this->presenterFactory
+			$this->presenterFactory,
 		);
 	}
 }

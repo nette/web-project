@@ -21,30 +21,20 @@ use Nette;
 #[\AllowDynamicProperties]
 final class DefaultTemplate extends Template
 {
-	/** @var Nette\Application\UI\Presenter */
-	public $presenter;
-
-	/** @var Nette\Application\UI\Control */
-	public $control;
-
-	/** @var Nette\Security\User */
-	public $user;
-
-	/** @var string */
-	public $baseUrl;
-
-	/** @var string */
-	public $basePath;
+	public Nette\Application\IPresenter $presenter;
+	public Nette\Application\UI\Control $control;
+	public Nette\Security\User $user;
+	public string $baseUrl;
+	public string $basePath;
 
 	/** @var \stdClass[] */
-	public $flashes = [];
+	public array $flashes = [];
 
 
 	/**
 	 * Adds new template parameter.
-	 * @return static
 	 */
-	public function add(string $name, $value)
+	public function add(string $name, mixed $value): static
 	{
 		if (property_exists($this, $name)) {
 			throw new Nette\InvalidStateException("The variable '$name' already exists.");
@@ -57,9 +47,8 @@ final class DefaultTemplate extends Template
 
 	/**
 	 * Sets all parameters.
-	 * @return static
 	 */
-	public function setParameters(array $params)
+	public function setParameters(array $params): static
 	{
 		return Nette\Utils\Arrays::toObject($params, $this);
 	}

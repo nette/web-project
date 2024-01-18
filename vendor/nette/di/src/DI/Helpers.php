@@ -26,12 +26,9 @@ final class Helpers
 
 	/**
 	 * Expands %placeholders%.
-	 * @param  mixed  $var
-	 * @param  bool|array  $recursive
-	 * @return mixed
 	 * @throws Nette\InvalidArgumentException
 	 */
-	public static function expand($var, array $params, $recursive = false)
+	public static function expand(mixed $var, array $params, bool|array $recursive = false): mixed
 	{
 		if (is_array($var)) {
 			$res = [];
@@ -43,10 +40,11 @@ final class Helpers
 		} elseif ($var instanceof Statement) {
 			return new Statement(
 				self::expand($var->getEntity(), $params, $recursive),
-				self::expand($var->arguments, $params, $recursive)
+				self::expand($var->arguments, $params, $recursive),
 			);
 
 		} elseif ($var === '%parameters%' && !array_key_exists('parameters', $params)) {
+			trigger_error('%parameters% is deprecated, use @container::getParameters()', E_USER_DEPRECATED);
 			return $recursive
 				? self::expand($params, $params, $recursive)
 				: $params;
@@ -65,7 +63,12 @@ final class Helpers
 	 * Expands %placeholders% in string
 	 * @throws Nette\InvalidArgumentException
 	 */
-	private static function expandString(string $string, array $params, ?array $recursive, bool $onlyString = false)
+	private static function expandString(
+		string $string,
+		array $params,
+		?array $recursive,
+		bool $onlyString = false,
+	): mixed
 	{
 		$parts = preg_split('#%([\w.-]*)%#i', $string, -1, PREG_SPLIT_DELIM_CAPTURE);
 		$res = [];
@@ -88,12 +91,17 @@ final class Helpers
 		}
 
 		return $dynamic
-			? new Statement('::implode', ['', $res])
+			? new Statement('::implode', [$res])
 			: implode('', $res);
 	}
 
 
-	private static function expandParameter(string $parameter, array $params, ?array $recursive, bool $onlyString)
+	private static function expandParameter(
+		string $parameter,
+		array $params,
+		?array $recursive,
+		bool $onlyString,
+	): mixed
 	{
 		$val = $params;
 		$path = [];
@@ -113,6 +121,8 @@ final class Helpers
 				}
 			} elseif ($val instanceof DynamicParameter) {
 				$val = new DynamicParameter($val . '[' . var_export($key, true) . ']');
+			} elseif ($val instanceof Statement) {
+				$val = new Statement('(?)[?]', [$val, $key]);
 			} else {
 				throw new Nette\InvalidArgumentException(sprintf("Missing parameter '%s'.", $parameter));
 			}
@@ -123,10 +133,8 @@ final class Helpers
 
 	/**
 	 * Escapes '%' and '@'
-	 * @param  mixed  $value
-	 * @return mixed
 	 */
-	public static function escape($value)
+	public static function escape(mixed $value): mixed
 	{
 		if (is_array($value)) {
 			$res = [];
@@ -151,14 +159,13 @@ final class Helpers
 	{
 		foreach ($args as $k => $v) {
 			if (
-				PHP_VERSION_ID >= 80100
-				&& is_string($v)
+				is_string($v)
 				&& preg_match('#^([\w\\\\]+)::\w+$#D', $v, $m)
 				&& enum_exists($m[1])
 			) {
-				$args[$k] = new Nette\PhpGenerator\PhpLiteral($v);
+				$args[$k] = new Nette\PhpGenerator\Literal($v);
 			} elseif (is_string($v) && preg_match('#^[\w\\\\]*::[A-Z][a-zA-Z0-9_]*$#D', $v)) {
-				$args[$k] = new Nette\PhpGenerator\PhpLiteral(ltrim($v, ':'));
+				$args[$k] = new Nette\PhpGenerator\Literal(ltrim($v, ':'));
 			} elseif (is_string($v) && preg_match('#^@[\w\\\\]+$#D', $v)) {
 				$args[$k] = new Reference(substr($v, 1));
 			} elseif (is_array($v)) {
@@ -175,10 +182,8 @@ final class Helpers
 
 	/**
 	 * Replaces @extension with real extension name in service definition.
-	 * @param  mixed  $config
-	 * @return mixed
 	 */
-	public static function prefixServiceName($config, string $namespace)
+	public static function prefixServiceName(mixed $config, string $namespace): mixed
 	{
 		if (is_string($config)) {
 			if (strncmp($config, '@extension.', 10) === 0) {
@@ -191,7 +196,7 @@ final class Helpers
 		} elseif ($config instanceof Statement) {
 			return new Statement(
 				self::prefixServiceName($config->getEntity(), $namespace),
-				self::prefixServiceName($config->arguments, $namespace)
+				self::prefixServiceName($config->arguments, $namespace),
 			);
 		} elseif (is_array($config)) {
 			foreach ($config as &$val) {
@@ -205,7 +210,6 @@ final class Helpers
 
 	/**
 	 * Returns an annotation value.
-	 * @param  \ReflectionFunctionAbstract|\ReflectionProperty|\ReflectionClass  $ref
 	 */
 	public static function parseAnnotation(\Reflector $ref, string $name): ?string
 	{
@@ -263,11 +267,9 @@ final class Helpers
 
 	/**
 	 * Non data-loss type conversion.
-	 * @param  mixed  $value
-	 * @return mixed
 	 * @throws Nette\InvalidStateException
 	 */
-	public static function convertType($value, string $type)
+	public static function convertType(mixed $value, string $type): mixed
 	{
 		if (is_scalar($value)) {
 			$norm = ($value === false ? '0' : (string) $value);
@@ -284,8 +286,8 @@ final class Helpers
 
 		throw new Nette\InvalidStateException(sprintf(
 			'Cannot convert %s to %s.',
-			is_scalar($value) ? "'$value'" : gettype($value),
-			$type
+			is_scalar($value) ? "'$value'" : get_debug_type($value),
+			$type,
 		));
 	}
 }

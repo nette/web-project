@@ -17,23 +17,16 @@ use Nette;
  */
 abstract class CompilerExtension
 {
-	use Nette\SmartObject;
-
-	/** @var Compiler */
-	protected $compiler;
-
-	/** @var string */
-	protected $name;
+	protected Compiler $compiler;
+	protected string $name;
 
 	/** @var array|object */
 	protected $config = [];
 
-	/** @var Nette\PhpGenerator\Closure */
-	protected $initialization;
+	protected Nette\PhpGenerator\Closure $initialization;
 
 
-	/** @return static */
-	public function setCompiler(Compiler $compiler, string $name)
+	public function setCompiler(Compiler $compiler, string $name): static
 	{
 		$this->initialization = new Nette\PhpGenerator\Closure;
 		$this->compiler = $compiler;
@@ -42,16 +35,8 @@ abstract class CompilerExtension
 	}
 
 
-	/**
-	 * @param  array|object  $config
-	 * @return static
-	 */
-	public function setConfig($config)
+	public function setConfig(array|object $config): static
 	{
-		if (!is_array($config) && !is_object($config)) {
-			throw new Nette\InvalidArgumentException;
-		}
-
 		$this->config = $config;
 		return $this;
 	}
@@ -59,9 +44,8 @@ abstract class CompilerExtension
 
 	/**
 	 * Returns extension configuration.
-	 * @return array|object
 	 */
-	public function getConfig()
+	public function getConfig(): array|object
 	{
 		return $this->config;
 	}
@@ -95,7 +79,7 @@ abstract class CompilerExtension
 			throw new Nette\DI\InvalidConfigurationException(sprintf(
 				"Unknown configuration option '%s\u{a0}›\u{a0}%s'",
 				$name,
-				$hint ? key($extra) : implode("', '{$name}\u{a0}›\u{a0}", array_keys($extra))
+				$hint ? key($extra) : implode("', '{$name}\u{a0}›\u{a0}", array_keys($extra)),
 			) . ($hint ? ", did you mean '{$name}\u{a0}›\u{a0}{$hint}'?" : '.'));
 		}
 
@@ -154,7 +138,7 @@ abstract class CompilerExtension
 	 */
 	public function prefix(string $id): string
 	{
-		return substr_replace($id, $this->name . '.', substr($id, 0, 1) === '@' ? 1 : 0, 0);
+		return substr_replace($id, $this->name . '.', str_starts_with($id, '@') ? 1 : 0, 0);
 	}
 
 

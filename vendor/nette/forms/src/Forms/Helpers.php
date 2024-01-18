@@ -11,13 +11,14 @@ namespace Nette\Forms;
 
 use Nette;
 use Nette\Utils\Html;
+use Nette\Utils\Image;
 use Nette\Utils\Strings;
 
 
 /**
  * Forms helpers.
  */
-class Helpers
+final class Helpers
 {
 	use Nette\StaticClass;
 
@@ -30,16 +31,19 @@ class Helpers
 	/**
 	 * Extracts and sanitizes submitted form data for single control.
 	 * @param  int  $type  type Form::DataText, DataLine, DataFile, DataKeys
-	 * @return string|string[]
 	 * @internal
 	 */
-	public static function extractHttpData(array $data, string $htmlName, int $type)
+	public static function extractHttpData(
+		array $data,
+		string $htmlName,
+		int $type,
+	): string|array|Nette\Http\FileUpload|null
 	{
 		$name = explode('[', str_replace(['[]', ']', '.'], ['', '', '_'], $htmlName));
 		$data = Nette\Utils\Arrays::get($data, $name, null);
 		$itype = $type & ~Form::DataKeys;
 
-		if (substr($htmlName, -2) === '[]') {
+		if (str_ends_with($htmlName, '[]')) {
 			if (!is_array($data)) {
 				return [];
 			}
@@ -93,7 +97,7 @@ class Helpers
 			$name = substr_replace($name, '', strpos($name, ']'), 1) . ']';
 		}
 
-		if (is_numeric($name) || in_array($name, self::UnsafeNames, true)) {
+		if (is_numeric($name) || in_array($name, self::UnsafeNames, strict: true)) {
 			$name = '_' . $name;
 		}
 
@@ -130,7 +134,7 @@ class Helpers
 					continue;
 				}
 			} else {
-				$msg = Validator::formatMessage($rule, false);
+				$msg = Validator::formatMessage($rule, withValue: false);
 				if ($msg instanceof Nette\HtmlStringable) {
 					$msg = html_entity_decode(strip_tags((string) $msg), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 				}
@@ -154,7 +158,7 @@ class Helpers
 	}
 
 
-	private static function exportArgument($value, Control $control)
+	private static function exportArgument(mixed $value, Control $control): mixed
 	{
 		if ($value instanceof Control) {
 			return ['control' => $value->getHtmlName()];
@@ -170,7 +174,7 @@ class Helpers
 		array $items,
 		?array $inputAttrs = null,
 		?array $labelAttrs = null,
-		$wrapper = null
+		$wrapper = null,
 	): string
 	{
 		[$inputAttrs, $inputTag] = self::prepareAttrs($inputAttrs, 'input');
@@ -192,7 +196,7 @@ class Helpers
 			$input->value = $value;
 			$res .= ($res === '' && $wrapperEnd === '' ? '' : $wrapper)
 				. $labelTag . $label->attributes() . '>'
-				. $inputTag . $input->attributes() . (isset(Html::$xhtml) && Html::$xhtml ? ' />' : '>')
+				. $inputTag . $input->attributes() . '>'
 				. ($caption instanceof Nette\HtmlStringable ? $caption : htmlspecialchars((string) $caption, ENT_NOQUOTES, 'UTF-8'))
 				. '</label>'
 				. $wrapperEnd;
@@ -255,7 +259,7 @@ class Helpers
 				$p = substr($k, 0, -1);
 				unset($attrs[$k], $attrs[$p]);
 				if ($k[-1] === '?') {
-					$dynamic[$p] = array_fill_keys((array) $v, true);
+					$dynamic[$p] = array_fill_keys((array) $v, value: true);
 				} elseif (is_array($v) && $v) {
 					$dynamic[$p] = $v;
 				} else {
@@ -289,7 +293,7 @@ class Helpers
 			return $res;
 		} else {
 			throw new Nette\InvalidStateException(
-				Nette\Utils\Reflection::toString($reflection) . " has unsupported type '$type'."
+				Nette\Utils\Reflection::toString($reflection) . " has unsupported type '$type'.",
 			);
 		}
 	}
@@ -298,13 +302,6 @@ class Helpers
 	/** @internal */
 	public static function getSupportedImages(): array
 	{
-		$flag = imagetypes();
-		return array_filter([
-			$flag & IMG_GIF ? 'image/gif' : null,
-			$flag & IMG_JPG ? 'image/jpeg' : null,
-			$flag & IMG_PNG ? 'image/png' : null,
-			$flag & IMG_WEBP ? 'image/webp' : null,
-			$flag & 256 ? 'image/avif' : null, // IMG_AVIF
-		]);
+		return array_map(fn($type) => Image::typeToMimeType($type), Image::getSupportedTypes());
 	}
 }

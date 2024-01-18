@@ -19,16 +19,9 @@ use Tracy;
  */
 class ContainerPanel implements Tracy\IBarPanel
 {
-	use Nette\SmartObject;
-
-	/** @var float|null */
-	public static $compilationTime;
-
-	/** @var Nette\DI\Container */
-	private $container;
-
-	/** @var float|null */
-	private $elapsedTime;
+	public static ?float $compilationTime = null;
+	private Nette\DI\Container $container;
+	private ?float $elapsedTime;
 
 
 	public function __construct(Container $container)
@@ -57,7 +50,7 @@ class ContainerPanel implements Tracy\IBarPanel
 	 */
 	public function getPanel(): string
 	{
-		$methods = (function () { return $this->methods; })->bindTo($this->container, Container::class)();
+		$methods = (fn() => $this->methods)->bindTo($this->container, Container::class)();
 		$services = [];
 		foreach ($methods as $name => $foo) {
 			$name = lcfirst(str_replace('__', '.', substr($name, 13)));
@@ -65,7 +58,7 @@ class ContainerPanel implements Tracy\IBarPanel
 		}
 		ksort($services, SORT_NATURAL);
 
-		$propertyTags = (function () { return $this->tags; })->bindTo($this->container, $this->container)();
+		$propertyTags = (fn() => $this->tags)->bindTo($this->container, $this->container)();
 		$tags = [];
 		foreach ($propertyTags as $tag => $tmp) {
 			foreach ($tmp as $service => $val) {
@@ -77,8 +70,8 @@ class ContainerPanel implements Tracy\IBarPanel
 			$container = $this->container;
 			$rc = (new \ReflectionClass($this->container));
 			$file = $rc->getFileName();
-			$instances = (function () { return $this->instances; })->bindTo($this->container, Container::class)();
-			$wiring = (function () { return $this->wiring; })->bindTo($this->container, $this->container)();
+			$instances = (fn() => $this->instances)->bindTo($this->container, Container::class)();
+			$wiring = (fn() => $this->wiring)->bindTo($this->container, $this->container)();
 			$parameters = $rc->getMethod('getStaticParameters')->getDeclaringClass()->getName() === Container::class
 				? null
 				: $container->getParameters();

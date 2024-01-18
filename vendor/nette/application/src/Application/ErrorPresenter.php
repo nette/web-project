@@ -9,7 +9,6 @@ declare(strict_types=1);
 
 namespace NetteModule;
 
-use Nette;
 use Nette\Application;
 use Nette\Http;
 use Tracy\ILogger;
@@ -20,15 +19,9 @@ use Tracy\ILogger;
  */
 final class ErrorPresenter implements Application\IPresenter
 {
-	use Nette\SmartObject;
-
-	/** @var ILogger|null */
-	private $logger;
-
-
-	public function __construct(?ILogger $logger = null)
-	{
-		$this->logger = $logger;
+	public function __construct(
+		private readonly ?ILogger $logger = null,
+	) {
 	}
 
 
@@ -39,9 +32,7 @@ final class ErrorPresenter implements Application\IPresenter
 			$code = $e->getHttpCode();
 		} else {
 			$code = 500;
-			if ($this->logger) {
-				$this->logger->log($e, ILogger::EXCEPTION);
-			}
+			$this->logger?->log($e, ILogger::EXCEPTION);
 		}
 
 		return new Application\Responses\CallbackResponse(function (Http\IRequest $httpRequest, Http\IResponse $httpResponse) use ($code): void {

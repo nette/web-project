@@ -18,7 +18,7 @@ use Nette\Utils\Arrays;
  *
  * @property-read bool $loggedIn
  * @property-read IIdentity $identity
- * @property-read mixed $id
+ * @property-read string|int $id
  * @property-read array $roles
  * @property-read int $logoutReason
  * @property   IAuthenticator $authenticator
@@ -28,70 +28,49 @@ class User
 {
 	use Nette\SmartObject;
 
-	/** @deprecated */
-	public const
-		MANUAL = IUserStorage::MANUAL,
-		INACTIVITY = IUserStorage::INACTIVITY;
-
 	/** Log-out reason */
 	public const
-		LogoutManual = UserStorage::LogoutManual,
-		LogoutInactivity = UserStorage::LogoutInactivity;
+		LogoutManual = 1,
+		LogoutInactivity = 2;
 
+	/** @deprecated use User::LogoutManual */
 	public const LOGOUT_MANUAL = self::LogoutManual;
+
+	/** @deprecated use User::LogoutManual */
+	public const MANUAL = self::LogoutManual;
+
+	/** @deprecated use User::LogoutInactivity */
 	public const LOGOUT_INACTIVITY = self::LogoutInactivity;
 
-	/** @var string  default role for unauthenticated user */
-	public $guestRole = 'guest';
+	/** @deprecated use User::LogoutInactivity */
+	public const INACTIVITY = self::LogoutInactivity;
 
-	/** @var string  default role for authenticated user without own identity */
-	public $authenticatedRole = 'authenticated';
+	/** default role for unauthenticated user */
+	public string $guestRole = 'guest';
+
+	/** default role for authenticated user without own identity */
+	public string $authenticatedRole = 'authenticated';
 
 	/** @var callable[]  function (User $sender): void; Occurs when the user is successfully logged in */
-	public $onLoggedIn = [];
+	public array $onLoggedIn = [];
 
 	/** @var callable[]  function (User $sender): void; Occurs when the user is logged out */
-	public $onLoggedOut = [];
+	public array $onLoggedOut = [];
 
-	/** @var UserStorage|IUserStorage  Session storage for current user */
-	private $storage;
-
-	/** @var IAuthenticator|null */
-	private $authenticator;
-
-	/** @var Authorizator|null */
-	private $authorizator;
-
-	/** @var IIdentity|null */
-	private $identity;
-
-	/** @var bool|null */
-	private $authenticated;
-
-	/** @var int|null */
-	private $logoutReason;
+	private ?IIdentity $identity = null;
+	private ?bool $authenticated = null;
+	private ?int $logoutReason = null;
 
 
 	public function __construct(
-		?IUserStorage $legacyStorage = null,
-		?IAuthenticator $authenticator = null,
-		?Authorizator $authorizator = null,
-		?UserStorage $storage = null
+		private UserStorage $storage,
+		private ?IAuthenticator $authenticator = null,
+		private ?Authorizator $authorizator = null,
 	) {
-		$this->storage = $storage ?? $legacyStorage; // back compatibility
-		if (!$this->storage) {
-			throw new Nette\InvalidStateException('UserStorage has not been set.');
-		}
-
-		$this->authenticator = $authenticator;
-		$this->authorizator = $authorizator;
 	}
 
 
-	/**
-	 * @return UserStorage|IUserStorage
-	 */
-	final public function getStorage()
+	final public function getStorage(): UserStorage
 	{
 		return $this->storage;
 	}
@@ -106,9 +85,9 @@ class User
 	 * @throws AuthenticationException if authentication was not successful
 	 */
 	public function login(
-		$user,
+		string|IIdentity $user,
 		#[\SensitiveParameter]
-		?string $password = null
+		?string $password = null,
 	): void
 	{
 		$this->logout(true);
@@ -124,13 +103,8 @@ class User
 		$id = $this->authenticator instanceof IdentityHandler
 			? $this->authenticator->sleepIdentity($this->identity)
 			: $this->identity;
-		if ($this->storage instanceof UserStorage) {
-			$this->storage->saveAuthentication($id);
-		} else {
-			$this->storage->setIdentity($id);
-			$this->storage->setAuthenticated(true);
-		}
 
+		$this->storage->saveAuthentication($id);
 		$this->authenticated = true;
 		$this->logoutReason = null;
 		Arrays::invoke($this->onLoggedIn, $this);
@@ -143,18 +117,9 @@ class User
 	final public function logout(bool $clearIdentity = false): void
 	{
 		$logged = $this->isLoggedIn();
-
-		if ($this->storage instanceof UserStorage) {
-			$this->storage->clearAuthentication($clearIdentity);
-		} else {
-			$this->storage->setAuthenticated(false);
-			if ($clearIdentity) {
-				$this->storage->setIdentity(null);
-			}
-		}
-
+		$this->storage->clearAuthentication($clearIdentity);
 		$this->authenticated = false;
-		$this->logoutReason = self::MANUAL;
+		$this->logoutReason = self::LogoutManual;
 		if ($logged) {
 			Arrays::invoke($this->onLoggedOut, $this);
 		}
@@ -191,17 +156,11 @@ class User
 
 	private function getStoredData(): void
 	{
-		if ($this->storage instanceof UserStorage) {
-			(function (bool $state, ?IIdentity $id, ?int $reason) use (&$identity) {
-				$identity = $id;
-				$this->authenticated = $state;
-				$this->logoutReason = $reason;
-			})(...$this->storage->getState());
-		} else {
-			$identity = $this->storage->getIdentity();
-			$this->authenticated = $this->storage->isAuthenticated();
-			$this->logoutReason = $this->storage->getLogoutReason();
-		}
+		(function (bool $state, ?IIdentity $id, ?int $reason) use (&$identity) {
+			$identity = $id;
+			$this->authenticated = $state;
+			$this->logoutReason = $reason;
+		})(...$this->storage->getState());
 
 		$this->identity = $identity && $this->authenticator instanceof IdentityHandler
 			? $this->authenticator->wakeupIdentity($identity)
@@ -212,9 +171,8 @@ class User
 
 	/**
 	 * Returns current user ID, if any.
-	 * @return mixed
 	 */
-	public function getId()
+	public function getId(): string|int|null
 	{
 		$identity = $this->getIdentity();
 		return $identity ? $identity->getId() : null;
@@ -229,9 +187,8 @@ class User
 
 	/**
 	 * Sets authentication handler.
-	 * @return static
 	 */
-	public function setAuthenticator(IAuthenticator $handler)
+	public function setAuthenticator(IAuthenticator $handler): static
 	{
 		$this->authenticator = $handler;
 		return $this;
@@ -241,14 +198,9 @@ class User
 	/**
 	 * Returns authentication handler.
 	 */
-	final public function getAuthenticator(): ?IAuthenticator
+	final public function getAuthenticator(): IAuthenticator
 	{
-		if (func_num_args()) {
-			trigger_error(__METHOD__ . '() parameter $throw is deprecated, use getAuthenticatorIfExists()', E_USER_DEPRECATED);
-			$throw = func_get_arg(0);
-		}
-
-		if (($throw ?? true) && !$this->authenticator) {
+		if (!$this->authenticator) {
 			throw new Nette\InvalidStateException('Authenticator has not been set.');
 		}
 
@@ -274,25 +226,10 @@ class User
 
 	/**
 	 * Enables log out after inactivity (like '20 minutes').
-	 * @param  string|null  $expire
-	 * @param  int|bool  $clearIdentity
-	 * @return static
 	 */
-	public function setExpiration($expire, $clearIdentity = null)
+	public function setExpiration(?string $expire, bool $clearIdentity = false)
 	{
-		if ($expire !== null && !is_string($expire)) {
-			trigger_error("Expiration should be a string like '20 minutes' etc.", E_USER_DEPRECATED);
-		}
-
-		if (func_num_args() > 2) {
-			$clearIdentity = $clearIdentity || func_get_arg(2);
-			trigger_error(__METHOD__ . '() third parameter is deprecated, use second one: setExpiration($time, true|false)', E_USER_DEPRECATED);
-		}
-
-		$arg = $this->storage instanceof UserStorage
-			? (bool) $clearIdentity
-			: ($clearIdentity ? IUserStorage::CLEAR_IDENTITY : 0);
-		$this->storage->setExpiration($expire, $arg);
+		$this->storage->setExpiration($expire, $clearIdentity);
 		return $this;
 	}
 
@@ -356,9 +293,8 @@ class User
 
 	/**
 	 * Sets authorization handler.
-	 * @return static
 	 */
-	public function setAuthorizator(Authorizator $handler)
+	public function setAuthorizator(Authorizator $handler): static
 	{
 		$this->authorizator = $handler;
 		return $this;
@@ -368,14 +304,9 @@ class User
 	/**
 	 * Returns current authorization handler.
 	 */
-	final public function getAuthorizator(): ?Authorizator
+	final public function getAuthorizator(): Authorizator
 	{
-		if (func_num_args()) {
-			trigger_error(__METHOD__ . '() parameter $throw is deprecated, use getAuthorizatorIfExists()', E_USER_DEPRECATED);
-			$throw = func_get_arg(0);
-		}
-
-		if (($throw ?? true) && !$this->authorizator) {
+		if (!$this->authorizator) {
 			throw new Nette\InvalidStateException('Authorizator has not been set.');
 		}
 

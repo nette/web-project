@@ -17,27 +17,24 @@ use Nette;
  */
 class PresenterFactory implements IPresenterFactory
 {
-	use Nette\SmartObject;
-
 	/** @var array[] of module => splited mask */
-	private $mapping = [
+	private array $mapping = [
 		'*' => ['', '*Module\\', '*Presenter'],
 		'Nette' => ['NetteModule\\', '*\\', '*Presenter'],
 	];
 
-	/** @var array */
-	private $cache = [];
+	private array $cache = [];
 
 	/** @var callable */
 	private $factory;
 
 
 	/**
-	 * @param  callable(string): IPresenter  $factory
+	 * @param  ?callable(string): IPresenter  $factory
 	 */
 	public function __construct(?callable $factory = null)
 	{
-		$this->factory = $factory ?: function (string $class): IPresenter { return new $class; };
+		$this->factory = $factory ?: fn(string $class): IPresenter => new $class;
 	}
 
 
@@ -84,9 +81,8 @@ class PresenterFactory implements IPresenterFactory
 
 	/**
 	 * Sets mapping as pairs [module => mask]
-	 * @return static
 	 */
-	public function setMapping(array $mapping)
+	public function setMapping(array $mapping): static
 	{
 		foreach ($mapping as $module => $mask) {
 			if (is_string($mask)) {
@@ -122,24 +118,5 @@ class PresenterFactory implements IPresenterFactory
 		}
 
 		return $mapping[0];
-	}
-
-
-	/**
-	 * Formats presenter name from class name.
-	 * @internal
-	 */
-	public function unformatPresenterClass(string $class): ?string
-	{
-		trigger_error(__METHOD__ . '() is deprecated.', E_USER_DEPRECATED);
-		foreach ($this->mapping as $module => $mapping) {
-			$mapping = str_replace(['\\', '*'], ['\\\\', '(\w+)'], $mapping);
-			if (preg_match("#^\\\\?$mapping[0]((?:$mapping[1])*)$mapping[2]$#Di", $class, $matches)) {
-				return ($module === '*' ? '' : $module . ':')
-					. preg_replace("#$mapping[1]#iA", '$1:', $matches[1]) . $matches[3];
-			}
-		}
-
-		return null;
 	}
 }

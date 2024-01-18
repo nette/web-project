@@ -18,8 +18,7 @@ use Nette\Database\IStructure;
  */
 class DiscoveredConventions implements Conventions
 {
-	/** @var IStructure */
-	protected $structure;
+	protected IStructure $structure;
 
 
 	public function __construct(IStructure $structure)
@@ -28,7 +27,7 @@ class DiscoveredConventions implements Conventions
 	}
 
 
-	public function getPrimary(string $table)
+	public function getPrimary(string $table): string|array|null
 	{
 		return $this->structure->getPrimaryKey($table);
 	}

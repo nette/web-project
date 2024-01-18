@@ -20,11 +20,8 @@ use Nette\Utils\Arrays;
  */
 final class SearchExtension extends Nette\DI\CompilerExtension
 {
-	/** @var array */
-	private $classes = [];
-
-	/** @var string */
-	private $tempDir;
+	private array $classes = [];
+	private string $tempDir;
 
 
 	public function __construct(string $tempDir)
@@ -43,21 +40,20 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 				'extends' => Expect::anyOf(Expect::listOf('string'), Expect::string()->castTo('array'))->default([]),
 				'implements' => Expect::anyOf(Expect::listOf('string'), Expect::string()->castTo('array'))->default([]),
 				'exclude' => Expect::structure([
+					'files' => Expect::anyOf(Expect::listOf('string'), Expect::string()->castTo('array'))->default([]),
 					'classes' => Expect::anyOf(Expect::listOf('string'), Expect::string()->castTo('array'))->default([]),
 					'extends' => Expect::anyOf(Expect::listOf('string'), Expect::string()->castTo('array'))->default([]),
 					'implements' => Expect::anyOf(Expect::listOf('string'), Expect::string()->castTo('array'))->default([]),
 				]),
 				'tags' => Expect::array(),
-			])
-		)->before(function ($val) {
-			return is_string($val['in'] ?? null)
+			]),
+		)->before(fn($val) => is_string($val['in'] ?? null)
 				? ['default' => $val]
-				: $val;
-		});
+				: $val);
 	}
 
 
-	public function loadConfiguration()
+	public function loadConfiguration(): void
 	{
 		foreach (array_filter($this->config) as $name => $batch) {
 			if (!is_dir($batch->in)) {
@@ -65,7 +61,7 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 					"Option '%s\u{a0}›\u{a0}%s\u{a0}›\u{a0}in' must be valid directory name, '%s' given.",
 					$this->name,
 					$name,
-					$batch->in
+					$batch->in,
 				));
 			}
 
@@ -78,15 +74,16 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 
 	public function findClasses(\stdClass $config): array
 	{
+		$exclude = $config->exclude;
 		$robot = new RobotLoader;
 		$robot->setTempDirectory($this->tempDir);
 		$robot->addDirectory($config->in);
 		$robot->acceptFiles = $config->files ?: ['*.php'];
+		$robot->ignoreDirs = array_merge($robot->ignoreDirs, $exclude->files);
 		$robot->reportParseErrors(false);
 		$robot->refresh();
 		$classes = array_unique(array_keys($robot->getIndexedClasses()));
 
-		$exclude = $config->exclude;
 		$acceptRE = self::buildNameRegexp($config->classes);
 		$rejectRE = self::buildNameRegexp($exclude->classes);
 		$acceptParent = array_merge($config->extends, $config->implements);
@@ -97,7 +94,7 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 			if (!class_exists($class) && !interface_exists($class) && !trait_exists($class)) {
 				throw new Nette\InvalidStateException(sprintf(
 					'Class %s was found, but it cannot be loaded by autoloading.',
-					$class
+					$class,
 				));
 			}
 
@@ -107,12 +104,12 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 					||
 					($rc->isInterface()
 					&& count($methods = $rc->getMethods()) === 1
-					&& $methods[0]->name === 'create')
+					&& in_array($methods[0]->name, ['get', 'create'], true))
 				)
 				&& (!$acceptRE || preg_match($acceptRE, $rc->name))
 				&& (!$rejectRE || !preg_match($rejectRE, $rc->name))
-				&& (!$acceptParent || Arrays::some($acceptParent, function ($nm) use ($rc) { return $rc->isSubclassOf($nm); }))
-				&& (!$rejectParent || Arrays::every($rejectParent, function ($nm) use ($rc) { return !$rc->isSubclassOf($nm); }))
+				&& (!$acceptParent || Arrays::some($acceptParent, fn($nm) => $rc->isSubclassOf($nm)))
+				&& (!$rejectParent || Arrays::every($rejectParent, fn($nm) => !$rc->isSubclassOf($nm)))
 			) {
 				$found[] = $rc->name;
 			}
@@ -122,7 +119,7 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 	}
 
 
-	public function beforeCompile()
+	public function beforeCompile(): void
 	{
 		$builder = $this->getContainerBuilder();
 
@@ -133,10 +130,14 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 		}
 
 		foreach ($this->classes as $class => $tags) {
-			$def = class_exists($class)
-				? $builder->addDefinition(null)->setType($class)
-				: $builder->addFactoryDefinition(null)->setImplement($class);
-			$def->setTags(Arrays::normalize($tags, true));
+			if (class_exists($class)) {
+				$def = $builder->addDefinition(null)->setType($class);
+			} elseif (method_exists($class, 'create')) {
+				$def = $builder->addFactoryDefinition(null)->setImplement($class);
+			} else {
+				$def = $builder->addAccessorDefinition(null)->setImplement($class);
+			}
+			$def->setTags(Arrays::normalize($tags, filling: true));
 		}
 	}
 
@@ -144,8 +145,8 @@ final class SearchExtension extends Nette\DI\CompilerExtension
 	private static function buildNameRegexp(array $masks): ?string
 	{
 		$res = [];
-		foreach ((array) $masks as $mask) {
-			$mask = (strpos($mask, '\\') === false ? '**\\' : '') . $mask;
+		foreach ($masks as $mask) {
+			$mask = (str_contains($mask, '\\') ? '' : '**\\') . $mask;
 			$mask = preg_quote($mask, '#');
 			$mask = str_replace('\*\*\\\\', '(.*\\\\)?', $mask);
 			$mask = str_replace('\\\\\*\*', '(\\\\.*)?', $mask);

@@ -29,9 +29,8 @@ final class Helpers
 
 	/**
 	 * Returns HTTP valid date format.
-	 * @param  string|int|\DateTimeInterface  $time
 	 */
-	public static function formatDate($time): string
+	public static function formatDate(string|int|\DateTimeInterface $time): string
 	{
 		$time = DateTime::from($time)->setTimezone(new \DateTimeZone('GMT'));
 		return $time->format('D, d M Y H:i:s \G\M\T');
@@ -44,7 +43,7 @@ final class Helpers
 	public static function ipMatch(string $ip, string $mask): bool
 	{
 		[$mask, $size] = explode('/', $mask . '/');
-		$tmp = function (int $n): string { return sprintf('%032b', $n); };
+		$tmp = fn(int $n): string => sprintf('%032b', $n);
 		$ip = implode('', array_map($tmp, unpack('N*', inet_pton($ip))));
 		$mask = implode('', array_map($tmp, unpack('N*', inet_pton($mask))));
 		$max = strlen($ip);
@@ -58,6 +57,6 @@ final class Helpers
 
 	public static function initCookie(IRequest $request, IResponse $response)
 	{
-		$response->setCookie(self::StrictCookieName, '1', 0, '/', null, null, true, IResponse::SameSiteStrict);
+		$response->setCookie(self::StrictCookieName, '1', 0, '/', sameSite: IResponse::SameSiteStrict);
 	}
 }

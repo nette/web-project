@@ -9,7 +9,6 @@ declare(strict_types=1);
 
 namespace Nette\Bridges\FormsLatte;
 
-use Latte;
 use Nette;
 use Nette\Forms\Form;
 use Nette\Utils\Html;
@@ -76,51 +75,12 @@ class Runtime
 	}
 
 
-	/**
-	 * Generates blueprint of form.
-	 */
-	public static function renderFormPrint(Form $form): void
-	{
-		$blueprint = class_exists(Latte\Runtime\Blueprint::class)
-			? new Latte\Runtime\Blueprint
-			: new Latte\Essential\Blueprint;
-		$end = $blueprint->printCanvas();
-		$blueprint->printHeader('Form ' . $form->getName());
-		$blueprint->printCode((new Nette\Forms\Rendering\LatteRenderer)->render($form), 'latte');
-		echo $end;
-	}
-
-
-	/**
-	 * Generates blueprint of form data class.
-	 */
-	public static function renderFormClassPrint(Form $form): void
-	{
-		$blueprint = class_exists(Latte\Runtime\Blueprint::class)
-			? new Latte\Runtime\Blueprint
-			: new Latte\Essential\Blueprint;
-		$end = $blueprint->printCanvas();
-		$blueprint->printHeader('Form Data Class ' . $form->getName());
-		$generator = new Nette\Forms\Rendering\DataClassGenerator;
-		$blueprint->printCode($generator->generateCode($form));
-		if (PHP_VERSION_ID >= 80000) {
-			$generator->propertyPromotion = true;
-			$blueprint->printCode($generator->generateCode($form));
-		}
-
-		echo $end;
-	}
-
-
 	public static function item($item, $global): object
 	{
 		if (is_object($item)) {
 			return $item;
 		}
-		$form = end($global->formsStack);
-		if (!$form) {
-			throw new \LogicException('Form declaration is missing, did you use {form} or <form n:name> tag?');
-		}
+		$form = end($global->formsStack) ?: throw new \LogicException('Form declaration is missing, did you use {form} or <form n:name> tag?');
 		return $form[$item];
 	}
 }

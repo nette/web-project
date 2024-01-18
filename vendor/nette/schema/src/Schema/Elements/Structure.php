@@ -18,19 +18,16 @@ use Nette\Schema\Schema;
 final class Structure implements Schema
 {
 	use Base;
-	use Nette\SmartObject;
 
 	/** @var Schema[] */
-	private $items;
+	private array $items;
 
-	/** @var Schema|null  for array|list */
-	private $otherItems;
+	/** for array|list */
+	private ?Schema $otherItems = null;
 
 	/** @var array{?int, ?int} */
-	private $range = [null, null];
-
-	/** @var bool */
-	private $skipDefaults = false;
+	private array $range = [null, null];
+	private bool $skipDefaults = false;
 
 
 	/**
@@ -45,7 +42,7 @@ final class Structure implements Schema
 	}
 
 
-	public function default($value): self
+	public function default(mixed $value): self
 	{
 		throw new Nette\InvalidStateException('Structure cannot have default value.');
 	}
@@ -65,10 +62,7 @@ final class Structure implements Schema
 	}
 
 
-	/**
-	 * @param  string|Schema  $type
-	 */
-	public function otherItems($type = 'mixed'): self
+	public function otherItems(string|Schema $type = 'mixed'): self
 	{
 		$this->otherItems = $type instanceof Schema ? $type : new Type($type);
 		return $this;
@@ -85,7 +79,7 @@ final class Structure implements Schema
 	/********************* processing ****************d*g**/
 
 
-	public function normalize($value, Context $context)
+	public function normalize(mixed $value, Context $context): mixed
 	{
 		if ($prevent = (is_array($value) && isset($value[Helpers::PreventMerging]))) {
 			unset($value[Helpers::PreventMerging]);
@@ -115,7 +109,7 @@ final class Structure implements Schema
 	}
 
 
-	public function merge($value, $base)
+	public function merge(mixed $value, mixed $base): mixed
 	{
 		if (is_array($value) && isset($value[Helpers::PreventMerging])) {
 			unset($value[Helpers::PreventMerging]);
@@ -145,7 +139,7 @@ final class Structure implements Schema
 	}
 
 
-	public function complete($value, Context $context)
+	public function complete(mixed $value, Context $context): mixed
 	{
 		if ($value === null) {
 			$value = []; // is unable to distinguish null from array in NEON
@@ -171,11 +165,11 @@ final class Structure implements Schema
 			} else {
 				$keys = array_map('strval', array_keys($items));
 				foreach ($extraKeys as $key) {
-					$hint = Nette\Utils\ObjectHelpers::getSuggestion($keys, (string) $key);
+					$hint = Nette\Utils\Helpers::getSuggestion($keys, (string) $key);
 					$context->addError(
 						'Unexpected item %path%' . ($hint ? ", did you mean '%hint%'?" : '.'),
 						Nette\Schema\Message::UnexpectedItem,
-						['hint' => $hint]
+						['hint' => $hint],
 					)->path[] = $key;
 				}
 			}
@@ -197,7 +191,7 @@ final class Structure implements Schema
 	}
 
 
-	public function completeDefault(Context $context)
+	public function completeDefault(Context $context): mixed
 	{
 		return $this->required
 			? $this->complete([], $context)

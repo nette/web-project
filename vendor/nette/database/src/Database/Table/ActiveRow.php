@@ -18,20 +18,13 @@ use Nette;
  */
 class ActiveRow implements \IteratorAggregate, IRow
 {
-	/** @var Selection */
-	private $table;
-
-	/** @var array of row data */
-	private $data;
-
-	/** @var bool */
-	private $dataRefreshed = false;
+	private bool $dataRefreshed = false;
 
 
-	public function __construct(array $data, Selection $table)
-	{
-		$this->data = $data;
-		$this->table = $table;
+	public function __construct(
+		private array $data,
+		private Selection $table,
+	) {
 	}
 
 
@@ -55,16 +48,7 @@ class ActiveRow implements \IteratorAggregate, IRow
 
 	public function __toString()
 	{
-		try {
-			return (string) $this->getPrimary();
-		} catch (\Throwable $e) {
-			if (func_num_args() || PHP_VERSION_ID >= 70400) {
-				throw $e;
-			}
-
-			trigger_error('Exception in ' . __METHOD__ . "(): {$e->getMessage()} in {$e->getFile()}:{$e->getLine()}", E_USER_ERROR);
-			return '';
-		}
+		return (string) $this->getPrimary();
 	}
 
 
@@ -79,7 +63,7 @@ class ActiveRow implements \IteratorAggregate, IRow
 	 * Returns primary key value.
 	 * @return mixed possible int, string, array, object (Nette\Utils\DateTime)
 	 */
-	public function getPrimary(bool $throw = true)
+	public function getPrimary(bool $throw = true): mixed
 	{
 		$primary = $this->table->getPrimary($throw);
 		if ($primary === null) {
@@ -231,10 +215,8 @@ class ActiveRow implements \IteratorAggregate, IRow
 	/**
 	 * Returns value of column.
 	 * @param  string  $column
-	 * @return mixed
 	 */
-	#[\ReturnTypeWillChange]
-	public function offsetGet($column)
+	public function offsetGet($column): mixed
 	{
 		return $this->__get($column);
 	}
@@ -260,7 +242,7 @@ class ActiveRow implements \IteratorAggregate, IRow
 	}
 
 
-	public function __set($column, $value)
+	public function __set(string $column, mixed $value): never
 	{
 		throw new Nette\DeprecatedException('ActiveRow is read-only; use update() method instead.');
 	}
@@ -270,7 +252,7 @@ class ActiveRow implements \IteratorAggregate, IRow
 	 * @return ActiveRow|mixed
 	 * @throws Nette\MemberAccessException
 	 */
-	public function &__get(string $key)
+	public function &__get(string $key): mixed
 	{
 		if ($this->accessColumn($key)) {
 			return $this->data[$key];
@@ -278,7 +260,7 @@ class ActiveRow implements \IteratorAggregate, IRow
 
 		$referenced = $this->table->getReferencedTable($this, $key);
 		if ($referenced !== false) {
-			$this->accessColumn($key, false);
+			$this->accessColumn($key, selectColumn: false);
 			return $referenced;
 		}
 
@@ -288,7 +270,7 @@ class ActiveRow implements \IteratorAggregate, IRow
 	}
 
 
-	public function __isset($key)
+	public function __isset(string $key): bool
 	{
 		if ($this->accessColumn($key)) {
 			return isset($this->data[$key]);
@@ -296,7 +278,7 @@ class ActiveRow implements \IteratorAggregate, IRow
 
 		$referenced = $this->table->getReferencedTable($this, $key);
 		if ($referenced !== false) {
-			$this->accessColumn($key, false);
+			$this->accessColumn($key, selectColumn: false);
 			return (bool) $referenced;
 		}
 
@@ -305,7 +287,7 @@ class ActiveRow implements \IteratorAggregate, IRow
 	}
 
 
-	public function __unset($key)
+	public function __unset(string $key): never
 	{
 		throw new Nette\DeprecatedException('ActiveRow is read-only.');
 	}
@@ -314,7 +296,7 @@ class ActiveRow implements \IteratorAggregate, IRow
 	/**
 	 * @internal
 	 */
-	public function accessColumn($key, bool $selectColumn = true): bool
+	public function accessColumn(?string $key, bool $selectColumn = true): bool
 	{
 		if ($this->table->accessColumn($key, $selectColumn) && !$this->dataRefreshed) {
 			if (!isset($this->table[$this->getSignature()])) {

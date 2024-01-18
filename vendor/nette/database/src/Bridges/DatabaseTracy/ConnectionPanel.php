@@ -20,34 +20,23 @@ use Tracy;
  */
 class ConnectionPanel implements Tracy\IBarPanel
 {
-	use Nette\SmartObject;
+	public int $maxQueries = 100;
 
-	/** @var int */
-	public $maxQueries = 100;
+	public string $name;
 
-	/** @var string */
-	public $name;
+	public bool|string $explain = true;
 
-	/** @var bool|string explain queries? */
-	public $explain = true;
+	public bool $disabled = false;
 
-	/** @var bool */
-	public $disabled = false;
+	public float $performanceScale = 0.25;
 
-	/** @var float */
-	public $performanceScale = 0.25;
+	private float $totalTime = 0;
 
-	/** @var float logged time */
-	private $totalTime = 0;
+	private int $count = 0;
 
-	/** @var int */
-	private $count = 0;
+	private array $queries = [];
 
-	/** @var array */
-	private $queries = [];
-
-	/** @var Tracy\BlueScreen */
-	private $blueScreen;
+	private Tracy\BlueScreen $blueScreen;
 
 
 	public static function initialize(
@@ -56,17 +45,17 @@ class ConnectionPanel implements Tracy\IBarPanel
 		string $name = '',
 		bool $explain = true,
 		?Tracy\Bar $bar = null,
-		?Tracy\BlueScreen $blueScreen = null
+		?Tracy\BlueScreen $blueScreen = null,
 	): ?self
 	{
-		$blueScreen = $blueScreen ?? Tracy\Debugger::getBlueScreen();
-		$blueScreen->addPanel([self::class, 'renderException']);
+		$blueScreen ??= Tracy\Debugger::getBlueScreen();
+		$blueScreen->addPanel(self::renderException(...));
 
 		if ($addBarPanel) {
 			$panel = new self($connection, $blueScreen);
 			$panel->explain = $explain;
 			$panel->name = $name;
-			$bar = $bar ?? Tracy\Debugger::getBar();
+			$bar ??= Tracy\Debugger::getBar();
 			$bar->addPanel($panel);
 		}
 
@@ -76,7 +65,7 @@ class ConnectionPanel implements Tracy\IBarPanel
 
 	public function __construct(Connection $connection, Tracy\BlueScreen $blueScreen)
 	{
-		$connection->onQuery[] = \Closure::fromCallable([$this, 'logQuery']);
+		$connection->onQuery[] = $this->logQuery(...);
 		$this->blueScreen = $blueScreen;
 	}
 
@@ -99,7 +88,7 @@ class ConnectionPanel implements Tracy\IBarPanel
 				&& preg_match('~\.(php.?|phtml)$~', $row['file'])
 				&& !$this->blueScreen->isCollapsed($row['file']))
 				&& ($row['class'] ?? '') !== self::class
-				&& !is_a($row['class'] ?? '', Connection::class, true)
+				&& !is_a($row['class'] ?? '', Connection::class, allow_string: true)
 			) {
 				$source = [$row['file'], (int) $row['line']];
 				break;
@@ -167,7 +156,7 @@ class ConnectionPanel implements Tracy\IBarPanel
 						? $this->explain
 						: 'EXPLAIN';
 					$explain = (new Nette\Database\ResultSet($connection, "$cmd $sql", $params))->fetchAll();
-				} catch (\PDOException $e) {
+				} catch (\PDOException) {
 				}
 			}
 

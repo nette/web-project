@@ -26,11 +26,8 @@ use Nette\Utils\Strings;
  */
 final class UIMacros extends Latte\Macros\MacroSet
 {
-	/** @var bool|string */
-	private $extends;
-
-	/** @var string|null */
-	private $printTemplate;
+	private bool|string $extends;
+	private ?string $printTemplate = null;
 
 
 	public static function install(Latte\Compiler $compiler): void
@@ -38,9 +35,7 @@ final class UIMacros extends Latte\Macros\MacroSet
 		$me = new static($compiler);
 		$me->addMacro('control', [$me, 'macroControl']);
 
-		$me->addMacro('href', null, null, function (MacroNode $node, PhpWriter $writer) use ($me): string {
-			return ' ?> href="<?php ' . $me->macroLink($node, $writer) . ' ?>"<?php ';
-		});
+		$me->addMacro('href', null, null, fn(MacroNode $node, PhpWriter $writer): string => ' ?> href="<?php ' . $me->macroLink($node, $writer) . ' ?>"<?php ');
 		$me->addMacro('plink', [$me, 'macroLink']);
 		$me->addMacro('link', [$me, 'macroLink']);
 		$me->addMacro('ifCurrent', [$me, 'macroIfCurrent'], '}'); // deprecated; use n:class="$presenter->linkCurrent ? ..."
@@ -123,8 +118,8 @@ final class UIMacros extends Latte\Macros\MacroSet
 			. ($node->modifiers === ''
 				? "\$_tmp->$method($param);"
 				: $writer->write(
-					"ob_start(function () {}); \$_tmp->$method($param); \$ʟ_fi = new LR\\FilterInfo(%var); echo %modifyContent(ob_get_clean());",
-					Latte\Engine::CONTENT_HTML
+					"ob_start(fn() => null); \$_tmp->$method($param); \$ʟ_fi = new LR\\FilterInfo(%var); echo %modifyContent(ob_get_clean());",
+					Latte\Engine::CONTENT_HTML,
 				)
 			);
 	}
@@ -143,7 +138,7 @@ final class UIMacros extends Latte\Macros\MacroSet
 				'echo %escape(%modify('
 				. ($node->name === 'plink' ? '$this->global->uiPresenter' : '$this->global->uiControl')
 				. '->link(%node.word, %node.array?)))'
-				. ($node->startLine ? " /* line $node->startLine */;" : ';')
+				. ($node->startLine ? " /* line $node->startLine */;" : ';'),
 			);
 	}
 
@@ -160,7 +155,7 @@ final class UIMacros extends Latte\Macros\MacroSet
 		return $writer->write(
 			$node->args
 				? 'if ($this->global->uiPresenter->isLinkCurrent(%node.word, %node.array?)) {'
-				: 'if ($this->global->uiPresenter->getLastCreatedRequestFlag("current")) {'
+				: 'if ($this->global->uiPresenter->getLastCreatedRequestFlag("current")) {',
 		);
 	}
 

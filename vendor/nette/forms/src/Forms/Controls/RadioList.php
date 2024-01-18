@@ -11,6 +11,7 @@ namespace Nette\Forms\Controls;
 
 use Nette;
 use Nette\Utils\Html;
+use Stringable;
 
 
 /**
@@ -22,23 +23,13 @@ use Nette\Utils\Html;
  */
 class RadioList extends ChoiceControl
 {
-	/** @var bool */
-	public $generateId = false;
-
-	/** @var Html  separator element template */
-	protected $separator;
-
-	/** @var Html  container element template */
-	protected $container;
-
-	/** @var Html  item label template */
-	protected $itemLabel;
+	public bool $generateId = false;
+	protected Html $separator;
+	protected Html $container;
+	protected Html $itemLabel;
 
 
-	/**
-	 * @param  string|object  $label
-	 */
-	public function __construct($label = null, ?array $items = null)
+	public function __construct(string|Stringable|null $label = null, ?array $items = null)
 	{
 		parent::__construct($label, $items);
 		$this->control->type = 'radio';
@@ -70,8 +61,8 @@ class RadioList extends ChoiceControl
 					'data-nette-rules:' => [key($items) => $input->attrs['data-nette-rules']],
 				]),
 				['for:' => $ids] + $this->itemLabel->attrs,
-				$this->separator
-			)
+				$this->separator,
+			),
 		);
 	}
 
@@ -87,7 +78,7 @@ class RadioList extends ChoiceControl
 		$key = key([(string) $key => null]);
 		return parent::getControl()->addAttributes([
 			'id' => $this->getHtmlId() . '-' . $key,
-			'checked' => in_array($key, (array) $this->value, true),
+			'checked' => in_array($key, (array) $this->value, strict: true),
 			'disabled' => is_array($this->disabled) ? isset($this->disabled[$key]) : $this->disabled,
 			'value' => $key,
 		]);

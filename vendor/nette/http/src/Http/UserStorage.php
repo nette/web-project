@@ -20,14 +20,9 @@ class UserStorage implements Nette\Security\IUserStorage
 {
 	use Nette\SmartObject;
 
-	/** @var string */
-	private $namespace = '';
-
-	/** @var Session */
-	private $sessionHandler;
-
-	/** @var SessionSection */
-	private $sessionSection;
+	private string $namespace = '';
+	private Session $sessionHandler;
+	private SessionSection $sessionSection;
 
 
 	public function __construct(Session $sessionHandler)
@@ -38,9 +33,8 @@ class UserStorage implements Nette\Security\IUserStorage
 
 	/**
 	 * Sets the authenticated status of this user.
-	 * @return static
 	 */
-	public function setAuthenticated(bool $state)
+	public function setAuthenticated(bool $state): self
 	{
 		$section = $this->getSessionSection(true);
 		$section->authenticated = $state;
@@ -73,9 +67,8 @@ class UserStorage implements Nette\Security\IUserStorage
 
 	/**
 	 * Sets the user identity.
-	 * @return static
 	 */
-	public function setIdentity(?IIdentity $identity)
+	public function setIdentity(?IIdentity $identity): self
 	{
 		$this->getSessionSection(true)->identity = $identity;
 		return $this;
@@ -94,9 +87,8 @@ class UserStorage implements Nette\Security\IUserStorage
 
 	/**
 	 * Changes namespace; allows more users to share a session.
-	 * @return static
 	 */
-	public function setNamespace(string $namespace)
+	public function setNamespace(string $namespace): self
 	{
 		if ($this->namespace !== $namespace) {
 			$this->namespace = $namespace;
@@ -118,9 +110,8 @@ class UserStorage implements Nette\Security\IUserStorage
 
 	/**
 	 * Enables log out after inactivity. Accepts flag IUserStorage::CLEAR_IDENTITY.
-	 * @return static
 	 */
-	public function setExpiration(?string $time, int $flags = 0)
+	public function setExpiration(?string $time, int $flags = 0): self
 	{
 		$section = $this->getSessionSection(true);
 		if ($time) {

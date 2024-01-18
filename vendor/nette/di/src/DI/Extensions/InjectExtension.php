@@ -66,6 +66,9 @@ final class InjectExtension extends DI\CompilerExtension
 				}
 			}
 
+			if ($builder) {
+				self::checkType($class, $property, $type, $builder);
+			}
 			array_unshift($setups, $inject);
 		}
 
@@ -93,17 +96,15 @@ final class InjectExtension extends DI\CompilerExtension
 	{
 		$classes = [];
 		foreach (get_class_methods($class) as $name) {
-			if (substr($name, 0, 6) === 'inject') {
+			if (str_starts_with($name, 'inject')) {
 				$classes[$name] = (new \ReflectionMethod($class, $name))->getDeclaringClass()->name;
 			}
 		}
 
 		$methods = array_keys($classes);
-		uksort($classes, function (string $a, string $b) use ($classes, $methods): int {
-			return $classes[$a] === $classes[$b]
-				? array_search($a, $methods, true) <=> array_search($b, $methods, true)
-				: (is_a($classes[$a], $classes[$b], true) ? 1 : -1);
-		});
+		uksort($classes, fn(string $a, string $b): int => $classes[$a] === $classes[$b]
+				? array_search($a, $methods, strict: true) <=> array_search($b, $methods, strict: true)
+				: (is_a($classes[$a], $classes[$b], allow_string: true) ? 1 : -1));
 		return array_keys($classes);
 	}
 
@@ -116,16 +117,10 @@ final class InjectExtension extends DI\CompilerExtension
 	{
 		$res = [];
 		foreach ((new \ReflectionClass($class))->getProperties() as $rp) {
-			$name = $rp->getName();
-			$hasAttr = PHP_VERSION_ID >= 80000 && $rp->getAttributes(DI\Attributes\Inject::class);
+			$hasAttr = $rp->getAttributes(DI\Attributes\Inject::class);
 			if ($hasAttr || DI\Helpers::parseAnnotation($rp, 'inject') !== null) {
-				if (!$rp->isPublic() || $rp->isStatic()) {
-					trigger_error(sprintf('Property %s for injection must be public and non-static.', Reflection::toString($rp)), E_USER_WARNING);
-					continue;
-				}
-
-				if (PHP_VERSION_ID >= 80100 && $rp->isReadOnly()) {
-					throw new Nette\InvalidStateException(sprintf('Property %s for injection must not be readonly.', Reflection::toString($rp)));
+				if (!$rp->isPublic() || $rp->isStatic() || $rp->isReadOnly()) {
+					throw new Nette\InvalidStateException(sprintf('Property %s for injection must not be static, readonly and must be public.', Reflection::toString($rp)));
 				}
 
 				$type = Nette\Utils\Type::fromReflection($rp);
@@ -144,21 +139,34 @@ final class InjectExtension extends DI\CompilerExtension
 
 
 	/**
-	 * Calls all methods starting with with "inject" using autowiring.
-	 * @param  object  $service
+	 * Calls all methods starting with "inject" using autowiring.
 	 */
-	public static function callInjects(DI\Container $container, $service): void
+	public static function callInjects(DI\Container $container, object $service): void
 	{
-		if (!is_object($service)) {
-			throw new Nette\InvalidArgumentException(sprintf('Service must be object, %s given.', gettype($service)));
-		}
-
-		foreach (self::getInjectMethods(get_class($service)) as $method) {
+		foreach (self::getInjectMethods($service::class) as $method) {
 			$container->callMethod([$service, $method]);
 		}
 
-		foreach (self::getInjectProperties(get_class($service)) as $property => $type) {
+		foreach (self::getInjectProperties($service::class) as $property => $type) {
+			self::checkType($service, $property, $type, $container);
 			$service->$property = $container->getByType($type);
+		}
+	}
+
+
+	private static function checkType(
+		object|string $class,
+		string $name,
+		?string $type,
+		DI\Container|DI\ContainerBuilder $container,
+	): void
+	{
+		if (!$container->getByType($type, throw: false)) {
+			throw new Nette\DI\MissingServiceException(sprintf(
+				'Service of type %s required by %s not found. Did you add it to configuration file?',
+				$type,
+				Reflection::toString(new \ReflectionProperty($class, $name)),
+			));
 		}
 	}
 }

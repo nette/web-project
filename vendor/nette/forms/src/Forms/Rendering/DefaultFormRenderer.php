@@ -19,8 +19,6 @@ use Nette\Utils\Html;
  */
 class DefaultFormRenderer implements Nette\Forms\FormRenderer
 {
-	use Nette\SmartObject;
-
 	/**
 	 *  /--- form.container
 	 *
@@ -56,8 +54,8 @@ class DefaultFormRenderer implements Nette\Forms\FormRenderer
 	 *      \---
 	 *    \---
 	 *  \--
-	 * @var array of HTML tags */
-	public $wrappers = [
+	 */
+	public array $wrappers = [
 		'form' => [
 			'container' => null,
 		],
@@ -118,11 +116,8 @@ class DefaultFormRenderer implements Nette\Forms\FormRenderer
 		],
 	];
 
-	/** @var Nette\Forms\Form */
-	protected $form;
-
-	/** @var int */
-	protected $counter;
+	protected Nette\Forms\Form $form;
+	protected int $counter;
 
 
 	/**
@@ -131,9 +126,7 @@ class DefaultFormRenderer implements Nette\Forms\FormRenderer
 	 */
 	public function render(Nette\Forms\Form $form, ?string $mode = null): string
 	{
-		if ($this->form !== $form) {
-			$this->form = $form;
-		}
+		$this->form = $form;
 
 		$s = '';
 		if (!$mode || $mode === 'begin') {
@@ -144,7 +137,7 @@ class DefaultFormRenderer implements Nette\Forms\FormRenderer
 			$s .= $this->renderErrors();
 
 		} elseif ($mode === 'errors') {
-			$s .= $this->renderErrors(null, false);
+			$s .= $this->renderErrors(own: false);
 		}
 
 		if (!$mode || $mode === 'body') {
@@ -321,14 +314,9 @@ class DefaultFormRenderer implements Nette\Forms\FormRenderer
 
 	/**
 	 * Renders group of controls.
-	 * @param  Nette\Forms\Container|Nette\Forms\ControlGroup  $parent
 	 */
-	public function renderControls($parent): string
+	public function renderControls(Nette\Forms\Container|Nette\Forms\ControlGroup $parent): string
 	{
-		if (!($parent instanceof Nette\Forms\Container || $parent instanceof Nette\Forms\ControlGroup)) {
-			throw new Nette\InvalidArgumentException('Argument must be Nette\Forms\Container or Nette\Forms\ControlGroup instance.');
-		}
-
 		$container = $this->getWrapper('controls container');
 
 		$buttons = null;
@@ -512,15 +500,13 @@ class DefaultFormRenderer implements Nette\Forms\FormRenderer
 	}
 
 
-	/** @return string|Html|null */
-	protected function renderLabelElement(Nette\Forms\Control $control)
+	protected function renderLabelElement(Nette\Forms\Control $control): Html|string|null
 	{
 		return $control->getLabel();
 	}
 
 
-	/** @return string|Html */
-	protected function renderControlElement(Nette\Forms\Control $control)
+	protected function renderControlElement(Nette\Forms\Control $control): Html|string
 	{
 		return $control->getControl();
 	}
@@ -533,8 +519,7 @@ class DefaultFormRenderer implements Nette\Forms\FormRenderer
 	}
 
 
-	/** @return mixed */
-	protected function getValue(string $name)
+	protected function getValue(string $name): mixed
 	{
 		$name = explode(' ', $name);
 		$data = &$this->wrappers[$name[0]][$name[1]];

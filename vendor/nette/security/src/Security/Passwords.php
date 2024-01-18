@@ -17,23 +17,14 @@ use Nette;
  */
 class Passwords
 {
-	use Nette\SmartObject;
-
-	/** @var int|string  string since PHP 7.4 */
-	private $algo;
-
-	/** @var array */
-	private $options;
-
-
 	/**
 	 * Chooses which secure algorithm is used for hashing and how to configure it.
 	 * @see https://php.net/manual/en/password.constants.php
 	 */
-	public function __construct($algo = PASSWORD_DEFAULT, array $options = [])
-	{
-		$this->algo = $algo;
-		$this->options = $options;
+	public function __construct(
+		private string $algo = PASSWORD_DEFAULT,
+		private array $options = [],
+	) {
 	}
 
 
@@ -42,7 +33,7 @@ class Passwords
 	 */
 	public function hash(
 		#[\SensitiveParameter]
-		string $password
+		string $password,
 	): string
 	{
 		if ($password === '') {
@@ -64,7 +55,7 @@ class Passwords
 	public function verify(
 		#[\SensitiveParameter]
 		string $password,
-		string $hash
+		string $hash,
 	): bool
 	{
 		return password_verify($password, $hash);

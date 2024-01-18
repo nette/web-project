@@ -21,18 +21,16 @@ final class AccessorDefinition extends Definition
 {
 	private const MethodGet = 'get';
 
-	/** @var Reference|null */
-	private $reference;
+	private ?Reference $reference = null;
 
 
-	/** @return static */
-	public function setImplement(string $interface)
+	public function setImplement(string $interface): static
 	{
 		if (!interface_exists($interface)) {
 			throw new Nette\InvalidArgumentException(sprintf(
 				"Service '%s': Interface '%s' not found.",
 				$this->getName(),
-				$interface
+				$interface,
 			));
 		}
 
@@ -48,22 +46,17 @@ final class AccessorDefinition extends Definition
 			throw new Nette\InvalidArgumentException(sprintf(
 				"Service '%s': Interface %s must have just one non-static method get().",
 				$this->getName(),
-				$interface
+				$interface,
 			));
 		} elseif ($method->getNumberOfParameters()) {
 			throw new Nette\InvalidArgumentException(sprintf(
 				"Service '%s': Method %s::get() must have no parameters.",
 				$this->getName(),
-				$interface
+				$interface,
 			));
 		}
 
-		try {
-			Helpers::ensureClassType(Type::fromReflection($method), "return type of $interface::get()");
-		} catch (Nette\DI\ServiceCreationException $e) {
-			trigger_error($e->getMessage(), E_USER_DEPRECATED);
-		}
-
+		Helpers::ensureClassType(Type::fromReflection($method), "return type of $interface::get()");
 		return parent::setType($interface);
 	}
 
@@ -74,16 +67,12 @@ final class AccessorDefinition extends Definition
 	}
 
 
-	/**
-	 * @param  string|Reference  $reference
-	 * @return static
-	 */
-	public function setReference($reference)
+	public function setReference(string|Reference $reference): static
 	{
 		if ($reference instanceof Reference) {
 			$this->reference = $reference;
 		} else {
-			$this->reference = substr($reference, 0, 1) === '@'
+			$this->reference = str_starts_with($reference, '@')
 				? new Reference(substr($reference, 1))
 				: Reference::fromType($reference);
 		}
@@ -106,10 +95,12 @@ final class AccessorDefinition extends Definition
 	public function complete(Nette\DI\Resolver $resolver): void
 	{
 		if (!$this->reference) {
-			$interface = $this->getType();
-			$method = new \ReflectionMethod($interface, self::MethodGet);
-			$type = Type::fromReflection($method) ?? Helpers::getReturnTypeAnnotation($method);
-			$this->setReference(Helpers::ensureClassType($type, "return type of $interface::get()"));
+			if (!$this->getType()) {
+				throw new Nette\DI\ServiceCreationException('Type is missing in definition of service.');
+			}
+
+			$method = new \ReflectionMethod($this->getType(), self::MethodGet);
+			$this->setReference(Type::fromReflection($method)->getSingleName());
 		}
 
 		$this->reference = $resolver->normalizeReference($this->reference);
@@ -121,13 +112,10 @@ final class AccessorDefinition extends Definition
 		$class = (new Nette\PhpGenerator\ClassType)
 			->addImplement($this->getType());
 
-		$class->addProperty('container')
-			->setPrivate();
-
 		$class->addMethod('__construct')
-			->addBody('$this->container = $container;')
-			->addParameter('container')
-			->setType($generator->getClassName());
+			->addPromotedParameter('container')
+				->setPrivate()
+				->setType($generator->getClassName());
 
 		$rm = new \ReflectionMethod($this->getType(), self::MethodGet);
 

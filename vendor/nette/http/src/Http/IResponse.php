@@ -16,12 +16,6 @@ namespace Nette\Http;
  */
 interface IResponse
 {
-	/** @deprecated */
-	public const PERMANENT = 2116333333;
-
-	/** @deprecated */
-	public const BROWSER = 0;
-
 	/** HTTP 1.1 response code */
 	public const
 		S100_Continue = 100,
@@ -398,17 +392,16 @@ interface IResponse
 
 	/**
 	 * Sends a cookie.
-	 * @param  string|int|\DateTimeInterface $expire  time, value null means "until the browser session ends"
 	 * @return static
 	 */
 	function setCookie(
 		string $name,
 		string $value,
-		$expire,
+		?int $expire,
 		?string $path = null,
 		?string $domain = null,
 		?bool $secure = null,
-		?bool $httpOnly = null
+		?bool $httpOnly = null,
 	);
 
 	/**

@@ -25,7 +25,7 @@ final class DecoratorExtension extends Nette\DI\CompilerExtension
 				'setup' => Expect::list(),
 				'tags' => Expect::array(),
 				'inject' => Expect::bool(),
-			])
+			]),
 		);
 	}
 
@@ -68,7 +68,7 @@ final class DecoratorExtension extends Nette\DI\CompilerExtension
 
 	public function addTags(string $type, array $tags): void
 	{
-		$tags = Nette\Utils\Arrays::normalize($tags, true);
+		$tags = Nette\Utils\Arrays::normalize($tags, filling: true);
 		foreach ($this->findByType($type) as $def) {
 			$def->setTags($def->getTags() + $tags);
 		}
@@ -77,9 +77,10 @@ final class DecoratorExtension extends Nette\DI\CompilerExtension
 
 	private function findByType(string $type): array
 	{
-		return array_filter($this->getContainerBuilder()->getDefinitions(), function (Definitions\Definition $def) use ($type): bool {
-			return is_a($def->getType(), $type, true)
-				|| ($def instanceof Definitions\FactoryDefinition && is_a($def->getResultType(), $type, true));
-		});
+		return array_filter(
+			$this->getContainerBuilder()->getDefinitions(),
+			fn(Definitions\Definition $def): bool => is_a($def->getType(), $type, true)
+				|| ($def instanceof Definitions\FactoryDefinition && is_a($def->getResultType(), $type, allow_string: true)),
+		);
 	}
 }

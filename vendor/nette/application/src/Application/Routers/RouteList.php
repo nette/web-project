@@ -16,12 +16,11 @@ use Nette;
 /**
  * The router broker.
  */
-class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router, \ArrayAccess, \Countable, \IteratorAggregate
+class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router, \ArrayAccess
 {
 	private const PresenterKey = 'presenter';
 
-	/** @var string|null */
-	private $module;
+	private ?string $module;
 
 
 	public function __construct(?string $module = null)
@@ -62,25 +61,19 @@ class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router,
 	}
 
 
-	/**
-	 * @param  array|string|\Closure  $metadata  default values or metadata or callback for NetteModule\MicroPresenter
-	 * @return static
-	 */
 	public function addRoute(
 		#[Language('TEXT')]
 		string $mask,
-		$metadata = [],
-		int $flags = 0
-	) {
-		$this->add(new Route($mask, $metadata), $flags);
+		array|string|\Closure $metadata = [],
+		int|bool $oneWay = 0,
+	): static
+	{
+		$this->add(new Route($mask, $metadata), (int) $oneWay);
 		return $this;
 	}
 
 
-	/**
-	 * @return static
-	 */
-	public function withModule(string $module)
+	public function withModule(string $module): static
 	{
 		$router = new static;
 		$router->module = $module . ':';
@@ -93,14 +86,6 @@ class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router,
 	public function getModule(): ?string
 	{
 		return $this->module;
-	}
-
-
-	/** @deprecated */
-	public function count(): int
-	{
-		trigger_error(__METHOD__ . '() is deprecated.', E_USER_DEPRECATED);
-		return count($this->getRouters());
 	}
 
 
@@ -120,11 +105,9 @@ class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router,
 
 	/**
 	 * @param  int  $index
-	 * @return mixed
 	 * @throws Nette\OutOfRangeException
 	 */
-	#[\ReturnTypeWillChange]
-	public function offsetGet($index)
+	public function offsetGet($index): Nette\Routing\Router
 	{
 		if (!$this->offsetExists($index)) {
 			throw new Nette\OutOfRangeException('Offset invalid or out of range');
@@ -154,14 +137,6 @@ class RouteList extends Nette\Routing\RouteList implements Nette\Routing\Router,
 		}
 
 		$this->modify($index, null);
-	}
-
-
-	/** @deprecated */
-	public function getIterator(): \ArrayIterator
-	{
-		trigger_error(__METHOD__ . '() is deprecated, use getRouters().', E_USER_DEPRECATED);
-		return new \ArrayIterator($this->getRouters());
 	}
 }
 

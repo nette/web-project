@@ -17,21 +17,20 @@ use Nette;
  */
 class MySqlDriver implements Nette\Database\Driver
 {
-	use Nette\SmartObject;
-
 	public const
 		ERROR_ACCESS_DENIED = 1045,
 		ERROR_DUPLICATE_ENTRY = 1062,
 		ERROR_DATA_TRUNCATED = 1265;
 
-	/** @var Nette\Database\Connection */
-	private $connection;
+	private Nette\Database\Connection $connection;
+	private bool $supportBooleans;
 
 
 	/**
 	 * Driver options:
 	 *   - charset => character encoding to set (default is utf8 or utf8mb4 since MySQL 5.5.3)
 	 *   - sqlmode => see http://dev.mysql.com/doc/refman/5.0/en/server-sql-mode.html
+	 *   - supportBooleans => converts INT(1) to boolean
 	 */
 	public function initialize(Nette\Database\Connection $connection, array $options): void
 	{
@@ -45,22 +44,24 @@ class MySqlDriver implements Nette\Database\Driver
 		if (isset($options['sqlmode'])) {
 			$connection->query('SET sql_mode=?', $options['sqlmode']);
 		}
+
+		$this->supportBooleans = (bool) ($options['supportBooleans'] ?? false);
 	}
 
 
 	public function convertException(\PDOException $e): Nette\Database\DriverException
 	{
 		$code = $e->errorInfo[1] ?? null;
-		if (in_array($code, [1216, 1217, 1451, 1452, 1701], true)) {
+		if (in_array($code, [1216, 1217, 1451, 1452, 1701], strict: true)) {
 			return Nette\Database\ForeignKeyConstraintViolationException::from($e);
 
-		} elseif (in_array($code, [1062, 1557, 1569, 1586], true)) {
+		} elseif (in_array($code, [1062, 1557, 1569, 1586], strict: true)) {
 			return Nette\Database\UniqueConstraintViolationException::from($e);
 
 		} elseif ($code >= 2001 && $code <= 2028) {
 			return Nette\Database\ConnectionException::from($e);
 
-		} elseif (in_array($code, [1048, 1121, 1138, 1171, 1252, 1263, 1566], true)) {
+		} elseif (in_array($code, [1048, 1121, 1138, 1171, 1252, 1263, 1566], strict: true)) {
 			return Nette\Database\NotNullConstraintViolationException::from($e);
 
 		} else {
@@ -144,7 +145,7 @@ class MySqlDriver implements Nette\Database\Driver
 				'default' => $row['default'],
 				'autoincrement' => $row['extra'] === 'auto_increment',
 				'primary' => $row['key'] === 'PRI',
-				'vendor' => (array) $row,
+				'vendor' => $row,
 			];
 		}
 
@@ -170,10 +171,13 @@ class MySqlDriver implements Nette\Database\Driver
 	public function getForeignKeys(string $table): array
 	{
 		$keys = [];
-		$query = 'SELECT CONSTRAINT_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE '
-			. 'WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL AND TABLE_NAME = ' . $this->connection->quote($table);
-
-		foreach ($this->connection->query($query) as $id => $row) {
+		foreach ($this->connection->query(<<<X
+			SELECT CONSTRAINT_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+			FROM information_schema.KEY_COLUMN_USAGE
+			WHERE TABLE_SCHEMA = DATABASE()
+			  AND REFERENCED_TABLE_NAME IS NOT NULL
+			  AND TABLE_NAME = {$this->connection->quote($table)}
+			X) as $id => $row) {
 			$keys[$id]['name'] = $row['CONSTRAINT_NAME'];
 			$keys[$id]['local'] = $row['COLUMN_NAME'];
 			$keys[$id]['table'] = $row['REFERENCED_TABLE_NAME'];
@@ -191,10 +195,12 @@ class MySqlDriver implements Nette\Database\Driver
 		for ($col = 0; $col < $count; $col++) {
 			$meta = $statement->getColumnMeta($col);
 			if (isset($meta['native_type'])) {
-				$types[$meta['name']] = $type = Nette\Database\Helpers::detectType($meta['native_type']);
-				if ($type === Nette\Database\IStructure::FIELD_TIME) {
-					$types[$meta['name']] = Nette\Database\IStructure::FIELD_TIME_INTERVAL;
-				}
+				$types[$meta['name']] = match (true) {
+					$meta['native_type'] === 'NEWDECIMAL' && $meta['precision'] === 0 => Nette\Database\IStructure::FIELD_INTEGER,
+					$meta['native_type'] === 'TINY' && $meta['len'] === 1 && $this->supportBooleans => Nette\Database\IStructure::FIELD_BOOL,
+					$meta['native_type'] === 'TIME' => Nette\Database\IStructure::FIELD_TIME_INTERVAL,
+					default => Nette\Database\Helpers::detectType($meta['native_type']),
+				};
 			}
 		}
 

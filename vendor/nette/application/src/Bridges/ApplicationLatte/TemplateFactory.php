@@ -19,38 +19,18 @@ use Nette\Application\UI;
  */
 class TemplateFactory implements UI\TemplateFactory
 {
-	use Nette\SmartObject;
-
 	/** @var array<callable(Template): void>  Occurs when a new template is created */
-	public $onCreate = [];
-
-	/** @var LatteFactory */
-	private $latteFactory;
-
-	/** @var Nette\Http\IRequest|null */
-	private $httpRequest;
-
-	/** @var Nette\Security\User|null */
-	private $user;
-
-	/** @var Nette\Caching\Storage|null */
-	private $cacheStorage;
-
-	/** @var string */
-	private $templateClass;
+	public array $onCreate = [];
+	private string $templateClass;
 
 
 	public function __construct(
-		LatteFactory $latteFactory,
-		?Nette\Http\IRequest $httpRequest = null,
-		?Nette\Security\User $user = null,
-		?Nette\Caching\Storage $cacheStorage = null,
-		$templateClass = null
+		private readonly LatteFactory $latteFactory,
+		private readonly ?Nette\Http\IRequest $httpRequest = null,
+		private readonly ?Nette\Security\User $user = null,
+		private readonly ?Nette\Caching\Storage $cacheStorage = null,
+		$templateClass = null,
 	) {
-		$this->latteFactory = $latteFactory;
-		$this->httpRequest = $httpRequest;
-		$this->user = $user;
-		$this->cacheStorage = $cacheStorage;
 		if ($templateClass && (!class_exists($templateClass) || !is_a($templateClass, Template::class, true))) {
 			throw new Nette\InvalidArgumentException("Class $templateClass does not implement " . Template::class . ' or it does not exist.');
 		}
@@ -62,14 +42,14 @@ class TemplateFactory implements UI\TemplateFactory
 	/** @return Template */
 	public function createTemplate(?UI\Control $control = null, ?string $class = null): UI\Template
 	{
-		$class = $class ?? $this->templateClass;
-		if (!is_a($class, Template::class, true)) {
+		$class ??= $this->templateClass;
+		if (!is_a($class, Template::class, allow_string: true)) {
 			throw new Nette\InvalidArgumentException("Class $class does not implement " . Template::class . ' or it does not exist.');
 		}
 
 		$latte = $this->latteFactory->create();
 		$template = new $class($latte);
-		$presenter = $control ? $control->getPresenterIfExists() : null;
+		$presenter = $control?->getPresenterIfExists();
 
 		if (version_compare(Latte\Engine::VERSION, '3', '<')) {
 			$this->setupLatte2($latte, $control, $presenter, $template);
@@ -86,11 +66,9 @@ class TemplateFactory implements UI\TemplateFactory
 			}
 		}
 
-		$latte->addFilter('modifyDate', function ($time, $delta, $unit = null) {
-			return $time
+		$latte->addFilter('modifyDate', fn($time, $delta, $unit = null) => $time
 				? Nette\Utils\DateTime::from($time)->modify($delta . $unit)
-				: null;
-		});
+				: null);
 
 		if (!isset($latte->getFilters()['translate'])) {
 			$latte->addFilter('translate', function (Latte\Runtime\FilterInfo $fi): void {
@@ -103,7 +81,7 @@ class TemplateFactory implements UI\TemplateFactory
 			? rtrim($this->httpRequest->getUrl()->withoutUserInfo()->getBaseUrl(), '/')
 			: null;
 		$flashes = $presenter instanceof UI\Presenter && $presenter->hasFlashSession()
-			? (array) $presenter->getFlashSession()->{$control->getParameterId('flash')}
+			? (array) $presenter->getFlashSession()->get($control->getParameterId('flash'))
 			: [];
 
 		$params = [
@@ -131,7 +109,7 @@ class TemplateFactory implements UI\TemplateFactory
 		Latte\Engine $latte,
 		?UI\Control $control,
 		?UI\Presenter $presenter,
-		Template $template
+		Template $template,
 	): void
 	{
 		if ($latte->onCompile instanceof \Traversable) {
@@ -148,9 +126,7 @@ class TemplateFactory implements UI\TemplateFactory
 				Nette\Bridges\FormsLatte\FormMacros::install($latte->getCompiler());
 			}
 
-			if ($control) {
-				$control->templatePrepareFilters($template);
-			}
+			$control?->templatePrepareFilters($template);
 		});
 
 		$latte->addProvider('cacheStorage', $this->cacheStorage);

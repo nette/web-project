@@ -21,6 +21,7 @@ interface IStructure
 		FIELD_BOOL = 'bool',
 		FIELD_INTEGER = 'int',
 		FIELD_FLOAT = 'float',
+		FIELD_DECIMAL = 'decimal',
 		FIELD_DATE = 'date',
 		FIELD_TIME = 'time',
 		FIELD_DATETIME = 'datetime',
@@ -41,7 +42,7 @@ interface IStructure
 	 * Returns table primary key.
 	 * @return string|string[]|null
 	 */
-	function getPrimaryKey(string $table);
+	function getPrimaryKey(string $table): string|array|null;
 
 	/**
 	 * Returns autoincrement primary key name.

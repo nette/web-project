@@ -17,13 +17,8 @@ use Nette;
  */
 class SqliteDriver implements Nette\Database\Driver
 {
-	use Nette\SmartObject;
-
-	/** @var Nette\Database\Connection */
-	private $connection;
-
-	/** @var string  Datetime format */
-	private $fmtDateTime;
+	private Nette\Database\Connection $connection;
+	private string $fmtDateTime;
 
 
 	public function initialize(Nette\Database\Connection $connection, array $options): void
@@ -41,21 +36,21 @@ class SqliteDriver implements Nette\Database\Driver
 			return Nette\Database\DriverException::from($e);
 
 		} elseif (
-			strpos($msg, 'must be unique') !== false
-			|| strpos($msg, 'is not unique') !== false
-			|| strpos($msg, 'UNIQUE constraint failed') !== false
+			str_contains($msg, 'must be unique')
+			|| str_contains($msg, 'is not unique')
+			|| str_contains($msg, 'UNIQUE constraint failed')
 		) {
 			return Nette\Database\UniqueConstraintViolationException::from($e);
 
 		} elseif (
-			strpos($msg, 'may not be null') !== false
-			|| strpos($msg, 'NOT NULL constraint failed') !== false
+			str_contains($msg, 'may not be null')
+			|| str_contains($msg, 'NOT NULL constraint failed')
 		) {
 			return Nette\Database\NotNullConstraintViolationException::from($e);
 
 		} elseif (
-			strpos($msg, 'foreign key constraint failed') !== false
-			|| strpos($msg, 'FOREIGN KEY constraint failed') !== false
+			str_contains($msg, 'foreign key constraint failed')
+			|| str_contains($msg, 'FOREIGN KEY constraint failed')
 		) {
 			return Nette\Database\ForeignKeyConstraintViolationException::from($e);
 
@@ -111,12 +106,16 @@ class SqliteDriver implements Nette\Database\Driver
 	public function getTables(): array
 	{
 		$tables = [];
-		foreach ($this->connection->query("
-			SELECT name, type = 'view' as view FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
+		foreach ($this->connection->query(<<<'X'
+			SELECT name, type = 'view' as view
+			FROM sqlite_master
+			WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
 			UNION ALL
-			SELECT name, type = 'view' as view FROM sqlite_temp_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
+			SELECT name, type = 'view' as view
+			FROM sqlite_temp_master
+			WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
 			ORDER BY name
-		") as $row) {
+			X) as $row) {
 			$tables[] = [
 				'name' => $row->name,
 				'view' => (bool) $row->view,
@@ -129,11 +128,15 @@ class SqliteDriver implements Nette\Database\Driver
 
 	public function getColumns(string $table): array
 	{
-		$meta = $this->connection->query("
-			SELECT sql FROM sqlite_master WHERE type = 'table' AND name = {$this->connection->quote($table)}
+		$meta = $this->connection->query(<<<X
+			SELECT sql
+			FROM sqlite_master
+			WHERE type = 'table' AND name = {$this->connection->quote($table)}
 			UNION ALL
-			SELECT sql FROM sqlite_temp_master WHERE type = 'table' AND name = {$this->connection->quote($table)}
-		")->fetch();
+			SELECT sql
+			FROM sqlite_temp_master
+			WHERE type = 'table' AND name = {$this->connection->quote($table)}
+			X)->fetch();
 
 		$columns = [];
 		foreach ($this->connection->query("PRAGMA table_info({$this->delimite($table)})") as $row) {
@@ -176,7 +179,7 @@ class SqliteDriver implements Nette\Database\Driver
 
 		$columns = $this->getColumns($table);
 		foreach ($indexes as $index => $values) {
-			$column = $indexes[$index]['columns'][0];
+			$column = $values['columns'][0];
 			foreach ($columns as $info) {
 				if ($column === $info['name']) {
 					$indexes[$index]['primary'] = (bool) $info['primary'];
@@ -225,7 +228,7 @@ class SqliteDriver implements Nette\Database\Driver
 		for ($col = 0; $col < $count; $col++) {
 			$meta = $statement->getColumnMeta($col);
 			if (isset($meta['sqlite:decl_type'])) {
-				$types[$meta['name']] = in_array($meta['sqlite:decl_type'], ['DATE', 'DATETIME'], true)
+				$types[$meta['name']] = in_array($meta['sqlite:decl_type'], ['DATE', 'DATETIME'], strict: true)
 					? Nette\Database\IStructure::FIELD_UNIX_TIMESTAMP
 					: Nette\Database\Helpers::detectType($meta['sqlite:decl_type']);
 			} elseif (isset($meta['native_type'])) {

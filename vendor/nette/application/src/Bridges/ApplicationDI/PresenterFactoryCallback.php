@@ -18,21 +18,11 @@ use Nette;
  */
 final class PresenterFactoryCallback
 {
-	/** @var Nette\DI\Container */
-	private $container;
-
-	/** @var int */
-	private $invalidLinkMode;
-
-	/** @var string|null */
-	private $touchToRefresh;
-
-
-	public function __construct(Nette\DI\Container $container, int $invalidLinkMode, ?string $touchToRefresh)
-	{
-		$this->container = $container;
-		$this->invalidLinkMode = $invalidLinkMode;
-		$this->touchToRefresh = $touchToRefresh;
+	public function __construct(
+		private readonly Nette\DI\Container $container,
+		private readonly int $invalidLinkMode,
+		private readonly ?string $touchToRefresh,
+	) {
 	}
 
 
@@ -40,7 +30,7 @@ final class PresenterFactoryCallback
 	{
 		$services = $this->container->findByType($class);
 		if (count($services) > 1) {
-			$exact = array_keys(array_map([$this->container, 'getServiceType'], $services), $class, true);
+			$exact = array_keys(array_map($this->container->getServiceType(...), $services), $class, strict: true);
 			if (count($exact) === 1) {
 				return $this->container->createService($services[$exact[0]]);
 			}
@@ -63,7 +53,7 @@ final class PresenterFactoryCallback
 				throw $e;
 			}
 
-			if ($presenter instanceof Nette\Application\UI\Presenter && $presenter->invalidLinkMode === null) {
+			if ($presenter instanceof Nette\Application\UI\Presenter && !isset($presenter->invalidLinkMode)) {
 				$presenter->invalidLinkMode = $this->invalidLinkMode;
 			}
 
