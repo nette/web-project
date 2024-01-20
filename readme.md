@@ -1,46 +1,52 @@
 Nette Web Project
 =================
 
-This is a simple, skeleton application using the [Nette](https://nette.org). This is meant to
-be used as a starting point for your new projects.
+Welcome to the Nette Web Project! This is a basic skeleton application built using
+[Nette](https://nette.org), ideal for kick-starting your new web projects.
 
-[Nette](https://nette.org) is a popular tool for PHP web development.
-It is designed to be the most usable and friendliest as possible. It focuses
-on security and performance and is definitely one of the safest PHP frameworks.
+Nette is a renowned PHP web development framework, celebrated for its user-friendliness,
+robust security, and outstanding performance. It's among the safest choices
+for PHP frameworks out there.
 
-If you like Nette, **[please make a donation now](https://nette.org/donate)**. Thank you!
+If Nette helps you, consider supporting it by [making a donation](https://nette.org/donate).
+Thank you for your generosity!
 
 
 Requirements
 ------------
 
-- Web Project for Nette 3.1 requires PHP 8.0
+This Web Project is compatible with Nette 3.1 and requires PHP 8.0.
 
 
 Installation
 ------------
 
-The best way to install Web Project is using Composer. If you don't have Composer yet,
-download it following [the instructions](https://doc.nette.org/composer). Then use command:
+To install the Web Project, Composer is the recommended tool. If you're new to Composer,
+follow [these instructions](https://doc.nette.org/composer). Then, run:
 
 	composer create-project nette/web-project path/to/install
 	cd path/to/install
 
-
-Make directories `temp/` and `log/` writable.
+Ensure the `temp/` and `log/` directories are writable.
 
 
 Web Server Setup
 ----------------
 
-The simplest way to get started is to start the built-in PHP server in the root directory of your project:
+To quickly dive in, use PHP's built-in server:
 
 	php -S localhost:8000 -t www
 
-Then visit `http://localhost:8000` in your browser to see the welcome page.
+Then, open `http://localhost:8000` in your browser to view the welcome page.
 
-For Apache or Nginx, setup a virtual host to point to the `www/` directory of the project and you
-should be ready to go.
+For Apache or Nginx users, configure a virtual host pointing to your project's `www/` directory.
 
-**It is CRITICAL that whole `app/`, `config/`, `log/` and `temp/` directories are not accessible directly
-via a web browser. See [security warning](https://nette.org/security-warning).**
+**Important Note:** Ensure `app/`, `config/`, `log/`, and `temp/` directories are not web-accessible.
+Refer to [security warning](https://nette.org/security-warning) for more details.
+
+
+Minimal Skeleton
+----------------
+
+For demonstrating issues or similar tasks, rather than starting a new project, use
+this [minimal skeleton](https://github.com/nette/web-project/tree/minimal).
