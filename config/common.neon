@@ -7,6 +7,12 @@ application:
 		*: App\*Module\Presenters\*Presenter
 
 
+database:
+	dsn: 'sqlite::memory:'
+	user:
+	password:
+
+
 latte:
 	strictTypes: yes
 
