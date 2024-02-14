@@ -17,10 +17,6 @@ latte:
 	strictTypes: yes
 
 
-session:
-	expiration: 14 days
-
-
 di:
 	export:
 		parameters: no
