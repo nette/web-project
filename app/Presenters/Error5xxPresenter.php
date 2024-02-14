@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Presenters;
 
 use Nette;
+use Nette\Application\Attributes\Requires;
 use Nette\Application\Responses;
 use Nette\Http;
 use Tracy\ILogger;
@@ -13,7 +14,8 @@ use Tracy\ILogger;
 /**
  * Handles uncaught exceptions and errors, and logs them.
  */
-final class ErrorPresenter implements Nette\Application\IPresenter
+#[Requires(forward: true)]
+final class Error5xxPresenter implements Nette\Application\IPresenter
 {
 	public function __construct(
 		private ILogger $logger,
@@ -23,16 +25,11 @@ final class ErrorPresenter implements Nette\Application\IPresenter
 
 	public function run(Nette\Application\Request $request): Nette\Application\Response
 	{
+		// Log the exception
 		$exception = $request->getParameter('exception');
-
-		// If the exception is a 4xx HTTP error, forward to the Error4xxPresenter
-		if ($exception instanceof Nette\Application\BadRequestException) {
-			[$module, , $sep] = Nette\Application\Helpers::splitName($request->getPresenterName());
-			return new Responses\ForwardResponse($request->setPresenterName($module . $sep . 'Error4xx'));
-		}
-
-		// Log the exception and display a generic error message to the user
 		$this->logger->log($exception, ILogger::EXCEPTION);
+
+		// Display a generic error message to the user
 		return new Responses\CallbackResponse(function (Http\IRequest $httpRequest, Http\IResponse $httpResponse): void {
 			if (preg_match('#^text/html(?:;|$)#', (string) $httpResponse->getHeader('Content-Type'))) {
 				require __DIR__ . '/templates/Error/500.phtml';

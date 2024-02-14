@@ -6,7 +6,7 @@
 	"license": ["MIT", "BSD-3-Clause", "GPL-2.0", "GPL-3.0"],
 	"require": {
 		"php": ">= 8.1",
-		"nette/application": "^3.2",
+		"nette/application": "^3.2.3",
 		"nette/bootstrap": "^3.2",
 		"nette/caching": "^3.2",
 		"nette/database": "^3.2",
