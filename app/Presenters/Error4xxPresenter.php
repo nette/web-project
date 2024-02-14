@@ -12,13 +12,8 @@ use Nette;
  */
 final class Error4xxPresenter extends Nette\Application\UI\Presenter
 {
-	protected function checkHttpMethod(): void
-	{
-		// allow access via all HTTP methods and ensure the request is a forward (internal redirect)
-		if (!$this->getRequest()->isMethod(Nette\Application\Request::FORWARD)) {
-			$this->error();
-		}
-	}
+	// allow access via all HTTP methods
+	public array $allowedMethods = [];
 
 
 	public function renderDefault(Nette\Application\BadRequestException $exception): void
