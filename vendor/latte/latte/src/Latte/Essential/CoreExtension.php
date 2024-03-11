@@ -25,7 +25,6 @@ use Nette;
 final class CoreExtension extends Latte\Extension
 {
 	private Latte\Engine $engine;
-	private Runtime\Template $template;
 	private Filters $filters;
 
 
@@ -38,12 +37,6 @@ final class CoreExtension extends Latte\Extension
 	public function beforeCompile(Latte\Engine $engine): void
 	{
 		$this->engine = $engine;
-	}
-
-
-	public function beforeRender(Runtime\Template $template): void
-	{
-		$this->template = $template;
 	}
 
 
@@ -191,7 +184,7 @@ final class CoreExtension extends Latte\Extension
 			'last' => [$this->filters, 'last'],
 			'odd' => [$this->filters, 'odd'],
 			'slice' => [$this->filters, 'slice'],
-			'hasBlock' => fn(string $name): bool => $this->template->hasBlock($name),
+			'hasBlock' => fn(Runtime\Template $template, string $name): bool => $template->hasBlock($name),
 		];
 	}
 
@@ -238,13 +231,17 @@ final class CoreExtension extends Latte\Extension
 	 */
 	private function parseSyntax(Tag $tag, TemplateParser $parser): \Generator
 	{
+		if ($tag->isNAttribute() && $tag->prefix !== $tag::PrefixNone) {
+			throw new Latte\CompileException("Use n:syntax instead of {$tag->getNotation()}", $tag->position);
+		}
 		$tag->expectArguments();
 		$token = $tag->parser->stream->consume();
 		$lexer = $parser->getLexer();
-		$saved = [$lexer->openDelimiter, $lexer->closeDelimiter];
 		$lexer->setSyntax($token->text, $tag->isNAttribute() ? null : $tag->name);
 		[$inner] = yield;
-		[$lexer->openDelimiter, $lexer->closeDelimiter] = $saved;
+		if (!$tag->isNAttribute()) {
+			$lexer->popSyntax();
+		}
 		return $inner;
 	}
 }

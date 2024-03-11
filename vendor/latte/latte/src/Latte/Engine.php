@@ -17,8 +17,8 @@ use Latte\Compiler\Nodes\TemplateNode;
  */
 class Engine
 {
-	public const Version = '3.0.13';
-	public const VersionId = 30013;
+	public const Version = '3.0.14';
+	public const VersionId = 30014;
 
 	/** @deprecated use Engine::Version */
 	public const
@@ -36,7 +36,7 @@ class Engine
 
 	private ?Loader $loader = null;
 	private Runtime\FilterExecutor $filters;
-	private \stdClass $functions;
+	private Runtime\FunctionExecutor $functions;
 	private \stdClass $providers;
 
 	/** @var Extension[] */
@@ -54,7 +54,7 @@ class Engine
 	public function __construct()
 	{
 		$this->filters = new Runtime\FilterExecutor;
-		$this->functions = new \stdClass;
+		$this->functions = new Runtime\FunctionExecutor;
 		$this->providers = new \stdClass;
 		$this->addExtension(new Essential\CoreExtension);
 		$this->addExtension(new Sandbox\SandboxExtension);
@@ -320,7 +320,7 @@ class Engine
 		$key = [
 			$this->getLoader()->getUniqueId($name),
 			self::Version,
-			array_keys((array) $this->functions),
+			array_keys($this->getFunctions()),
 			$this->contentType,
 		];
 		foreach ($this->extensions as $extension) {
@@ -389,7 +389,7 @@ class Engine
 		}
 
 		foreach ($extension->getFunctions() as $name => $value) {
-			$this->functions->$name = $value;
+			$this->functions->add($name, $value);
 		}
 
 		foreach ($extension->getProviders() as $name => $value) {
@@ -415,7 +415,7 @@ class Engine
 			throw new \LogicException("Invalid function name '$name'.");
 		}
 
-		$this->functions->$name = $callback;
+		$this->functions->add($name, $callback);
 		return $this;
 	}
 
@@ -426,14 +426,7 @@ class Engine
 	 */
 	public function invokeFunction(string $name, array $args): mixed
 	{
-		if (!isset($this->functions->$name)) {
-			$hint = ($t = Helpers::getSuggestion(array_keys((array) $this->functions), $name))
-				? ", did you mean '$t'?"
-				: '.';
-			throw new \LogicException("Function '$name' is not defined$hint");
-		}
-
-		return ($this->functions->$name)(...$args);
+		return ($this->functions->$name)(null, ...$args);
 	}
 
 
@@ -442,7 +435,7 @@ class Engine
 	 */
 	public function getFunctions(): array
 	{
-		return (array) $this->functions;
+		return $this->functions->getAll();
 	}
 
 

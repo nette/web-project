@@ -40,9 +40,18 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 	{
 		return Expect::structure([
 			'debugger' => Expect::bool(),
-			'errorPresenter' => Expect::string('Nette:Error')->dynamic(),
-			'catchExceptions' => Expect::bool(false)->dynamic(),
-			'mapping' => Expect::arrayOf('string|array'),
+			'errorPresenter' => Expect::anyOf(
+				Expect::structure([
+					'4xx' => Expect::string('Nette:Error')->dynamic(),
+					'5xx' => Expect::string('Nette:Error')->dynamic(),
+				])->castTo('array'),
+				Expect::string()->dynamic(),
+			)->firstIsDefault(),
+			'catchExceptions' => Expect::anyOf('4xx', true, false)->firstIsDefault()->dynamic(),
+			'mapping' => Expect::anyOf(
+				Expect::string(),
+				Expect::arrayOf('string|array'),
+			),
 			'scanDirs' => Expect::anyOf(
 				Expect::arrayOf('string')->default($this->scanDirs)->mergeDefaults(),
 				false,
@@ -64,10 +73,14 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 			? UI\Presenter::InvalidLinkTextual | ($config->silentLinks ? 0 : UI\Presenter::InvalidLinkWarning)
 			: UI\Presenter::InvalidLinkWarning;
 
-		$builder->addDefinition($this->prefix('application'))
-			->setFactory(Nette\Application\Application::class)
-			->addSetup('$catchExceptions', [$this->debugMode ? $config->catchExceptions : true])
-			->addSetup('$errorPresenter', [$config->errorPresenter]);
+		$application = $builder->addDefinition($this->prefix('application'))
+			->setFactory(Nette\Application\Application::class);
+		if ($config->catchExceptions || !$this->debugMode) {
+			$application->addSetup('$error4xxPresenter', [is_array($config->errorPresenter) ? $config->errorPresenter['4xx'] : $config->errorPresenter]);
+		}
+		if ($config->catchExceptions === true || !$this->debugMode) {
+			$application->addSetup('$errorPresenter', [is_array($config->errorPresenter) ? $config->errorPresenter['5xx'] : $config->errorPresenter]);
+		}
 
 		$this->compiler->addExportedType(Nette\Application\Application::class);
 
@@ -85,7 +98,9 @@ final class ApplicationExtension extends Nette\DI\CompilerExtension
 			)]);
 
 		if ($config->mapping) {
-			$presenterFactory->addSetup('setMapping', [$config->mapping]);
+			$presenterFactory->addSetup('setMapping', [
+				is_string($config->mapping) ? ['*' => $config->mapping] : $config->mapping,
+			]);
 		}
 
 		$builder->addDefinition($this->prefix('linkGenerator'))

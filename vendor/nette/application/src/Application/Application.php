@@ -21,9 +21,10 @@ class Application
 {
 	public int $maxLoop = 20;
 
-	/** enable fault barrier? */
-	public bool $catchExceptions = false;
+	/** @deprecated exceptions are caught if the error presenter is set */
+	public bool $catchExceptions = true;
 	public ?string $errorPresenter = null;
+	public ?string $error4xxPresenter = null;
 
 	/** @var array<callable(self): void>  Occurs before the application loads presenter */
 	public array $onStartup = [];
@@ -76,10 +77,11 @@ class Application
 			Arrays::invoke($this->onShutdown, $this);
 
 		} catch (\Throwable $e) {
+			$this->sendHttpCode($e);
 			Arrays::invoke($this->onError, $this, $e);
-			if ($this->catchExceptions && $this->errorPresenter) {
+			if ($this->catchExceptions && ($req = $this->createErrorRequest($e))) {
 				try {
-					$this->processException($e);
+					$this->processRequest($req);
 					Arrays::invoke($this->onShutdown, $this, $e);
 					return;
 
@@ -130,7 +132,8 @@ class Application
 
 		if (
 			!$request->isMethod($request::FORWARD)
-			&& !strcasecmp($request->getPresenterName(), (string) $this->errorPresenter)
+			&& (!strcasecmp($request->getPresenterName(), (string) $this->errorPresenter)
+				|| !strcasecmp($request->getPresenterName(), (string) $this->error4xxPresenter))
 		) {
 			throw new BadRequestException('Invalid request. Presenter is not achievable.');
 		}
@@ -156,7 +159,30 @@ class Application
 	}
 
 
-	public function processException(\Throwable $e): void
+	public function createErrorRequest(\Throwable $e): ?Request
+	{
+		$errorPresenter = $e instanceof BadRequestException
+			? $this->error4xxPresenter ?? $this->errorPresenter
+			: $this->errorPresenter;
+
+		if ($errorPresenter === null) {
+			return null;
+		}
+
+		$args = ['exception' => $e, 'previousPresenter' => $this->presenter, 'request' => Arrays::last($this->requests) ?: null];
+		if ($this->presenter instanceof UI\Presenter) {
+			try {
+				$this->presenter->forward(":$errorPresenter:", $args);
+			} catch (AbortException) {
+				return $this->presenter->getLastCreatedRequest();
+			}
+		}
+
+		return new Request($errorPresenter, Request::FORWARD, $args);
+	}
+
+
+	private function sendHttpCode(\Throwable $e): void
 	{
 		if (!$e instanceof BadRequestException && $this->httpResponse instanceof Nette\Http\Response) {
 			$this->httpResponse->warnOnBuffer = false;
@@ -164,17 +190,6 @@ class Application
 
 		if (!$this->httpResponse->isSent()) {
 			$this->httpResponse->setCode($e instanceof BadRequestException ? ($e->getHttpCode() ?: 404) : 500);
-		}
-
-		$args = ['exception' => $e, 'previousPresenter' => $this->presenter, 'request' => Arrays::last($this->requests) ?: null];
-		if ($this->presenter instanceof UI\Presenter) {
-			try {
-				$this->presenter->forward(":$this->errorPresenter:", $args);
-			} catch (AbortException) {
-				$this->processRequest($this->presenter->getLastCreatedRequest());
-			}
-		} else {
-			$this->processRequest(new Request($this->errorPresenter, Request::FORWARD, $args));
 		}
 	}
 

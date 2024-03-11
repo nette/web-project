@@ -104,19 +104,18 @@ abstract class Presenter extends Control implements Application\IPresenter
 	private bool $startupCheck = false;
 	private ?Nette\Application\Request $lastCreatedRequest;
 	private ?array $lastCreatedRequestFlag;
-	private Nette\Http\IRequest $httpRequest;
-	private Nette\Http\IResponse $httpResponse;
-	private ?Nette\Http\Session $session = null;
-	private ?Nette\Application\IPresenterFactory $presenterFactory = null;
-	private ?Nette\Routing\Router $router = null;
-	private ?Nette\Security\User $user = null;
-	private ?TemplateFactory $templateFactory = null;
+	private readonly Nette\Http\IRequest $httpRequest;
+	private readonly Nette\Http\IResponse $httpResponse;
+	private readonly ?Nette\Http\Session $session;
+	private readonly ?Nette\Application\IPresenterFactory $presenterFactory;
+	private readonly ?Nette\Routing\Router $router;
+	private readonly ?Nette\Security\User $user;
+	private readonly ?TemplateFactory $templateFactory;
 	private Nette\Http\UrlScript $refUrlCache;
 
 
 	public function __construct()
 	{
-		$this->payload = new \stdClass;
 	}
 
 
@@ -170,7 +169,6 @@ abstract class Presenter extends Control implements Application\IPresenter
 	public function run(Application\Request $request): Application\Response
 	{
 		$this->request = $request;
-		$this->payload ??= new \stdClass;
 		$this->setParent($this->getParent(), $request->getPresenterName());
 
 		if (!$this->httpResponse->isSent()) {
@@ -227,7 +225,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 		$this->saveGlobalState();
 
 		if ($this->isAjax()) {
-			$this->payload->state = $this->getGlobalState();
+			$this->getPayload()->state = $this->getGlobalState();
 			try {
 				if ($this->response instanceof Responses\TextResponse && $this->isControlInvalid()) {
 					$this->snippetMode = true;
@@ -570,7 +568,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 	final public function getPayload(): \stdClass
 	{
-		return $this->payload;
+		return $this->payload ??= new \stdClass;
 	}
 
 
@@ -594,7 +592,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	 */
 	public function sendPayload(): void
 	{
-		$this->sendResponse(new Responses\JsonResponse($this->payload));
+		$this->sendResponse(new Responses\JsonResponse($this->getPayload()));
 	}
 
 
@@ -663,7 +661,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 	public function redirectUrl(string $url, ?int $httpCode = null): void
 	{
 		if ($this->isAjax()) {
-			$this->payload->redirect = $url;
+			$this->getPayload()->redirect = $url;
 			$this->sendPayload();
 
 		} elseif (!$httpCode) {
@@ -808,7 +806,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 				$presenter = $module . $sep . $presenter;
 			}
 
-			if (!$this->presenterFactory) {
+			if (empty($this->presenterFactory)) {
 				throw new Nette\InvalidStateException('Unable to create link to other presenter, service PresenterFactory has not been set.');
 			}
 
@@ -987,7 +985,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 			$this->refUrlCache = new Http\UrlScript($url->getHostUrl() . $url->getScriptPath());
 		}
 
-		if (!$this->router) {
+		if (empty($this->router)) {
 			throw new Nette\InvalidStateException('Unable to generate URL, service Router has not been set.');
 		}
 
@@ -1376,11 +1374,8 @@ abstract class Presenter extends Control implements Application\IPresenter
 		?Http\Session $session = null,
 		?Nette\Security\User $user = null,
 		?TemplateFactory $templateFactory = null,
-	) {
-		if (isset($this->presenterFactory)) {
-			throw new Nette\InvalidStateException('Method ' . __METHOD__ . ' is intended for initialization and should not be called more than once.');
-		}
-
+	): void
+	{
 		$this->presenterFactory = $presenterFactory;
 		$this->router = $router;
 		$this->httpRequest = $httpRequest;
@@ -1405,7 +1400,7 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 	final public function getSession(?string $namespace = null): Http\Session|Http\SessionSection
 	{
-		if (!$this->session) {
+		if (empty($this->session)) {
 			throw new Nette\InvalidStateException('Service Session has not been set.');
 		}
 
@@ -1417,20 +1412,12 @@ abstract class Presenter extends Control implements Application\IPresenter
 
 	final public function getUser(): Nette\Security\User
 	{
-		if (!$this->user) {
-			throw new Nette\InvalidStateException('Service User has not been set.');
-		}
-
-		return $this->user;
+		return $this->user ?? throw new Nette\InvalidStateException('Service User has not been set.');
 	}
 
 
 	final public function getTemplateFactory(): TemplateFactory
 	{
-		if (!$this->templateFactory) {
-			throw new Nette\InvalidStateException('Service TemplateFactory has not been set.');
-		}
-
-		return $this->templateFactory;
+		return $this->templateFactory ?? throw new Nette\InvalidStateException('Service TemplateFactory has not been set.');
 	}
 }

@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Nette\Bootstrap;
 
 use Composer\Autoload\ClassLoader;
+use Composer\InstalledVersions;
 use Latte;
 use Nette;
 use Nette\DI;
@@ -32,7 +33,7 @@ class Configurator
 
 	public array $defaultExtensions = [
 		'application' => [Nette\Bridges\ApplicationDI\ApplicationExtension::class, ['%debugMode%', ['%appDir%'], '%tempDir%/cache/nette.application']],
-		'cache' => [Nette\Bridges\CacheDI\CacheExtension::class, ['%tempDir%']],
+		'cache' => [Nette\Bridges\CacheDI\CacheExtension::class, ['%tempDir%/cache']],
 		'constants' => Extensions\ConstantsExtension::class,
 		'database' => [Nette\Bridges\DatabaseDI\DatabaseExtension::class, ['%debugMode%']],
 		'decorator' => Nette\DI\Extensions\DecoratorExtension::class,
@@ -71,6 +72,13 @@ class Configurator
 	public function __construct()
 	{
 		$this->staticParameters = $this->getDefaultParameters();
+
+		if (class_exists(InstalledVersions::class) // back compatibility
+			&& InstalledVersions::isInstalled('nette/caching')
+			&& version_compare(InstalledVersions::getVersion('nette/caching'), '3.3.0', '<')
+		) {
+			$this->defaultExtensions['cache'][1][0] = '%tempDir%';
+		}
 	}
 
 
@@ -329,9 +337,6 @@ class Configurator
 	}
 
 
-	/********************* tools ****************d*g**/
-
-
 	/**
 	 * Detects debug mode by IP addresses or computer names whitelist detection.
 	 */
@@ -347,10 +352,9 @@ class Configurator
 		if (!isset($_SERVER['HTTP_X_FORWARDED_FOR']) && !isset($_SERVER['HTTP_FORWARDED'])) {
 			$list[] = '127.0.0.1';
 			$list[] = '::1';
-			$list[] = '[::1]'; // workaround for PHP < 7.3.4
 		}
 
-		return in_array($addr, $list, true) || in_array("$secret@$addr", $list, true);
+		return in_array($addr, $list, strict: true) || in_array("$secret@$addr", $list, strict: true);
 	}
 }
 
