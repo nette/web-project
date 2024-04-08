@@ -3,9 +3,9 @@ parameters:
 
 application:
 	errorPresenter:
-		4xx: Error4xx
-		5xx: Error5xx
-	mapping: App\*Module\Presenters\*Presenter
+		4xx: Error:Error4xx
+		5xx: Error:Error5xx
+	mapping: App\UI\*\**Presenter
 
 
 database:
