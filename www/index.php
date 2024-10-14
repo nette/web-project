@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-$configurator = App\Bootstrap::boot();
-$container = $configurator->createContainer();
+$bootstrap = new App\Bootstrap;
+$container = $bootstrap->bootWebApplication();
 $application = $container->getByType(Nette\Application\Application::class);
 $application->run();
