@@ -7,3 +7,4 @@ search:
 		classes:
 			- *Factory
 			- *Facade
+			- *Service
