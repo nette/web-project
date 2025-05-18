@@ -5,15 +5,13 @@
 	<meta name="viewport" content="width=device-width">
 
 	<title>{ifset title}{include title|stripHtml} | {/ifset}Nette Web</title>
+
+	{asset? 'main.js'}
 </head>
 
 <body>
 	<div n:foreach="$flashes as $flash" n:class="flash, $flash->type">{$flash->message}</div>
 
 	{include content}
-
-	{block scripts}
-	<script src="https://unpkg.com/nette-forms@3"></script>
-	{/block}
 </body>
 </html>

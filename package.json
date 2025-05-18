@@ -1,0 +1,14 @@
+{
+	"type": "module",
+	"dependencies": {
+		"nette-forms": "^3.3"
+	},
+	"devDependencies": {
+		"@nette/vite-plugin": "^1.0.1",
+		"vite": "^6.3.5"
+	},
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build"
+	}
+}

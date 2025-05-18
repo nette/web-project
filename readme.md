@@ -30,6 +30,18 @@ follow [these instructions](https://doc.nette.org/composer). Then, run:
 Ensure the `temp/` and `log/` directories are writable.
 
 
+Asset Building with Vite
+------------------------
+
+This project supports Vite for asset building, which is recommended but optional. To activate Vite:
+
+1. Uncomment the `type: vite` line in the `common.neon` configuration file under the assets mapping section.
+2. Then set up and build the assets:
+
+		npm install
+		npm run build
+
+
 Web Server Setup
 ----------------
 
@@ -49,4 +61,4 @@ Minimal Skeleton
 ----------------
 
 For demonstrating issues or similar tasks, rather than starting a new project, use
-this [minimal skeleton](https://github.com/nette/web-project/tree/minimal).
+[minimal skeleton](https://github.com/nette/web-project/tree/minimal).

@@ -1,3 +1,5 @@
+# see https://doc.nette.org/en/configuring
+
 parameters:
 
 
@@ -19,6 +21,13 @@ latte:
 	strictParsing: yes
 	extensions:
 		- App\Presentation\Accessory\LatteExtension
+
+
+assets:
+	mapping:
+		default:
+			path: assets
+			# type: vite  # Uncomment to activate Vite for asset building
 
 
 di:
