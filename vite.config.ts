@@ -4,7 +4,7 @@ import nette from '@nette/vite-plugin';
 export default defineConfig({
 	plugins: [
 		nette({
-			input: 'main.js',
+			entry: 'main.js',
 		}),
 	],
 
