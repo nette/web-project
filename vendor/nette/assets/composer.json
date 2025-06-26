@@ -1,0 +1,48 @@
+{
+	"name": "nette/assets",
+	"description": "🎨 Nette Assets: elegant asset management for PHP with versioning, caching and mappers for various storage backends.",
+	"keywords": ["nette", "assets", "asset management", "versioning", "resources", "static files"],
+	"homepage": "https://nette.org",
+	"license": ["BSD-3-Clause", "GPL-2.0-only", "GPL-3.0-only"],
+	"authors": [
+		{
+			"name": "David Grudl",
+			"homepage": "https://davidgrudl.com"
+		},
+		{
+			"name": "Nette Community",
+			"homepage": "https://nette.org/contributors"
+		}
+	],
+	"require": {
+		"php": "8.1 - 8.4",
+		"nette/utils": "^4.0.6"
+	},
+	"suggest": {
+		"latte/latte": "Allows using Assets in templates"
+	},
+	"require-dev": {
+		"nette/application": "^3.2",
+		"nette/tester": "^2.5",
+		"nette/di": "^3.2",
+		"nette/http": "^3.3.2",
+		"latte/latte": "^3.0.22",
+		"tracy/tracy": "^2.9",
+		"mockery/mockery": "^1.6@stable",
+		"phpstan/phpstan-nette": "^2.0@stable"
+	},
+	"conflict": {
+		"nette/http": "<3.3.2"
+	},
+	"autoload": {
+		"classmap": ["src/"],
+		"psr-4": {
+			"Nette\\": "src"
+		}
+	},
+	"minimum-stability": "dev",
+	"scripts": {
+		"phpstan": "phpstan analyse",
+		"tester": "tester tests -s -C"
+	}
+}
