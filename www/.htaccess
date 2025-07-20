@@ -15,15 +15,15 @@ Require all granted
 	# Uncomment the next line if you want to set the base URL for rewrites
 	# RewriteBase /
 
-	# Force usage of HTTPS (secure connection). Uncomment if you have SSL setup.
-	# RewriteCond %{HTTPS} !on
-	# RewriteRule .? https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
-
 	# Permit requests to the '.well-known' directory (used for SSL verification and more)
-	RewriteRule ^\.well-known/.* - [L]
+	RewriteRule ^\.well-known/ - [L]
 
 	# Block access to hidden files (starting with a dot) and URLs resembling WordPress admin paths
 	RewriteRule /\.|^\.|^wp-(login|admin|includes|content) - [F]
+
+	# Force usage of HTTPS (secure connection). Uncomment if you have SSL setup.
+	# RewriteCond %{HTTPS} !on
+	# RewriteRule .? https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
 	# Return 404 for missing files with specific extensions (images, scripts, styles, archives)
 	RewriteCond %{REQUEST_FILENAME} !-f
