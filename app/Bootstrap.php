@@ -10,8 +10,8 @@ use Nette\Bootstrap\Configurator;
 
 class Bootstrap
 {
-	private Configurator $configurator;
-	private string $rootDir;
+	private readonly Configurator $configurator;
+	private readonly string $rootDir;
 
 
 	public function __construct()
