@@ -7,3 +7,4 @@ tests/          export-ignore
 
 *.php*          diff=php
 *.sh            text eol=lf
+latte-lint      text eol=lf
