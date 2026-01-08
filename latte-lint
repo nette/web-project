@@ -1,0 +1,18 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/vendor/autoload.php';
+
+$path = $argv[1] ?? 'app';
+
+$bootstrap = new App\Bootstrap;
+$container = $bootstrap->bootConsoleApplication();
+$latte = $container->getByType(Nette\Bridges\ApplicationLatte\TemplateFactory::class)
+	->createTemplate()
+	->getLatte();
+
+$latte->addExtension(new Latte\Tools\LinterExtension);
+
+$linter = new Latte\Tools\Linter($latte, strict: true);
+$ok = $linter->scanDirectory($path);
+exit($ok ? 0 : 1);
