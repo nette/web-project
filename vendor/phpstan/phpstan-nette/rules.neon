@@ -1,0 +1,27 @@
+parameters:
+	methodsThrowingExceptions:
+		Nette\Application\UI\Presenter:
+			redirectUrl: Nette\Application\AbortException
+			sendJson: Nette\Application\AbortException
+			sendResponse: Nette\Application\AbortException
+			terminate: Nette\Application\AbortException
+			forward: Nette\Application\AbortException
+		Nette\Application\UI\Component:
+			redirect: Nette\Application\AbortException
+			redirectPermanent: Nette\Application\AbortException
+			error: Nette\Application\BadRequestException
+
+parametersSchema:
+	methodsThrowingExceptions: arrayOf(arrayOf(string()))
+
+rules:
+	- PHPStan\Rule\Nette\DoNotExtendNetteObjectRule
+	- PHPStan\Rule\Nette\RegularExpressionPatternRule
+
+services:
+	-
+		class: PHPStan\Rule\Nette\RethrowExceptionRule
+		arguments:
+			methods: %methodsThrowingExceptions%
+		tags:
+			- phpstan.rules.rule
