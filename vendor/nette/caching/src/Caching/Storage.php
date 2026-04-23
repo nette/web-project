@@ -1,0 +1,46 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Caching;
+
+
+/**
+ * Cache storage.
+ */
+interface Storage
+{
+	/**
+	 * Read from cache.
+	 * @return mixed
+	 */
+	function read(string $key);
+
+	/**
+	 * Prevents item reading and writing. Lock is released by write() or remove().
+	 */
+	function lock(string $key): void;
+
+	/**
+	 * Writes item into the cache.
+	 * @param  array<string, mixed>  $dependencies
+	 */
+	function write(string $key, mixed $data, array $dependencies): void;
+
+	/**
+	 * Removes item from the cache.
+	 */
+	function remove(string $key): void;
+
+	/**
+	 * Removes items from the cache by conditions.
+	 * @param  array<string, mixed>  $conditions
+	 */
+	function clean(array $conditions): void;
+}
+
+
+class_exists(IStorage::class);

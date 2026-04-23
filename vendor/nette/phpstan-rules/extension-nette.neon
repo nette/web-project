@@ -1,0 +1,115 @@
+parameters:
+	universalObjectCratesClasses:
+		- Nette\Bridges\ApplicationLatte\DefaultTemplate
+		- Nette\Database\Row
+		- Nette\Http\SessionSection
+		- Nette\Security\SimpleIdentity
+		- Nette\Utils\Html
+
+	nette:
+		assets:
+			mapping: []
+		database:
+			mapping:
+				convention: ''
+				tables: []
+
+
+parametersSchema:
+	nette: structure([
+		assets: structure([
+			mapping: arrayOf(string())
+		])
+		database: structure([
+			mapping: structure([
+				convention: string()
+				tables: arrayOf(string(), string())
+			])
+		])
+	])
+
+
+services:
+	# nette/assets
+	nette.assets.mapperTypeResolver:
+		create: Nette\PHPStan\Assets\MapperTypeResolver(
+			mapping: %nette.assets.mapping%
+		)
+	-
+		create: Nette\PHPStan\Assets\GetMapperReturnTypeExtension
+		tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+	-
+		create: Nette\PHPStan\Assets\MapperGetAssetExtension(
+			className: Nette\Assets\FilesystemMapper
+		)
+		tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+	-
+		create: Nette\PHPStan\Assets\MapperGetAssetExtension(
+			className: Nette\Assets\ViteMapper
+		)
+		tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+	-
+		create: Nette\PHPStan\Assets\RegistryGetAssetExtension
+		tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+
+	# nette/component-model
+	-
+		create: Nette\PHPStan\ComponentModel\GetComponentReturnTypeExtension
+		tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+
+	# nette/database
+	nette.database.tableRowTypeResolver:
+		create: Nette\PHPStan\Database\TableRowTypeResolver(
+			convention: %nette.database.mapping.convention%
+			tables: %nette.database.mapping.tables%
+		)
+	-
+		create: Nette\PHPStan\Database\ExplorerTableReturnTypeExtension
+		tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+	-
+		create: Nette\PHPStan\Database\ActiveRowRelatedReturnTypeExtension
+		tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+	-
+		create: Nette\PHPStan\Database\ActiveRowRefReturnTypeExtension
+		tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+
+	# nette/forms
+	-
+		create: Nette\PHPStan\Forms\FormContainerReturnTypeExtension(@defaultAnalysisParser)
+		tags: [phpstan.broker.dynamicMethodReturnTypeExtension]
+
+	# nette/schema
+	-
+		create: Nette\PHPStan\Schema\ExpectArrayReturnTypeExtension
+		tags: [phpstan.broker.dynamicStaticMethodReturnTypeExtension]
+
+	# nette/tester
+	-
+		create: Nette\PHPStan\Php\ArrowFunctionVoidIgnoreExtension([
+			test
+			testException
+			testNoError
+			Tester\Assert::exception
+			Tester\Assert::throws
+			Tester\Assert::error
+			Tester\Assert::noError
+		])
+		tags: [phpstan.ignoreErrorExtension]
+
+	-
+		create: Nette\PHPStan\Tester\AssertTypeNarrowingExtension
+		tags: [phpstan.typeSpecifier.staticMethodTypeSpecifyingExtension]
+
+	# nette/utils
+	-
+		create: Nette\PHPStan\Utils\FalseToNullReturnTypeExtension
+		tags: [phpstan.broker.dynamicStaticMethodReturnTypeExtension]
+	-
+		create: Nette\PHPStan\Utils\StringsReturnTypeExtension
+		tags: [phpstan.broker.dynamicStaticMethodReturnTypeExtension]
+	-
+		create: Nette\PHPStan\Utils\ArraysInvokeTypeExtension
+		tags: [phpstan.broker.dynamicStaticMethodReturnTypeExtension]
+	-
+		create: Nette\PHPStan\Utils\HtmlMethodsClassReflectionExtension
+		tags: [phpstan.broker.methodsClassReflectionExtension]

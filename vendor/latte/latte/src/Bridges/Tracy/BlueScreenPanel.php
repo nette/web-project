@@ -1,0 +1,98 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Latte (https://latte.nette.org)
+ * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Latte\Bridges\Tracy;
+
+use Latte;
+use Tracy;
+use Tracy\BlueScreen;
+use Tracy\Helpers;
+use const ENT_IGNORE;
+
+
+/**
+ * BlueScreen panels for Tracy 2.x
+ * @internal
+ */
+class BlueScreenPanel
+{
+	private static bool $initialized = false;
+
+
+	public static function initialize(?BlueScreen $blueScreen = null): void
+	{
+		if (self::$initialized) {
+			return;
+		}
+		self::$initialized = true;
+
+		$blueScreen ??= Tracy\Debugger::getBlueScreen();
+		$blueScreen->addPanel(self::renderError(...));
+		$blueScreen->addAction(self::renderUnknownMacro(...));
+		if (
+			version_compare(Tracy\Debugger::VERSION, '2.9.0', '>=')
+			&& version_compare(Tracy\Debugger::VERSION, '3.0', '<')
+		) {
+			Tracy\Debugger::addSourceMapper(self::mapLatteSourceCode(...));
+			$blueScreen->addFileGenerator(fn(string $file) => str_ends_with($file, '.latte')
+					? "{block content}\n\$END\$"
+					: null);
+		}
+	}
+
+
+	/** @return ?array{tab: string, panel: string} */
+	public static function renderError(?\Throwable $e): ?array
+	{
+		if ($e instanceof Latte\CompileException && $e->sourceName) {
+			return [
+				'tab' => 'Template',
+				'panel' => (preg_match('#\n|\?#', $e->sourceName)
+						? ''
+						: '<p>'
+							. (@is_file($e->sourceName) // @ - may trigger error
+								? '<b>File:</b> ' . Helpers::editorLink($e->sourceName, $e->position?->line)
+								: '<b>' . htmlspecialchars($e->sourceName . ($e->position?->line ? ':' . $e->position->line : '')) . '</b>')
+							. '</p>')
+					. '<pre class="code tracy-code"><div>'
+					. BlueScreen::highlightLine(htmlspecialchars($e->sourceCode ?? '', ENT_IGNORE, 'UTF-8'), $e->position->line ?? 0, 15, $e->position->column ?? 0)
+					. '</div></pre>',
+			];
+		}
+
+		return null;
+	}
+
+
+	/** @return ?array{link: string, label: string} */
+	public static function renderUnknownMacro(?\Throwable $e): ?array
+	{
+		if (
+			$e instanceof Latte\CompileException
+			&& $e->sourceName
+			&& @is_file($e->sourceName) // @ - may trigger error
+			&& (preg_match('#Unknown tag (\{\w+)\}, did you mean (\{\w+)\}\?#A', $e->getMessage(), $m)
+				|| preg_match('#Unknown attribute (n:\w+), did you mean (n:\w+)\?#A', $e->getMessage(), $m))
+		) {
+			return [
+				'link' => (string) Helpers::editorUri($e->sourceName, $e->position?->line, 'fix', $m[1], $m[2]),
+				'label' => 'fix it',
+			];
+		}
+
+		return null;
+	}
+
+
+	/** @return array{file: string, line: int, label: string, active: bool} */
+	public static function mapLatteSourceCode(string $file, int $line): ?array
+	{
+		return ($source = Latte\Helpers::mapCompiledToSource($file, $line)) && $source['name'] !== null && @is_file($source['name']) // @ - may trigger error
+			? ['file' => $source['name'], 'line' => $source['line'] ?? 0, 'column' => $source['column'] ?? 0, 'label' => 'Latte', 'active' => true]
+			: null;
+	}
+}

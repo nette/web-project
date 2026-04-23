@@ -1,0 +1,151 @@
+<?php declare(strict_types=1);
+
+use Tracy\Dumper;
+/** @var callable $dump */
+/** @var bool $showEnvironment */
+/** @var mixed[][] $obStatus */
+/** @var Tracy\BlueScreen $blueScreen */
+echo "\n";
+if (!$showEnvironment) /* pos 7:1 */ return;
+$constants = get_defined_constants(true)['user'] ?? [] /* pos 8:1 */;
+echo '
+<section class="tracy-section">
+	<h2 class="tracy-section-label">
+		<a href="#" data-tracy-ref="^+" class="tracy-toggle tracy-collapsed">Environment</a>
+	</h2>
+
+	<div class="tracy-section-panel tracy-collapsed">
+		<div class="tracy-tabs">
+			<ul class="tracy-tab-bar">
+				<li class="tracy-tab-label tracy-active"><a href="#">$_SERVER</a></li>
+';
+if ($_SESSION ?? null) /* pos 19:5 */ {
+	echo '				<li class="tracy-tab-label"><a href="#">$_SESSION</a></li>
+';
+}
+if ($constants) /* pos 22:5 */ {
+	echo '				<li class="tracy-tab-label"><a href="#">Constants</a></li>
+';
+}
+echo '				<li class="tracy-tab-label"><a href="#">Configuration</a></li>
+';
+if ($obStatus) /* pos 26:5 */ {
+	echo '				<li class="tracy-tab-label"><a href="#">Output buffers</a></li>
+';
+}
+echo '			</ul>
+
+			<div>
+				<div class="tracy-tab-panel tracy-pane tracy-active">
+					<table class="tracy-sortable">
+';
+foreach ($_SERVER as $k => $v) /* pos 34:7 */ {
+	echo '						<tr>
+							<th>';
+	echo Tracy\Helpers::escapeHtml($k) /* pos 36:13 */;
+	echo '</th>
+							<td>';
+	echo $dump($v, $k) /* pos 37:13 */;
+	echo '</td>
+						</tr>
+';
+
+}
+
+echo '					</table>
+				</div>
+
+';
+if ($_SESSION ?? null) /* pos 43:5 */ {
+	echo '				<div class="tracy-tab-panel">
+					<div class="tracy-pane">
+						<table class="tracy-sortable">
+';
+	foreach ($_SESSION as $k => $v) /* pos 47:9 */ {
+		echo '							<tr>
+								<th>';
+		echo Tracy\Helpers::escapeHtml($k) /* pos 49:15 */;
+		echo '</th>
+								<td>';
+		if ($k === '__NF') /* pos 50:15 */ {
+			echo '<i>Nette Session</i>';
+		} else /* pos 50:53 */ {
+			echo $dump($v, $k) /* pos 50:59 */;
+		}
+		echo '</td>
+							</tr>
+';
+
+	}
+
+	echo '						</table>
+					</div>
+
+';
+	if (!empty($_SESSION['__NF']['DATA'])) /* pos 56:7 */ {
+		echo '					<h3>Nette Session</h3>
+					<div class="tracy-pane">
+						<table class="tracy-sortable">
+';
+		foreach ($_SESSION['__NF']['DATA'] as $k => $v) /* pos 60:10 */ {
+			echo '							<tr>
+								<th>';
+			echo Tracy\Helpers::escapeHtml($k) /* pos 62:16 */;
+			echo '</th>
+								<td>';
+			echo $dump($v, $k) /* pos 63:16 */;
+			echo '</td>
+							</tr>
+';
+
+		}
+
+		echo '						</table>
+					</div>
+';
+	}
+	echo '				</div>
+';
+}
+echo "\n";
+if ($constants) /* pos 72:5 */ {
+	echo '				<div class="tracy-tab-panel tracy-pane">
+					<table class="tracy-sortable">
+';
+	foreach ($constants as $k => $v) /* pos 75:8 */ {
+		echo '						<tr>
+							<th>';
+		echo Tracy\Helpers::escapeHtml($k) /* pos 77:14 */;
+		echo '</th>
+							<td>';
+		echo $dump($v, $k) /* pos 78:14 */;
+		echo '</td>
+						</tr>
+';
+
+	}
+
+	echo '					</table>
+				</div>
+';
+}
+echo '
+				<div class="tracy-tab-panel">
+';
+$blueScreen->renderPhpInfo() /* pos 86:6 */;
+echo '				</div>
+
+';
+if ($obStatus) /* pos 89:5 */ {
+	echo '				<div class="tracy-tab-panel tracy-pane">
+					';
+	echo Dumper::toHtml($obStatus, [Dumper::COLLAPSE_COUNT => 10]) /* pos 91:7 */;
+	echo '
+				</div>
+';
+}
+echo '			</div>
+		</div>
+	</div>
+</section>
+';
