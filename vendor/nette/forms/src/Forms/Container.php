@@ -1,0 +1,635 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Forms;
+
+use Nette;
+use Nette\Utils\ArrayHash;
+use Stringable;
+use function array_combine, array_key_exists, array_map, array_merge, array_unique, explode, func_get_args, in_array, is_object, iterator_to_array, str_contains;
+
+
+/**
+ * Container for form controls.
+ *
+ * @property   ArrayHash<mixed> $values
+ * @property-read \Iterator $controls
+ * @property-read ?Form $form
+ * @implements \ArrayAccess<string|int, Nette\ComponentModel\IComponent>
+ */
+class Container extends Nette\ComponentModel\Container implements \ArrayAccess
+{
+	use Nette\ComponentModel\ArrayAccess;
+
+	public const Array = 'array';
+
+	/**
+	 * Occurs when the form was validated
+	 * @var array<callable(static, mixed[]|object): void | callable(mixed[]|object): void>
+	 */
+	public array $onValidate = [];
+	protected ?ControlGroup $currentGroup = null;
+
+	/** @var array<string, callable(static): mixed> */
+	private static array $extMethods = [];
+	private ?bool $validated = false;
+	private ?string $mappedType = null;
+
+
+	/********************* data exchange ****************d*g**/
+
+
+	/**
+	 * Populates controls with default values. Has no effect on submitted forms.
+	 * @param mixed[]|object  $values
+	 */
+	public function setDefaults(array|object $values, bool $erase = false): static
+	{
+		$form = $this->getForm(throw: false);
+		$this->setValues($values, $erase, $form?->isAnchored() && $form->isSubmitted());
+		return $this;
+	}
+
+
+	/**
+	 * Fills controls with values.
+	 * @param mixed[]|object  $values
+	 * @internal
+	 */
+	public function setValues(array|object $values, bool $erase = false, bool $onlyDisabled = false): static
+	{
+		$values = $values instanceof \Traversable
+			? iterator_to_array($values)
+			: (array) $values;
+
+		foreach ($this->getComponents() as $name => $control) {
+			if ($control instanceof Control) {
+				if ((array_key_exists($name, $values) && (!$onlyDisabled || $control->isDisabled())) || $erase) {
+					$control->setValue($values[$name] ?? null);
+				}
+			} elseif ($control instanceof self) {
+				if (isset($values[$name]) || $erase) {
+					$control->setValues($values[$name] ?? [], $erase, $onlyDisabled);
+				}
+			}
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Returns the values submitted by the form.
+	 * @template T of object
+	 * @param  class-string<T>|T|'array'|true|null  $returnType
+	 * @param  ?list<Control|self>  $controls
+	 * @return ($returnType is class-string<T>|T ? T : ($returnType is 'array'|true ? mixed[] : ArrayHash<mixed>))
+	 */
+	public function getValues(string|object|bool|null $returnType = null, ?array $controls = null): object|array
+	{
+		$form = $this->getForm(throw: false);
+		if ($form && ($submitter = $form->isSubmitted())) {
+			if ($this->validated === null) {
+				throw new Nette\InvalidStateException('You cannot call getValues() during the validation process. Use getUntrustedValues() instead.');
+
+			} elseif (!$this->isValid()) {
+				trigger_error(__METHOD__ . "() invoked but the form is not valid (form '{$this->getName()}').", E_USER_WARNING);
+			}
+
+			if ($controls === null && $submitter instanceof SubmitterControl) {
+				$controls = $submitter->getValidationScope();
+				if ($controls !== null && !in_array($this, $controls, strict: true)) {
+					$scope = $this;
+					while (($scope = $scope->getParent()) instanceof self) {
+						if (in_array($scope, $controls, strict: true)) {
+							$controls[] = $this;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		if ($returnType === true) {
+			trigger_error(static::class . '::' . __FUNCTION__ . "(true) is deprecated, use getValues('array').", E_USER_DEPRECATED);
+			$returnType = self::Array;
+		}
+
+		return $this->getUntrustedValues($returnType, $controls);
+	}
+
+
+	/**
+	 * Returns the potentially unvalidated values submitted by the form.
+	 * @template T of object
+	 * @param  class-string<T>|T|'array'|null  $returnType
+	 * @param  ?list<Control|self>  $controls
+	 * @return ($returnType is class-string<T>|T ? T : ($returnType is 'array' ? mixed[] : ArrayHash<mixed>))
+	 */
+	public function getUntrustedValues(string|object|null $returnType = null, ?array $controls = null): object|array
+	{
+		if (is_object($returnType)) {
+			$resultObj = $returnType;
+			$properties = (new \ReflectionClass($resultObj))->getProperties();
+
+		} else {
+			$returnType ??= $this->mappedType ?? ArrayHash::class;
+			/** @var class-string|'array' $returnType */
+			$rc = new \ReflectionClass($returnType === self::Array ? \stdClass::class : $returnType);
+			$constructor = $rc->hasMethod('__construct') ? $rc->getMethod('__construct') : null;
+			if ($constructor?->getNumberOfRequiredParameters()) {
+				$resultObj = new \stdClass;
+				$properties = $constructor->getParameters();
+			} else {
+				$constructor = null;
+				$resultObj = $rc->newInstance();
+				$properties = $rc->getProperties();
+			}
+		}
+
+		$properties = array_combine(array_map(fn($p) => $p->getName(), $properties), $properties);
+
+		foreach ($this->getComponents() as $name => $control) {
+			$allowed = $controls === null || in_array($this, $controls, strict: true) || in_array($control, $controls, strict: true);
+			$name = (string) $name;
+			$property = $properties[$name] ?? null;
+			if (
+				$control instanceof Control
+				&& $allowed
+				&& !$control->isOmitted()
+			) {
+				$resultObj->$name = Helpers::tryEnumConversion($control->getValue(), $property);
+
+			} elseif ($control instanceof self) {
+				$type = $returnType === self::Array && !$control->mappedType
+					? self::Array
+					: ($property ? Helpers::getSingleType($property) : null);
+				$resultObj->$name = $control->getUntrustedValues($type, $allowed ? null : $controls);
+			}
+		}
+
+		return match (true) {
+			isset($constructor) => new $returnType(...(array) $resultObj),
+			$returnType === self::Array => (array) $resultObj,
+			default => $resultObj,
+		};
+	}
+
+
+	/**
+	 * @param  ?list<Control|self>  $controls
+	 * @return object|mixed[]
+	 * @deprecated use getUntrustedValues()
+	 */
+	public function getUnsafeValues(string|object|null $returnType, ?array $controls = null): object|array
+	{
+		return $this->getUntrustedValues($returnType, $controls);
+	}
+
+
+	/**
+	 * Sets the default class used when getValues() is called without an explicit type.
+	 * @param class-string  $type
+	 */
+	public function setMappedType(string $type): static
+	{
+		$this->mappedType = $type;
+		return $this;
+	}
+
+
+	/********************* validation ****************d*g**/
+
+
+	/**
+	 * Checks whether all controls pass validation.
+	 */
+	public function isValid(): bool
+	{
+		if ($this->validated === null) {
+			throw new Nette\InvalidStateException('You cannot call isValid() during the validation process.');
+
+		} elseif (!$this->validated) {
+			if ($this->getErrors()) {
+				return false;
+			}
+
+			$this->validate();
+		}
+
+		return !$this->getErrors();
+	}
+
+
+	/**
+	 * Performs the server side validation.
+	 * @param  (Control|self)[]|null  $controls
+	 */
+	public function validate(?array $controls = null): void
+	{
+		$this->validated = null;
+		foreach ($controls ?? $this->getComponents() as $control) {
+			if ($control instanceof Control || $control instanceof self) {
+				$control->validate();
+			}
+		}
+
+		$this->validated = true;
+
+		foreach ($this->onValidate as $handler) {
+			$params = Nette\Utils\Callback::toReflection($handler)->getParameters();
+			$types = array_map(Helpers::getSingleType(...), $params);
+			$args = isset($types[0]) && !$this instanceof $types[0]
+				? [$this->getUntrustedValues($types[0])]
+				: [$this, isset($params[1]) ? $this->getUntrustedValues($types[1]) : null];
+			$handler(...$args);
+		}
+	}
+
+
+	/**
+	 * Returns all validation errors.
+	 * @return list<string|Stringable>
+	 */
+	public function getErrors(): array
+	{
+		$errors = [];
+		foreach ($this->getControls() as $control) {
+			$errors = array_merge($errors, $control->getErrors());
+		}
+
+		return array_values(array_unique($errors));
+	}
+
+
+	/********************* form building ****************d*g**/
+
+
+	/**
+	 * Sets the group that newly added controls will be assigned to.
+	 */
+	public function setCurrentGroup(?ControlGroup $group = null): static
+	{
+		$this->currentGroup = $group;
+		return $this;
+	}
+
+
+	public function getCurrentGroup(): ?ControlGroup
+	{
+		return $this->currentGroup;
+	}
+
+
+	/**
+	 * Adds a component and assigns it to the current group if one is set.
+	 * @throws Nette\InvalidStateException
+	 */
+	public function addComponent(
+		Nette\ComponentModel\IComponent $component,
+		?string $name,
+		?string $insertBefore = null,
+	): static
+	{
+		parent::addComponent($component, $name, $insertBefore);
+		if ($component instanceof Control || $component instanceof self) {
+			$this->currentGroup?->add($component);
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Iterates over all form controls.
+	 * @return \Iterator<Control>
+	 */
+	public function getControls(): \Iterator
+	{
+		return $this->getComponents(true, Control::class);
+	}
+
+
+	/**
+	 * Returns form.
+	 * @return ($throw is true ? Form : ?Form)
+	 */
+	public function getForm(bool $throw = true): ?Form
+	{
+		return $this->lookup(Form::class, $throw);
+	}
+
+
+	/********************* control factories ****************d*g**/
+
+
+	/**
+	 * Adds single-line text input control to the form.
+	 */
+	public function addText(
+		string $name,
+		string|Stringable|null $label = null,
+		?int $cols = null,
+		?int $maxLength = null,
+	): Controls\TextInput
+	{
+		return $this[$name] = (new Controls\TextInput($label, $maxLength))
+			->setHtmlAttribute('size', $cols);
+	}
+
+
+	/**
+	 * Adds single-line text input control used for sensitive input such as passwords.
+	 */
+	public function addPassword(
+		string $name,
+		string|Stringable|null $label = null,
+		?int $cols = null,
+		?int $maxLength = null,
+	): Controls\TextInput
+	{
+		return $this[$name] = (new Controls\TextInput($label, $maxLength))
+			->setHtmlAttribute('size', $cols)
+			->setHtmlType('password');
+	}
+
+
+	/**
+	 * Adds multi-line text input control to the form.
+	 */
+	public function addTextArea(
+		string $name,
+		string|Stringable|null $label = null,
+		?int $cols = null,
+		?int $rows = null,
+	): Controls\TextArea
+	{
+		return $this[$name] = (new Controls\TextArea($label))
+			->setHtmlAttribute('cols', $cols)->setHtmlAttribute('rows', $rows);
+	}
+
+
+	/**
+	 * Adds a text input with built-in email validation.
+	 */
+	public function addEmail(
+		string $name,
+		string|Stringable|null $label = null,
+		int $maxLength = 255,
+	): Controls\TextInput
+	{
+		return $this[$name] = (new Controls\TextInput($label, $maxLength))
+			->addRule(Form::Email);
+	}
+
+
+	/**
+	 * Adds a text input with built-in integer validation.
+	 */
+	public function addInteger(string $name, string|Stringable|null $label = null): Controls\TextInput
+	{
+		return $this[$name] = (new Controls\TextInput($label))
+			->setNullable()
+			->addRule(Form::Integer);
+	}
+
+
+	/**
+	 * Adds a numeric input with built-in float validation.
+	 */
+	public function addFloat(string $name, string|Stringable|null $label = null): Controls\TextInput
+	{
+		return $this[$name] = (new Controls\TextInput($label))
+			->setNullable()
+			->setHtmlType('number')
+			->setHtmlAttribute('step', 'any')
+			->addRule(Form::Float);
+	}
+
+
+	/**
+	 * Adds input for date selection.
+	 */
+	public function addDate(string $name, string|Stringable|null $label = null): Controls\DateTimeControl
+	{
+		return $this[$name] = new Controls\DateTimeControl($label, Controls\DateTimeControl::TypeDate);
+	}
+
+
+	/**
+	 * Adds input for time selection.
+	 */
+	public function addTime(
+		string $name,
+		string|Stringable|null $label = null,
+		bool $withSeconds = false,
+	): Controls\DateTimeControl
+	{
+		return $this[$name] = new Controls\DateTimeControl($label, Controls\DateTimeControl::TypeTime, $withSeconds);
+	}
+
+
+	/**
+	 * Adds input for date and time selection.
+	 */
+	public function addDateTime(
+		string $name,
+		string|Stringable|null $label = null,
+		bool $withSeconds = false,
+	): Controls\DateTimeControl
+	{
+		return $this[$name] = new Controls\DateTimeControl($label, Controls\DateTimeControl::TypeDateTime, $withSeconds);
+	}
+
+
+	/**
+	 * Adds control that allows the user to upload files.
+	 */
+	public function addUpload(string $name, string|Stringable|null $label = null): Controls\UploadControl
+	{
+		return $this[$name] = new Controls\UploadControl($label, multiple: false);
+	}
+
+
+	/**
+	 * Adds control that allows the user to upload multiple files.
+	 */
+	public function addMultiUpload(string $name, string|Stringable|null $label = null): Controls\UploadControl
+	{
+		return $this[$name] = new Controls\UploadControl($label, multiple: true);
+	}
+
+
+	/**
+	 * Adds hidden form control used to store a non-displayed value.
+	 */
+	public function addHidden(string $name, mixed $default = null): Controls\HiddenField
+	{
+		return $this[$name] = (new Controls\HiddenField)
+			->setDefaultValue($default);
+	}
+
+
+	/**
+	 * Adds check box control to the form.
+	 */
+	public function addCheckbox(string $name, string|Stringable|null $caption = null): Controls\Checkbox
+	{
+		return $this[$name] = new Controls\Checkbox($caption);
+	}
+
+
+	/**
+	 * Adds set of radio button controls to the form.
+	 * @param ?mixed[]  $items
+	 */
+	public function addRadioList(
+		string $name,
+		string|Stringable|null $label = null,
+		?array $items = null,
+	): Controls\RadioList
+	{
+		return $this[$name] = new Controls\RadioList($label, $items);
+	}
+
+
+	/**
+	 * Adds set of checkbox controls to the form.
+	 * @param ?mixed[]  $items
+	 */
+	public function addCheckboxList(
+		string $name,
+		string|Stringable|null $label = null,
+		?array $items = null,
+	): Controls\CheckboxList
+	{
+		return $this[$name] = new Controls\CheckboxList($label, $items);
+	}
+
+
+	/**
+	 * Adds select box control that allows single item selection.
+	 * @param ?mixed[]  $items
+	 */
+	public function addSelect(
+		string $name,
+		string|Stringable|null $label = null,
+		?array $items = null,
+		?int $size = null,
+	): Controls\SelectBox
+	{
+		return $this[$name] = (new Controls\SelectBox($label, $items))
+			->setHtmlAttribute('size', $size > 1 ? $size : null);
+	}
+
+
+	/**
+	 * Adds select box control that allows multiple item selection.
+	 * @param ?mixed[]  $items
+	 */
+	public function addMultiSelect(
+		string $name,
+		string|Stringable|null $label = null,
+		?array $items = null,
+		?int $size = null,
+	): Controls\MultiSelectBox
+	{
+		return $this[$name] = (new Controls\MultiSelectBox($label, $items))
+			->setHtmlAttribute('size', $size > 1 ? $size : null);
+	}
+
+
+	/**
+	 * Adds an HTML color picker returning a hex color string (e.g. '#336699').
+	 */
+	public function addColor(string $name, string|Stringable|null $label = null): Controls\ColorPicker
+	{
+		return $this[$name] = new Controls\ColorPicker($label);
+	}
+
+
+	/**
+	 * Adds button used to submit form.
+	 */
+	public function addSubmit(string $name, string|Stringable|null $caption = null): Controls\SubmitButton
+	{
+		return $this[$name] = new Controls\SubmitButton($caption);
+	}
+
+
+	/**
+	 * Adds push buttons with no default behavior.
+	 */
+	public function addButton(string $name, string|Stringable|null $caption = null): Controls\Button
+	{
+		return $this[$name] = new Controls\Button($caption);
+	}
+
+
+	/**
+	 * Adds graphical button used to submit form.
+	 * @param  string|null  $src  URI of the image
+	 * @param  string|null  $alt  alternate text for the image
+	 */
+	public function addImageButton(string $name, ?string $src = null, ?string $alt = null): Controls\ImageButton
+	{
+		return $this[$name] = new Controls\ImageButton($src, $alt);
+	}
+
+
+	/** @deprecated  use addImageButton() */
+	public function addImage(): Controls\ImageButton
+	{
+		return $this->addImageButton(...func_get_args());
+	}
+
+
+	/**
+	 * Adds a named sub-container for grouping related controls.
+	 */
+	public function addContainer(string|int $name): self
+	{
+		$control = new self;
+		$control->currentGroup = $this->currentGroup;
+		$this->currentGroup?->add($control);
+		return $this[$name] = $control;
+	}
+
+
+	/********************* extension methods ****************d*g**/
+
+
+	/** @param mixed[] $args */
+	public function __call(string $name, array $args): mixed
+	{
+		if (isset(self::$extMethods[$name])) {
+			return (self::$extMethods[$name])($this, ...$args);
+		}
+
+		return parent::__call($name, $args);
+	}
+
+
+	/** @param callable(static): mixed  $callback */
+	public static function extensionMethod(string $name, callable $callback): void
+	{
+		if (str_contains($name, '::')) { // back compatibility
+			[, $name] = explode('::', $name);
+		}
+
+		self::$extMethods[$name] = $callback;
+	}
+
+
+	/**
+	 * Prevents cloning.
+	 */
+	public function __clone()
+	{
+		throw new Nette\NotImplementedException('Form cloning is not supported yet.');
+	}
+}

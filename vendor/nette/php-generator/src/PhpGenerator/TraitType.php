@@ -1,0 +1,51 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\PhpGenerator;
+
+use Nette;
+
+
+/**
+ * Definition of a trait with properties, methods, constants and traits.
+ */
+final class TraitType extends ClassLike
+{
+	use Traits\ConstantsAware;
+	use Traits\MethodsAware;
+	use Traits\PropertiesAware;
+	use Traits\TraitsAware;
+
+	/**
+	 * Adds a member. If it already exists, throws an exception or overwrites it if $overwrite is true.
+	 */
+	public function addMember(Method|Property|Constant|TraitUse $member, bool $overwrite = false): static
+	{
+		$name = $member->getName();
+		[$type, $n] = match (true) {
+			$member instanceof Constant => ['consts', $name],
+			$member instanceof Method => ['methods', strtolower($name)],
+			$member instanceof Property => ['properties', $name],
+			$member instanceof TraitUse => ['traits', $name],
+		};
+		if (!$overwrite && isset($this->$type[$n])) {
+			throw new Nette\InvalidStateException("Cannot add member '$name', because it already exists.");
+		}
+		$this->$type[$n] = $member;
+		return $this;
+	}
+
+
+	public function __clone(): void
+	{
+		parent::__clone();
+		$this->consts = array_map(fn(Constant $c) => clone $c, $this->consts);
+		$this->methods = array_map(fn(Method $m) => clone $m, $this->methods);
+		$this->properties = array_map(fn(Property $p) => clone $p, $this->properties);
+		$this->traits = array_map(fn(TraitUse $t) => clone $t, $this->traits);
+	}
+}

@@ -1,0 +1,36 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Forms;
+
+use Nette;
+use Stringable;
+use function is_string;
+
+
+/**
+ * Single validation rule or condition represented as value object.
+ */
+final class Rule
+{
+	public Control $control;
+
+	/** @var (callable(Control): bool)|string */
+	public mixed $validator;
+	public mixed $arg = null;
+	public bool $isNegative = false;
+	public string|Stringable|null $message;
+	public ?Rules $branch = null;
+
+
+	/** @internal */
+	public function canExport(): bool
+	{
+		return is_string($this->validator)
+			|| Nette\Utils\Callback::isStatic($this->validator);
+	}
+}
