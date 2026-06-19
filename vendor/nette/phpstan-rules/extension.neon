@@ -1,0 +1,18 @@
+parameters:
+	checkMissingCallableSignature: true
+	checkFunctionNameCase: true
+	checkInternalClassCaseSensitivity: true
+	reportMaybesInMethodSignatures: true
+	reportMaybesInPropertyPhpDocTypes: true
+	reportStaticMethodSignatures: true
+	reportAlwaysTrueInLastCondition: true
+	reportWrongPhpDocTypeInVarTag: true
+	reportAnyTypeWideningInVarTag: true
+
+	fileExtensions:
+		- php
+		- phpt
+
+includes:
+	- extension-php.neon
+	- extension-nette.neon

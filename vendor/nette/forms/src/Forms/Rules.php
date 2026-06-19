@@ -1,0 +1,361 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Forms;
+
+use Nette;
+use Stringable;
+use function array_merge, end, is_array, is_bool, is_callable, is_scalar, is_string, ltrim, ord, strncmp, strtoupper;
+
+
+/**
+ * Manages validation rules and conditions for a single form control.
+ * @implements \IteratorAggregate<int, Rule>
+ */
+final class Rules implements \IteratorAggregate
+{
+	private const NegRules = [
+		Form::Filled => Form::Blank,
+		Form::Blank => Form::Filled,
+	];
+
+	private ?Rule $required = null;
+
+	/** @var Rule[] */
+	private array $rules = [];
+	private Rules $parent;
+
+	/** @var array<string, bool> */
+	private array $toggles = [];
+
+
+	public function __construct(
+		private readonly Control $control,
+	) {
+	}
+
+
+	/**
+	 * Makes control mandatory.
+	 */
+	public function setRequired(string|Stringable|bool $value = true): static
+	{
+		if ($value) {
+			$this->addRule(Form::Filled, $value === true ? null : $value);
+		} else {
+			$this->required = null;
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Is control mandatory?
+	 */
+	public function isRequired(): bool
+	{
+		return (bool) $this->required;
+	}
+
+
+	/**
+	 * Adds a validation rule for the current control.
+	 * @param  (callable(Control): bool)|string  $validator
+	 */
+	public function addRule(
+		callable|string $validator,
+		string|Stringable|null $errorMessage = null,
+		mixed $arg = null,
+	): static
+	{
+		if ($validator === Form::Valid || $validator === ~Form::Valid) {
+			throw new Nette\InvalidArgumentException('You cannot use Form::Valid in the addRule method.');
+		}
+
+		$rule = new Rule;
+		$rule->control = $this->control;
+		$rule->validator = $validator;
+		$rule->arg = $arg;
+		$rule->message = $errorMessage;
+		$this->adjustOperation($rule);
+		if ($rule->validator === Form::Filled) {
+			$this->required = $rule;
+		} else {
+			$this->rules[] = $rule;
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Removes a validation rule for the current control.
+	 * @param  (callable(Control): bool)|string  $validator
+	 */
+	public function removeRule(callable|string $validator): static
+	{
+		if ($validator === Form::Filled) {
+			$this->required = null;
+		} else {
+			foreach ($this->rules as $i => $rule) {
+				if (!$rule->branch && $rule->validator === $validator) {
+					unset($this->rules[$i]);
+				}
+			}
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Adds a validation condition and returns new branch.
+	 * @param  (callable(Control): bool)|string|bool  $validator
+	 */
+	public function addCondition(callable|string|bool $validator, mixed $arg = null): static
+	{
+		if ($validator === Form::Valid || $validator === ~Form::Valid) {
+			throw new Nette\InvalidArgumentException('You cannot use Form::Valid in the addCondition method.');
+		} elseif (is_bool($validator)) {
+			$arg = $validator;
+			$validator = ':static';
+		}
+
+		return $this->addConditionOn($this->control, $validator, $arg);
+	}
+
+
+	/**
+	 * Adds a validation condition on a specified control and returns new branch.
+	 * @param  (callable(Control): bool)|string  $validator
+	 */
+	public function addConditionOn(Control $control, callable|string $validator, mixed $arg = null): static
+	{
+		$rule = new Rule;
+		$rule->control = $control;
+		$rule->validator = $validator;
+		$rule->arg = $arg;
+		$branch = $rule->branch = new static($this->control);
+		$branch->parent = $this;
+		$this->adjustOperation($rule);
+
+		$this->rules[] = $rule;
+		return $branch;
+	}
+
+
+	/**
+	 * Adds an else branch to the current condition and returns it.
+	 */
+	public function elseCondition(): static
+	{
+		assert($this->parent->rules !== []);
+		$rule = clone end($this->parent->rules);
+		if (is_string($rule->validator) && isset(self::NegRules[$rule->validator])) {
+			$rule->validator = self::NegRules[$rule->validator];
+		} else {
+			$rule->isNegative = !$rule->isNegative;
+		}
+
+		$rule->branch = new static($this->parent->control);
+		$rule->branch->parent = $this->parent;
+		$this->parent->rules[] = $rule;
+		return $rule->branch;
+	}
+
+
+	/**
+	 * Ends current validation condition.
+	 */
+	public function endCondition(): static
+	{
+		return $this->parent;
+	}
+
+
+	/**
+	 * Adds a value filter applied before validation.
+	 * @param callable(mixed): mixed  $filter
+	 */
+	public function addFilter(callable $filter): static
+	{
+		$this->rules[] = $rule = new Rule;
+		$rule->control = $this->control;
+		$rule->validator = function (Control $control) use ($filter): bool {
+			$control->setValue($filter($control->getValue()));
+			return true;
+		};
+		return $this;
+	}
+
+
+	/**
+	 * Shows or hides an HTML element (selected by CSS selector) when the condition is met.
+	 */
+	public function toggle(string $id, bool $hide = true): static
+	{
+		$this->toggles[$id] = $hide;
+		return $this;
+	}
+
+
+	/**
+	 * Returns toggle definitions, or current evaluated states when $actual is true.
+	 * @return array<string, bool>
+	 */
+	public function getToggles(bool $actual = false): array
+	{
+		return $actual ? $this->getToggleStates() : $this->toggles;
+	}
+
+
+	/**
+	 * @internal
+	 * @param  array<string, bool>  $toggles
+	 * @return array<string, bool>
+	 */
+	public function getToggleStates(array $toggles = [], bool $success = true, ?bool $emptyOptional = null): array
+	{
+		foreach ($this->toggles as $id => $hide) {
+			$toggles[$id] = ($success xor !$hide) || !empty($toggles[$id]);
+		}
+
+		$emptyOptional ??= (!$this->isRequired() && !$this->control->isFilled());
+		foreach ($this as $rule) {
+			if ($rule->branch) {
+				$toggles = $rule->branch->getToggleStates(
+					$toggles,
+					$success && static::validateRule($rule),
+					$rule->validator === Form::Blank ? false : $emptyOptional,
+				);
+			} elseif (!$emptyOptional || $rule->validator === Form::Filled) {
+				$success = $success && static::validateRule($rule);
+			}
+		}
+
+		return $toggles;
+	}
+
+
+	/**
+	 * Validates the control against all rules. Returns false and sets an error message on failure.
+	 */
+	public function validate(?bool $emptyOptional = null): bool
+	{
+		$emptyOptional ??= (!$this->isRequired() && !$this->control->isFilled());
+		foreach ($this as $rule) {
+			if (!$rule->branch && $emptyOptional && $rule->validator !== Form::Filled) {
+				continue;
+			}
+
+			$success = self::validateRule($rule);
+			if (
+				$success
+				&& $rule->branch
+				&& !$rule->branch->validate($rule->validator === Form::Blank ? false : $emptyOptional)
+			) {
+				return false;
+
+			} elseif (!$success && !$rule->branch) {
+				$rule->control->addError(Validator::formatMessage($rule), translate: false);
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+
+	/**
+	 * Removes all validation rules.
+	 */
+	public function reset(): void
+	{
+		$this->rules = [];
+	}
+
+
+	/**
+	 * Validates single rule.
+	 */
+	public static function validateRule(Rule $rule): bool
+	{
+		$args = is_array($rule->arg) ? $rule->arg : [$rule->arg];
+		foreach ($args as &$val) {
+			$val = $val instanceof Control ? $val->getValue() : $val;
+		}
+
+		$callback = self::getCallback($rule);
+		assert(is_callable($callback));
+		return $rule->isNegative
+			xor $callback($rule->control, is_array($rule->arg) ? $args : $args[0]);
+	}
+
+
+	/**
+	 * Iterates over all rules in priority order (Blank first, then Required, then others).
+	 * @return \Iterator<int, Rule>
+	 */
+	public function getIterator(): \Iterator
+	{
+		$priorities = [
+			0 => [], // Blank
+			1 => $this->required ? [$this->required] : [],
+			2 => [], // other rules
+		];
+		foreach ($this->rules as $rule) {
+			$priorities[$rule->validator === Form::Blank && $rule->control === $this->control ? 0 : 2][] = $rule;
+		}
+
+		return new \ArrayIterator(array_merge(...$priorities));
+	}
+
+
+	/**
+	 * Normalizes the validator identifier and verifies that a callable exists.
+	 */
+	private function adjustOperation(Rule $rule): void
+	{
+		if (is_string($rule->validator) && ord($rule->validator[0]) > 127) {
+			$rule->isNegative = true;
+			$rule->validator = ~$rule->validator;
+			if (!$rule->branch) {
+				$name = strncmp($rule->validator, ':', 1)
+					? $rule->validator
+					: 'Form:' . strtoupper($rule->validator);
+				trigger_error("Negative validation rules such as ~$name are deprecated.", E_USER_DEPRECATED);
+			}
+
+			if (isset(self::NegRules[$rule->validator])) {
+				$rule->validator = self::NegRules[$rule->validator];
+				$rule->isNegative = false;
+				trigger_error('Replace negative validation rule ~Form::Filled with Form::Blank and vice versa.', E_USER_DEPRECATED);
+			}
+		}
+
+		if ($rule->validator === Form::Image) {
+			$rule->arg = Helpers::getSupportedImages();
+		}
+
+		if (!is_callable(self::getCallback($rule))) {
+			$validator = is_scalar($rule->validator)
+				? " '$rule->validator'"
+				: '';
+			throw new Nette\InvalidArgumentException("Unknown validator$validator for control '{$rule->control->getName()}'.");
+		}
+	}
+
+
+	private static function getCallback(Rule $rule): array|callable|string
+	{
+		$op = $rule->validator;
+		return is_string($op) && str_starts_with($op, ':')
+			? [Validator::class, 'validate' . ltrim($op, ':')]
+			: $op;
+	}
+}

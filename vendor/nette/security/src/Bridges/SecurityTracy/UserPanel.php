@@ -1,0 +1,58 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Bridges\SecurityTracy;
+
+use Nette;
+use Tracy;
+use const PHP_SESSION_ACTIVE;
+
+
+/**
+ * User panel for Debugger Bar.
+ */
+class UserPanel implements Tracy\IBarPanel
+{
+	public function __construct(
+		private readonly Nette\Security\User $user,
+	) {
+	}
+
+
+	/**
+	 * Renders tab.
+	 */
+	public function getTab(): ?string
+	{
+		if (!session_id()) {
+			return null;
+		}
+
+		return Nette\Utils\Helpers::capture(function () {
+			$status = session_status() === PHP_SESSION_ACTIVE
+				? $this->user->isLoggedIn()
+				: '?';
+			require __DIR__ . '/dist/tab.phtml';
+		});
+	}
+
+
+	/**
+	 * Renders panel.
+	 */
+	public function getPanel(): ?string
+	{
+		if (session_status() !== PHP_SESSION_ACTIVE) {
+			return null;
+		}
+
+		return Nette\Utils\Helpers::capture(function () {
+			$user = $this->user;
+			require __DIR__ . '/dist/panel.phtml';
+		});
+	}
+}

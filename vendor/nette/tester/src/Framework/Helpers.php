@@ -1,0 +1,171 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Tester.
+ * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Tester;
+
+use function array_slice, count, defined;
+use const DIRECTORY_SEPARATOR;
+
+
+/**
+ * Utility methods for file I/O, path handling, annotation parsing, and shell escaping.
+ */
+class Helpers
+{
+	/**
+	 * Reads entire file into a string.
+	 * @throws \Exception
+	 */
+	public static function readFile(string $file): string
+	{
+		$content = @file_get_contents($file); // @ is escalated to exception
+		if ($content === false) {
+			throw new \Exception("Unable to read file '$file'.");
+		}
+
+		return $content;
+	}
+
+
+	/**
+	 * Creates directory if it does not exist and deletes all its contents.
+	 */
+	public static function purge(string $dir): void
+	{
+		if (preg_match('#^(\w:)?[/\\\]?$#', $dir)) {
+			throw new \InvalidArgumentException('Directory must not be an empty string or root path.');
+		}
+
+		if (!is_dir($dir)) {
+			mkdir($dir);
+		}
+
+		foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST) as $entry) {
+			if ($entry->isDir()) {
+				rmdir((string) $entry);
+			} else {
+				unlink((string) $entry);
+			}
+		}
+	}
+
+
+	/**
+	 * Finds the common ancestor directory of the given paths. All paths must exist.
+	 * @param  string[]  $paths
+	 * @return string  empty string when not found; separators normalized to DIRECTORY_SEPARATOR
+	 * @internal
+	 */
+	public static function findCommonDirectory(array $paths): string
+	{
+		$splitPaths = array_map(function ($s) {
+			$real = realpath($s);
+			if ($s === '') {
+				throw new \RuntimeException('Path must not be empty.');
+			} elseif ($real === false) {
+				throw new \RuntimeException("File or directory '$s' does not exist.");
+			}
+
+			return explode(DIRECTORY_SEPARATOR, $real);
+		}, $paths);
+
+		$first = (array) array_shift($splitPaths);
+		for ($i = 0; $i < count($first); $i++) {
+			foreach ($splitPaths as $s) {
+				if ($first[$i] !== ($s[$i] ?? null)) {
+					break 2;
+				}
+			}
+		}
+
+		$common = implode(DIRECTORY_SEPARATOR, array_slice($first, 0, $i));
+		return is_dir($common) ? $common : dirname($common);
+	}
+
+
+	/**
+	 * Parses the first docblock in a string into an array of annotation values.
+	 * @return array<string|string[]>  annotation name => value(s)
+	 * @internal
+	 */
+	public static function parseDocComment(string $s): array
+	{
+		$options = [];
+		if (!preg_match('#^/\*\*(.*?)\*/#ms', $s, $content)) {
+			return [];
+		}
+
+		if (preg_match('#^[ \t\*]*+([^\s@].*)#mi', $content[1], $matches)) {
+			$options[0] = trim($matches[1]);
+		}
+
+		preg_match_all('#^[ \t\*]*@(\w+)([^\w\r\n].*)?#mi', $content[1], $matches, PREG_SET_ORDER);
+		foreach ($matches as $match) {
+			$name = strtolower($match[1]);
+			$value = isset($match[2]) ? trim($match[2]) : '';
+			if (isset($options[$name])) {
+				$options[$name] = (array) $options[$name];
+				$options[$name][] = $value;
+			} else {
+				$options[$name] = $value;
+			}
+		}
+
+		return $options;
+	}
+
+
+	/**
+	 * @internal
+	 */
+	public static function errorTypeToString(int $type): string
+	{
+		$consts = get_defined_constants(categorize: true);
+		foreach ($consts['Core'] as $name => $val) {
+			if ($type === $val && str_starts_with($name, 'E_')) {
+				return $name;
+			}
+		}
+
+		return 'Unknown error';
+	}
+
+
+	/**
+	 * Escapes a string for safe use as a shell argument.
+	 * @internal
+	 */
+	public static function escapeArg(string $s): string
+	{
+		if (preg_match('#^[a-z0-9._=/:-]+$#Di', $s)) {
+			return $s;
+		}
+
+		return defined('PHP_WINDOWS_VERSION_BUILD')
+			? '"' . str_replace('"', '""', $s) . '"'
+			: escapeshellarg($s);
+	}
+
+
+	/**
+	 * @internal
+	 */
+	public static function prepareTempDir(string $path): string
+	{
+		$real = realpath($path);
+		if ($real === false || !is_dir($real) || !is_writable($real)) {
+			throw new \RuntimeException("Path '$real' is not a writable directory.");
+		}
+
+		$path = $real . DIRECTORY_SEPARATOR . 'Tester';
+		if (!is_dir($path) && @mkdir($path) === false && !is_dir($path)) {  // @ - directory may exist
+			throw new \RuntimeException("Cannot create '$path' directory.");
+		}
+
+		return $path;
+	}
+}

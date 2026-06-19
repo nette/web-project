@@ -1,0 +1,171 @@
+services:
+	-
+		create: Nette\PHPStan\Php\ClosureTypeCheckIgnoreExtension
+		tags: [phpstan.ignoreErrorExtension]
+
+	-
+		create: Nette\PHPStan\Php\RemoveFailingReturnTypeExtension([
+			# PHP returns false, but it's trivial — indicates a programming error or unrealistic state
+			# ---------
+
+			# Regex (false/null = invalid pattern; only stripped when pattern is a constant string)
+			preg_filter
+			preg_grep
+			preg_match
+			preg_match_all
+			preg_replace
+			preg_replace_callback
+			preg_replace_callback_array
+			preg_split
+
+			# JSON
+			json_encode
+
+			# Output buffering (false = no active buffer)
+			ob_get_clean
+			ob_get_contents
+			ob_get_flush
+			ob_get_length
+
+			# Compression (false = error that won't happen with valid data/params)
+			deflate_add
+			deflate_init
+			gzcompress
+			gzdeflate
+			gzencode
+			inflate_init
+			zlib_encode
+
+			# System information (false = system-level failure that doesn't occur on functioning OS)
+			getcwd
+			gethostname
+			getlastmod
+			getmygid
+			getmyinode
+			getmypid
+			getmyuid
+			getrusage
+
+			# Operations on a valid file handle (false = handle is invalid/closed — programming error)
+			fstat
+			ftell
+
+			# Date/Time (false = no timezone set; every DateTime always has one)
+			date_timezone_get
+
+			# Intl (false = internal ICU error with valid object — unrealistic after successful construction)
+			grapheme_strlen
+			normalizer_normalize
+			msgfmt_format
+			Collator::compare
+			IntlDateFormatter::format
+			IntlDateFormatter::formatObject
+			IntlDateFormatter::getCalendar
+			IntlDateFormatter::getDateType
+			IntlDateFormatter::getLocale
+			IntlDateFormatter::getPattern
+			IntlDateFormatter::getTimeType
+			IntlDateFormatter::getTimeZoneId
+			IntlDatePatternGenerator::getBestPattern
+			MessageFormatter::format
+			MessageFormatter::formatMessage
+			Normalizer::normalize
+			NumberFormatter::format
+			NumberFormatter::formatCurrency
+			ResourceBundle::getLocales
+			Transliterator::listIDs
+			Transliterator::transliterate
+
+			# GD operations on a valid resource (false = programming error or internal GD failure)
+			imageaffine
+			imageaffinematrixconcat
+			imageaffinematrixget
+			imagecolorat
+			imagecrop
+			imageftbbox
+			imagefttext
+			imagegrabscreen
+			imagegrabwindow
+			imagerotate
+			imagescale
+			imagettfbbox
+			imagettftext
+
+			# Session (false = internal session subsystem failure, not a normal condition)
+			session_id
+			session_name
+
+			# Other
+			curl_init
+
+			# DOM (false = violation of DOM spec rules — programming error)
+			DOMDocument::adoptNode
+			DOMDocument::createAttribute
+			DOMDocument::createAttributeNS
+			DOMDocument::createCDATASection
+			DOMDocument::createElement
+			DOMDocument::createElementNS
+			DOMDocument::createEntityReference
+			DOMDocument::createProcessingInstruction
+			DOMDocument::saveHTML
+			DOMDocument::saveXML
+			DOMNode::appendChild
+			DOMNode::insertBefore
+			DOMNode::removeChild
+			DOMNode::replaceChild
+			DOMText::splitText
+
+
+			# PHPStan reports that returns false but current PHP no longer returns false
+			# ---------
+
+			apache_request_headers
+			apache_response_headers
+			array_combine
+			ceil
+			date_add
+			date_date_set
+			date_isodate_set
+			date_sub
+			date_time_set
+			date_timestamp_set
+			date_timezone_set
+			explode
+			fgetss
+			floor
+			fpassthru
+			gzgetss
+			gzpassthru
+			hash
+			hash_hkdf
+			hash_hmac
+			hash_pbkdf2
+			imagecolorexact
+			imagecolorexactalpha
+			jdtounix
+			long2ip
+			mb_encoding_aliases
+			mb_strlen
+			oci_num_fields
+			openssl_random_pseudo_bytes
+			password_hash
+			pg_field_name
+			pg_set_error_verbosity
+			proc_get_status
+			rewinddir
+			round
+			sleep
+			sqlsrv_connect
+			sqlsrv_fetch_array
+			sqlsrv_field_metadata
+			sqlsrv_num_fields
+			sqlsrv_query
+			str_split
+			substr
+			substr_compare
+
+			DateInterval::createFromDateString
+			PDOStatement::fetchAll
+			SplFileObject::fgetss
+		])
+		tags: [phpstan.broker.expressionTypeResolverExtension]

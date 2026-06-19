@@ -1,0 +1,102 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Neon;
+
+use function array_keys, count, is_array, is_int, is_object, is_string, max, range;
+
+
+/**
+ * Converts value to NEON format.
+ * @internal
+ */
+final class Encoder
+{
+	/** @deprecated */
+	public const BLOCK = true;
+
+	public bool $blockMode = false;
+	public string $indentation = "\t";
+
+
+	/** Encodes a PHP value to a NEON string. */
+	public function encode(mixed $val): string
+	{
+		$node = $this->valueToNode($val, $this->blockMode);
+		return $node->toString();
+	}
+
+
+	/** Converts a PHP value to its AST node representation. */
+	public function valueToNode(mixed $val, bool $blockMode = false): Node
+	{
+		if ($val instanceof \DateTimeInterface) {
+			return new Node\LiteralNode($val);
+
+		} elseif ($val instanceof Entity && $val->value === Neon::Chain) {
+			$node = new Node\EntityChainNode;
+			foreach ($val->attributes as $entity) {
+				$node->chain[] = $this->valueToNode($entity);
+			}
+
+			return $node;
+
+		} elseif ($val instanceof Entity) {
+			return new Node\EntityNode(
+				$this->valueToNode($val->value),
+				$this->arrayToNodes($val->attributes),
+			);
+
+		} elseif (is_object($val) || is_array($val)) {
+			if ($blockMode) {
+				$node = new Node\BlockArrayNode;
+			} else {
+				$isList = is_array($val) && (!$val || array_keys($val) === range(0, count($val) - 1));
+				$node = new Node\InlineArrayNode($isList ? '[' : '{');
+			}
+
+			$node->items = $this->arrayToNodes($val, $blockMode);
+			return $node;
+
+		} elseif (is_string($val)) {
+			if (preg_match('//u', $val) === false) {
+				trigger_error('Invalid UTF-8 sequence in string, replaced with U+FFFD', E_USER_WARNING);
+				$val = json_decode(json_encode($val, JSON_INVALID_UTF8_SUBSTITUTE));
+			}
+			return Lexer::requiresDelimiters($val)
+				? new Node\StringNode($val, $this->indentation)
+				: new Node\LiteralNode($val);
+
+		} else {
+			return new Node\LiteralNode($val);
+		}
+	}
+
+
+	/** @return list<Node\ArrayItemNode> */
+	private function arrayToNodes(mixed $val, bool $blockMode = false): array
+	{
+		$res = [];
+		$counter = 0;
+		$hide = true;
+		foreach ($val as $k => $v) {
+			$res[] = $item = new Node\ArrayItemNode;
+			$item->key = $hide && $k === $counter ? null : self::valueToNode($k);
+			$item->value = self::valueToNode($v, $blockMode);
+			if ($item->value instanceof Node\BlockArrayNode) {
+				$item->value->indentation = $this->indentation;
+			}
+
+			if ($hide && is_int($k)) {
+				$hide = $k === $counter;
+				$counter = max($k + 1, $counter);
+			}
+		}
+
+		return $res;
+	}
+}

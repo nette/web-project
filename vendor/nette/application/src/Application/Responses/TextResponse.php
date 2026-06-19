@@ -1,0 +1,42 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Application\Responses;
+
+use Nette;
+
+
+/**
+ * String output response.
+ */
+final class TextResponse implements Nette\Application\Response
+{
+	public function __construct(
+		private readonly mixed $source,
+	) {
+	}
+
+
+	public function getSource(): mixed
+	{
+		return $this->source;
+	}
+
+
+	/**
+	 * Sends response to output.
+	 */
+	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse): void
+	{
+		if ($this->source instanceof Nette\Application\UI\Template) {
+			$this->source->render();
+
+		} else {
+			echo $this->source;
+		}
+	}
+}
