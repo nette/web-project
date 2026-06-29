@@ -1,0 +1,106 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Latte (https://latte.nette.org)
+ * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Latte\Essential;
+
+use Latte;
+use Latte\Compiler\NodeHelpers;
+use Latte\Compiler\Nodes\Php;
+use Latte\Compiler\Nodes\Php\ExpressionNode;
+use Latte\Compiler\Nodes\PrintNode;
+use Latte\Compiler\Tag;
+use Latte\Engine;
+use Nette\Localization\Translator;
+use function array_unshift, is_array, is_string;
+
+
+/**
+ * Extension for translations.
+ */
+final class TranslatorExtension extends Latte\Extension
+{
+	private ?\Closure $translator;
+
+
+	public function __construct(
+		callable|Translator|null $translator,
+		private ?string $key = null,
+	) {
+		$this->translator = match (true) {
+			$translator === null => null,
+			$translator instanceof Translator => $translator->translate(...),
+			default => $translator(...),
+		};
+	}
+
+
+	public function getTags(): array
+	{
+		return [
+			'_' => $this->parseTranslate(...),
+			'translate' => fn(Tag $tag) => yield from Nodes\TranslateNode::create($tag, $this->key ? $this->translator : null),
+		];
+	}
+
+
+	public function getFilters(): array
+	{
+		return [
+			'translate' => fn(Latte\Runtime\FilterInfo $fi, ...$args) => $this->translator
+				? ($this->translator)(...$args)
+				: $args[0],
+		];
+	}
+
+
+	public function getCacheKey(Engine $engine): mixed
+	{
+		return $this->key;
+	}
+
+
+	/**
+	 * {_ ...}
+	 */
+	private function parseTranslate(Tag $tag): PrintNode
+	{
+		$tag->outputMode = $tag::OutputKeepIndentation;
+		$tag->expectArguments();
+		$node = new PrintNode;
+		$node->expression = $tag->parser->parseUnquotedStringOrExpression();
+		$args = new Php\Expression\ArrayNode;
+		if ($tag->parser->stream->tryConsume(',')) {
+			$args = $tag->parser->parseArguments();
+		}
+
+		$node->modifier = $tag->parser->parseModifier();
+		$node->modifier->escape = !$node->modifier->removeFilter('noescape');
+
+		if ($this->translator
+			&& $this->key
+			&& ($expr = self::toValue($node->expression))
+			&& is_array($values = self::toValue($args))
+			&& is_string($translation = ($this->translator)($expr, ...$values))
+		) {
+			$node->expression = new Php\Scalar\StringNode($translation);
+			return $node;
+		}
+
+		array_unshift($node->modifier->filters, new Php\FilterNode(new Php\IdentifierNode('translate'), $args->toArguments()));
+		return $node;
+	}
+
+
+	public static function toValue(ExpressionNode $args): mixed
+	{
+		try {
+			return NodeHelpers::toValue($args, constants: true);
+		} catch (\InvalidArgumentException) {
+			return null;
+		}
+	}
+}

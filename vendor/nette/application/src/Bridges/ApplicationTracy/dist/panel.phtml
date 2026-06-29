@@ -1,0 +1,286 @@
+<?php declare(strict_types=1);
+
+/** @var ?array<string,mixed> $matched */
+/** @var array{path:string,domain:?string,module:string,routes:array<mixed>} $routes */
+/** @var \ReflectionClass<Nette\Application\IPresenter>|\ReflectionMethod|string|null $source */
+/** @var Nette\Http\UrlScript $url */
+/** @var string $method */
+use Nette\Application\UI\Presenter;
+use Tracy\Dumper;
+echo '
+<style class="tracy-debug">
+	#tracy-debug .nette-RoutingPanel-grid {
+		background: #FDF5CE;
+		display: grid;
+		grid-template-columns: auto 1fr auto auto;
+		border: 1px solid #E6DFBF;
+	}
+
+	#tracy-debug .nette-RoutingPanel-grid-inner,
+	#tracy-debug .nette-RoutingPanel-grid-columns {
+		grid-column: 1 / span 4;
+		display: grid;
+		grid-template-columns: subgrid;
+	}
+
+	#tracy-debug .nette-RoutingPanel-grid-columns:nth-child(2n) {
+		background: rgba(0,0,0,0.02);
+	}
+
+	#tracy-debug .nette-RoutingPanel-grid-header {
+		color: #655E5E;
+		background: #F4F3F1;
+		font-size: 90%;
+		font-weight: bold;
+	}
+
+	#tracy-debug .nette-RoutingPanel-grid-group-header {
+		grid-column: 1 / span 4;
+		font-size: 90%;
+		font-weight: bold;
+		text-align: center;
+	}
+
+	#tracy-debug .nette-RoutingPanel-grid-inner .nette-RoutingPanel-grid-inner {
+		background: #23180007;
+		box-shadow: 0 1px 20px 0px #00000040;
+		border-right: 8px solid #0000002e;
+	}
+
+	#tracy-debug .nette-RoutingPanel-grid-columns > div {
+		border-bottom: 1px solid #95770026;
+		border-right: 1px solid #95770026;
+		padding: 2px 5px;
+	}
+
+	#tracy-debug .nette-RoutingPanel-status-yes {
+		background: #BDE678 !important;
+	}
+
+	#tracy-debug .nette-RoutingPanel-status-may {
+		background: #C1D3FF !important;
+	}
+
+	#tracy-debug .nette-RoutingPanel-status-error {
+		background: #ffd2c3 !important;
+	}
+
+	#tracy-debug .nette-RoutingPanel-symbol {
+		text-align: right;
+	}
+
+	#tracy-debug .nette-RoutingPanel .tracy-dump.tracy-dump {
+		padding: 0;
+		margin: 0;
+		border: none;
+	}
+
+	#tracy-debug .nette-RoutingPanel pre, #tracy-debug .nette-RoutingPanel code {
+		display: inline;
+		background: transparent;
+	}
+
+	#tracy-debug .nette-RoutingPanel-rel {
+		background: #eee;
+		white-space: nowrap;
+	}
+</style>
+
+<h1>
+';
+if ($matched === null) /* pos 88:2 */ {
+	echo '	no route
+';
+} elseif (isset($matched[Presenter::PresenterKey])) /* pos 90:2 */ {
+	echo '	';
+	echo Tracy\Helpers::escapeHtml($matched[Presenter::PresenterKey]) /* pos 91:3 */;
+	echo ':';
+	echo Tracy\Helpers::escapeHtml($matched[Presenter::ActionKey] ?? Presenter::DefaultAction) /* pos 91:39 */;
+	echo '
+	';
+	if (isset($matched[Presenter::SignalKey])) /* pos 92:3 */ {
+		echo Tracy\Helpers::escapeHtml($matched[Presenter::SignalKey]) /* pos 92:45 */;
+		echo '!';
+	}
+	echo "\n";
+}
+
+echo '</h1>
+
+<div class="tracy-inner nette-RoutingPanel">
+<div class="tracy-inner-container">
+	<p>
+		<code>';
+echo Tracy\Helpers::escapeHtml($method) /* pos 99:9 */;
+echo '</code>
+		<code>';
+echo Tracy\Helpers::escapeHtml($url->getBaseUrl()) /* pos 100:9 */;
+echo '<wbr><span class="nette-RoutingPanel-rel">';
+echo str_replace(['&amp;', '?'], ['<wbr>&amp;', '<wbr>?'], htmlspecialchars($url->getRelativeUrl())) /* pos 100:71 */;
+echo '</span></code>
+	</p>
+
+';
+if (is_string($source)) /* pos 103:2 */ {
+	echo '	<p>';
+	echo Tracy\Helpers::escapeHtml($source) /* pos 104:6 */;
+	echo ' (class not found)</p>
+';
+} elseif ($source) /* pos 105:2 */ {
+	echo '	<p><a';
+	echo ($ʟ_tmp = (Tracy\Helpers::editorUri($source->getFileName(), $source->getStartLine()))) === null ? '' : ' href="' . Tracy\Helpers::escapeHtml($ʟ_tmp) . '"' /* pos 106:16 */;
+	echo '>';
+	echo Tracy\Helpers::escapeHtml($source instanceof ReflectionClass ? $source->getName() : $source->getDeclaringClass()->getName() . '::' . $source->getName() . '()') /* pos 106:92 */;
+	echo '</a></p>
+';
+}
+
+echo '</div>
+
+<div class="tracy-inner-container">
+';
+if (empty($routes['routes'])) /* pos 111:2 */ {
+	echo '	<p>No routes defined.</p>
+';
+} else /* pos 113:2 */ {
+	echo '	<div class="nette-RoutingPanel-grid">
+		<div class="nette-RoutingPanel-grid-columns nette-RoutingPanel-grid-header">
+			<div></div>
+			<div>Mask / Class</div>
+			<div>Defaults</div>
+			<div>Matched as</div>
+		</div>
+
+';
+	$_blocks['routeList'] = function ($list,$path='') use (&$_blocks) {
+		echo '		<div class="nette-RoutingPanel-grid-inner">
+';
+		if ($list['domain'] || $list['module']) /* pos 124:11 */ {
+			echo '			<div class="nette-RoutingPanel-grid-group-header">
+				';
+			if ($list['domain']) /* pos 125:7 */ {
+				echo 'domain = ';
+				echo Tracy\Helpers::escapeHtml($list['domain']) /* pos 125:34 */;
+			}
+			echo '
+				';
+			if ($list['module']) /* pos 126:7 */ {
+				echo 'module = ';
+				echo Tracy\Helpers::escapeHtml($list['module']) /* pos 126:34 */;
+			}
+			echo '
+			</div>
+';
+		}
+		$path .= $list['path'] /* pos 128:6 */;
+		foreach ($list['routes'] as $router) /* pos 129:6 */ {
+			if (is_array($router)) /* pos 130:7 */ {
+				$_blocks['routeList']($router,$path);
+			} else /* pos 132:7 */ {
+				$_blocks['route']($router,$path);
+			}
+
+		}
+
+		echo '		</div>
+';
+	};
+	echo "\n";
+	$_blocks['route'] = function ($route,$path) use (&$_blocks) {
+		echo '		<div class="nette-RoutingPanel-grid-columns nette-RoutingPanel-status-';
+		echo Tracy\Helpers::escapeHtml($route->matched) /* pos 140:75 */;
+		echo '">
+			<div class="nette-RoutingPanel-symbol"';
+		echo ($ʟ_tmp = (['yes' => 'matched as first', 'may' => 'suitable but not matched as first', 'no' => '', 'oneway' => 'one-way', 'error' => 'error'][$route->matched])) === null ? '' : ' title="' . Tracy\Helpers::escapeHtml($ʟ_tmp) . '"' /* pos 141:54 */;
+		echo '>
+				';
+		echo Tracy\Helpers::escapeHtml(['yes' => '✓', 'may' => '≈', 'no' => '', 'oneway' => '⛔', 'error' => '❌'][$route->matched]) /* pos 142:7 */;
+		echo '
+			</div>
+
+			<div>
+				<code';
+		echo ($ʟ_tmp = ($route->class)) === null ? '' : ' title="' . Tracy\Helpers::escapeHtml($ʟ_tmp) . '"' /* pos 146:21 */;
+		echo '>
+';
+		if ($path !== '') /* pos 147:15 */ {
+			echo '					<small>';
+			echo Tracy\Helpers::escapeHtml($path) /* pos 147:35 */;
+			echo '</small>
+';
+		}
+		echo '					';
+		echo isset($route->mask) ? str_replace(['/', '-'], ['<wbr>/', '<wbr>-'], htmlspecialchars($route->mask)) : str_replace('\\', '<wbr>\\', htmlspecialchars($route->class)) /* pos 148:8 */;
+		echo '
+				</code>
+			</div>
+
+			<div>
+				<code>
+';
+		foreach ($route->defaults as $key => $value) /* pos 154:8 */ {
+			echo '					';
+			echo Tracy\Helpers::escapeHtml($key) /* pos 155:9 */;
+			echo '&nbsp;=&nbsp;';
+			if (is_string($value)) /* pos 155:28 */ {
+				echo Tracy\Helpers::escapeHtml($value) /* pos 155:50 */;
+				echo '<br>';
+				echo Dumper::toHtml($value, [Dumper::COLLAPSE => true, Dumper::LIVE => true]) /* pos 155:62 */;
+			}
+			echo "\n";
+
+		}
+
+		echo '				</code>
+			</div>
+
+			<div>
+';
+		if ($route->params) /* pos 161:7 */ {
+			echo '				<code>
+';
+			$params = $route->params /* pos 163:9 */;
+			if (isset($params[Presenter::PresenterKey])) /* pos 164:9 */ {
+				echo '					<strong>';
+				echo Tracy\Helpers::escapeHtml($params['presenter']) /* pos 165:18 */;
+				echo ':';
+				echo Tracy\Helpers::escapeHtml($params[Presenter::ActionKey] ?? Presenter::DefaultAction) /* pos 165:39 */;
+				echo '</strong>
+					<br>
+';
+				$params = array_diff_key($params, [Presenter::PresenterKey => 1, Presenter::ActionKey => 1]) /* pos 167:10 */;
+			}
+			foreach ($params as $key => $value) /* pos 169:9 */ {
+				echo '					';
+				echo Tracy\Helpers::escapeHtml($key) /* pos 170:10 */;
+				echo '&nbsp;=&nbsp;';
+				if (is_string($value)) /* pos 170:29 */ {
+					echo Tracy\Helpers::escapeHtml($value) /* pos 170:51 */;
+					echo '<br>';
+					echo Dumper::toHtml($value, [Dumper::COLLAPSE => true, Dumper::LIVE => true]) /* pos 170:63 */;
+				}
+				echo "\n";
+
+			}
+
+			echo '				</code>
+';
+		} elseif ($route->error) /* pos 173:7 */ {
+			echo '				<strong>';
+			echo Tracy\Helpers::escapeHtml($route->error->getMessage()) /* pos 174:16 */;
+			echo '</strong>
+';
+		}
+
+		echo '			</div>
+		</div>
+';
+	};
+	echo "\n";
+	$_blocks['routeList']($routes);
+	echo '	</div>
+';
+}
+echo '</div>
+</div>
+';

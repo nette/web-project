@@ -1,0 +1,36 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Application\Responses;
+
+use Nette;
+
+
+/**
+ * Forwards to new request.
+ */
+final class ForwardResponse implements Nette\Application\Response
+{
+	public function __construct(
+		private readonly Nette\Application\Request $request,
+	) {
+	}
+
+
+	public function getRequest(): Nette\Application\Request
+	{
+		return $this->request;
+	}
+
+
+	/**
+	 * Sends response to output.
+	 */
+	public function send(Nette\Http\IRequest $httpRequest, Nette\Http\IResponse $httpResponse): void
+	{
+	}
+}
