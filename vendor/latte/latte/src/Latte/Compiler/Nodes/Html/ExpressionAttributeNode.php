@@ -1,0 +1,66 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Latte (https://latte.nette.org)
+ * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Latte\Compiler\Nodes\Html;
+
+use Latte\Compiler\Nodes\AreaNode;
+use Latte\Compiler\Nodes\Php\ExpressionNode;
+use Latte\Compiler\Nodes\Php\ModifierNode;
+use Latte\Compiler\Position;
+use Latte\Compiler\PrintContext;
+use Latte\ContentType;
+use Latte\Feature;
+use Latte\Runtime as LR;
+
+
+/**
+ * Dynamic HTML attribute generated from expression.
+ */
+class ExpressionAttributeNode extends AreaNode
+{
+	public function __construct(
+		public string $name,
+		public ExpressionNode $value,
+		public ModifierNode $modifier,
+		public ?string $indentation = null,
+		public ?Position $position = null,
+		public ?Position $end = null,
+	) {
+	}
+
+
+	public function print(PrintContext $context): string
+	{
+		$modifier = clone $this->modifier;
+		if ($context->getEscaper()->getContentType() === ContentType::Html) {
+			$type = match (true) {
+				$modifier->removeFilter('toggle') !== null => 'bool',
+				$modifier->filters && end($modifier->filters)->name->name === 'json' && $modifier->removeFilter('json') => 'json',
+				default => LR\HtmlHelpers::classifyAttributeType($this->name),
+			};
+			$method = 'LR\HtmlHelpers::format' . ucfirst($type) . 'Attribute';
+		} else {
+			$method = 'LR\XmlHelpers::formatAttribute';
+		}
+		return $context->format(
+			'echo %raw(%dump, %modify(%node), %dump?) %line;',
+			$method,
+			$this->indentation . $this->name,
+			$modifier,
+			$this->value,
+			(!$modifier->removeFilter('accept') && $context->hasFeature(Feature::MigrationWarnings)) ?: null,
+			$this->value->position,
+		);
+	}
+
+
+	public function &getIterator(): \Generator
+	{
+		yield $this->value;
+		yield $this->modifier;
+	}
+}
