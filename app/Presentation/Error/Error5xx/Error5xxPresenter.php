@@ -13,10 +13,10 @@ use Tracy\ILogger;
  * Handles uncaught exceptions and errors, and logs them.
  */
 #[Requires(forward: true)]
-final class Error5xxPresenter implements Nette\Application\IPresenter
+final readonly class Error5xxPresenter implements Nette\Application\IPresenter
 {
 	public function __construct(
-		private readonly ILogger $logger,
+		private ILogger $logger,
 	) {
 	}
 
