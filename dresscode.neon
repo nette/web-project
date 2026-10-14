@@ -1,0 +1,22 @@
+use:
+	- nette
+	- modernizations
+
+typeAnalysis: phpstan
+
+paths:
+	- app
+	- tests
+	- www
+	- latte-lint
+
+fileExtensions:
+	- php
+	- phpt
+
+overrides:
+	-
+		paths: [app]
+		nameResolution: certain
+		use:
+			- deprecations
