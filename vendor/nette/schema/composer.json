@@ -1,0 +1,45 @@
+{
+	"name": "nette/schema",
+	"description": "📐 Nette Schema: validates and normalizes data such as configuration or API input against a schema described in a few readable lines of PHP, with precise error messages.",
+	"keywords": ["nette", "schema", "validation", "data validation", "normalization", "configuration"],
+	"homepage": "https://doc.nette.org/schema",
+	"license": ["BSD-3-Clause", "GPL-2.0-only", "GPL-3.0-only"],
+	"authors": [
+		{
+			"name": "David Grudl",
+			"homepage": "https://davidgrudl.com"
+		}
+	],
+	"require": {
+		"php": "8.1 - 8.6",
+		"nette/utils": "^4.0"
+	},
+	"require-dev": {
+		"nette/tester": "^2.6",
+		"tracy/tracy": "^2.8",
+		"phpstan/phpstan": "^2.3@stable",
+		"phpstan/extension-installer": "^1.4@stable",
+		"nette/phpstan-rules": "^1.0.7"
+	},
+	"autoload": {
+		"classmap": ["src/"],
+		"psr-4": {
+			"Nette\\": "src"
+		}
+	},
+	"minimum-stability": "dev",
+	"scripts": {
+		"phpstan": "phpstan analyse",
+		"tester": "tester tests -s"
+	},
+	"extra": {
+		"branch-alias": {
+			"dev-master": "1.4-dev"
+		}
+	},
+	"config": {
+		"allow-plugins": {
+			"phpstan/extension-installer": true
+		}
+	}
+}

@@ -1,0 +1,317 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Tester.
+ * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Tester\Runner;
+
+use Tester\Helpers;
+use function count, is_array, is_resource;
+use const PHP_OS_FAMILY, PHP_VERSION_ID;
+
+
+/**
+ * Spawns an isolated PHP process for a single test and captures its output and exit code.
+ */
+class Job
+{
+	public const
+		CodeNone = -1,
+		CodeOk = 0,
+		CodeSkip = 177,
+		CodeFail = 178,
+		CodeError = 255;
+
+	/** waiting time between process activity check in microseconds */
+	public const RunSleep = 10000;
+
+	/** @var string[]  environment variables for test */
+	private array $envVars;
+
+	/** @var resource|null */
+	private $proc;
+
+	/** @var resource|null */
+	private $stdout;
+	private ?string $stderrFile = null;
+
+	/** @var resource|null  stderr captured to a temporary file when no temp directory is set */
+	private $stderr;
+	private int $exitCode = self::CodeNone;
+
+	/** @var array<string, string>  output headers */
+	private array $headers = [];
+	private float $duration = 0.0;
+	private ?float $timeout = null;
+	private ?float $terminatedAt = null;
+	private bool $killed = false;
+
+
+	/** @param ?array<string, string>  $envVars */
+	public function __construct(
+		private Test $test,
+		private PhpInterpreter $interpreter,
+		?array $envVars = null,
+	) {
+		if ($test->hasResult()) {
+			throw new \LogicException("Test '{$test->getSignature()}' already has result '{$test->getResult()}'.");
+		}
+
+		$test->stdout = '';
+		$test->stderr = '';
+
+		$this->envVars = (array) $envVars;
+	}
+
+
+	public function setTempDirectory(?string $path): void
+	{
+		$this->stderrFile = $path === null
+			? null
+			: $path . DIRECTORY_SEPARATOR . 'Job.pid-' . getmypid() . '.' . uniqid() . '.stderr';
+	}
+
+
+	public function setEnvironmentVariable(string $name, string $value): void
+	{
+		$this->envVars[$name] = $value;
+	}
+
+
+	public function getEnvironmentVariable(string $name): string
+	{
+		return $this->envVars[$name];
+	}
+
+
+	/**
+	 * Sets the time limit in seconds after which the test process is terminated. Null means no limit.
+	 */
+	public function setTimeout(?float $timeout): void
+	{
+		$this->timeout = $timeout > 0 ? $timeout : null;
+	}
+
+
+	public function getTimeout(): ?float
+	{
+		return $this->timeout;
+	}
+
+
+	/**
+	 * Tells whether the test process has been terminated because it exceeded the time limit.
+	 */
+	public function isTimedOut(): bool
+	{
+		return $this->terminatedAt !== null;
+	}
+
+
+	/**
+	 * Runs single test.
+	 */
+	public function run(bool $async = false): void
+	{
+		$prevEnvVars = [];
+		foreach ($this->envVars as $name => $value) {
+			$prevEnvVars[$name] = getenv($name);
+			putenv("$name=$value");
+		}
+
+		if (!$this->stderrFile) {
+			$this->stderr = tmpfile() ?: null;
+		}
+
+		$args = array_map(fn($arg) => is_array($arg) ? "--$arg[0]=$arg[1]" : $arg, $this->test->getArguments());
+		$this->duration = -microtime(as_float: true);
+		try {
+			$this->proc = proc_open(
+				$this->interpreter
+					->withArguments(['-d', 'register_argc_argv=on', $this->test->getFile(), ...$args])
+					->getCommand(),
+				[
+					['pipe', 'r'],
+					['pipe', 'w'],
+					$this->stderrFile ? ['file', $this->stderrFile, 'w'] : ($this->stderr ?? ['pipe', 'w']),
+				],
+				$pipes,
+				dirname($this->test->getFile()),
+			) ?: throw new \RuntimeException('Cannot start test process.');
+		} finally {
+			foreach ($prevEnvVars as $name => $value) {
+				putenv($value === false ? $name : "$name=$value");
+			}
+		}
+
+		[$stdin, $this->stdout] = $pipes;
+		fclose($stdin);
+
+		if (isset($pipes[2])) {
+			fclose($pipes[2]);
+		}
+
+		if ($async) {
+			stream_set_blocking($this->stdout, enable: false); // on Windows does not work with proc_open()
+		} else {
+			if (PHP_OS_FAMILY !== 'Windows') {
+				// prevents isRunning() from blocking on the pipe until the process exits, so the timeout can be enforced
+				stream_set_blocking($this->stdout, enable: false);
+			}
+
+			while ($this->isRunning()) {
+				usleep(self::RunSleep);
+			}
+		}
+	}
+
+
+	/**
+	 * Checks if the test is still running.
+	 */
+	public function isRunning(): bool
+	{
+		if (!is_resource($this->stdout)) {
+			return false;
+		}
+
+		// PHP 8.5+ Windows: stream_select() works with pipes (PeekNamedPipe fix),
+		if (PHP_OS_FAMILY === 'Windows' && PHP_VERSION_ID >= 80500) {
+			$read = [$this->stdout];
+			$w = $e = [];
+			while (@stream_select($read, $w, $e, 0, 0) > 0) { // @ a signal may interrupt the call
+				$chunk = fread($this->stdout, 8192);
+				if ($chunk === false || $chunk === '') {
+					break;
+				}
+				$this->test->stdout .= $chunk;
+				$read = [$this->stdout];
+			}
+		} else {
+			// Linux/macOS: stream_get_contents() works without blocking
+			// Windows < 8.5: blocks, but is necessary to prevent deadlock when output exceeds pipe buffer (~64KB)
+			$this->test->stdout .= stream_get_contents($this->stdout);
+		}
+
+		assert($this->proc !== null);
+		$status = proc_get_status($this->proc);
+		if ($status['running']) {
+			$now = microtime(as_float: true);
+			if ($this->timeout !== null && $now + $this->duration >= $this->timeout) { // $duration holds the negative start time while running
+				if ($this->terminatedAt === null) {
+					$this->terminatedAt = $now;
+					proc_terminate($this->proc);
+				} elseif (!$this->killed && $now - $this->terminatedAt > 1) {
+					$this->killed = true;
+					proc_terminate($this->proc, 9); // SIGKILL when the process ignores the previous signal
+				}
+			}
+
+			return true;
+		}
+
+		$this->duration += microtime(as_float: true);
+
+		stream_set_blocking($this->stdout, true);
+		$this->test->stdout .= stream_get_contents($this->stdout);
+		fclose($this->stdout);
+
+		if ($this->stderrFile) {
+			$this->test->stderr .= Helpers::readFile($this->stderrFile);
+			unlink($this->stderrFile);
+		} elseif ($this->stderr) {
+			rewind($this->stderr);
+			$this->test->stderr .= stream_get_contents($this->stderr);
+			fclose($this->stderr);
+		}
+
+		$code = proc_close($this->proc);
+		$this->exitCode = $code === self::CodeNone
+			? $status['exitcode']
+			: $code;
+
+		if ($this->interpreter->isCgi() && count($tmp = explode("\r\n\r\n", $this->test->stdout, 2)) >= 2) {
+			[$headers, $this->test->stdout] = $tmp;
+			// lines may be separated by LF alone when the interpreter prints something before the headers
+			foreach (preg_split('#\r?\n#', $headers) as $header) {
+				if (preg_match('#^([^\s:]+)\s*:(.*)#', $header, $m)) {
+					$this->headers[$m[1]] = trim($m[2]);
+				}
+			}
+		}
+
+		return false;
+	}
+
+
+	/**
+	 * Terminates the test process if it is still running and waits for it to end.
+	 * @internal
+	 */
+	public function terminate(): void
+	{
+		if ($this->proc && is_resource($this->stdout)) {
+			proc_terminate($this->proc);
+			while ($this->isRunning()) {
+				usleep(self::RunSleep);
+			}
+		}
+	}
+
+
+	public function getTest(): Test
+	{
+		return $this->test;
+	}
+
+
+	/**
+	 * Returns exit code.
+	 */
+	public function getExitCode(): int
+	{
+		return $this->exitCode;
+	}
+
+
+	/**
+	 * Returns output headers.
+	 * @return array<string, string>
+	 */
+	public function getHeaders(): array
+	{
+		return $this->headers;
+	}
+
+
+	/**
+	 * Returns process duration in seconds.
+	 */
+	public function getDuration(): ?float
+	{
+		return $this->duration > 0
+			? $this->duration
+			: null;
+	}
+
+
+	/**
+	 * Waits for activity on any of the running jobs.
+	 * @param  self[]  $jobs
+	 */
+	public static function waitForActivity(array $jobs): void
+	{
+		if (PHP_OS_FAMILY === 'Windows' && PHP_VERSION_ID < 80500) {
+			usleep(self::RunSleep);
+			return;
+		}
+
+		$streams = array_filter(array_map(fn($job) => $job->stdout, $jobs));
+		if ($streams) {
+			$w = $e = [];
+			@stream_select($streams, $w, $e, 0, self::RunSleep); // @ a signal may interrupt the call
+		}
+	}
+}

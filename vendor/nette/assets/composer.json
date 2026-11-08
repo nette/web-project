@@ -1,0 +1,52 @@
+{
+	"name": "nette/assets",
+	"description": "🎨 Nette Assets: static files in PHP and Latte without hand-written paths, with automatic versioning for cache busting and Vite integration including HMR.",
+	"keywords": ["nette", "assets", "asset management", "vite", "cache busting", "static files", "latte"],
+	"homepage": "https://doc.nette.org/assets",
+	"license": ["BSD-3-Clause", "GPL-2.0-only", "GPL-3.0-only"],
+	"authors": [
+		{
+			"name": "David Grudl",
+			"homepage": "https://davidgrudl.com"
+		}
+	],
+	"require": {
+		"php": "8.1 - 8.6",
+		"nette/utils": "^4.0.6"
+	},
+	"suggest": {
+		"latte/latte": "Allows using Assets in templates"
+	},
+	"require-dev": {
+		"nette/application": "^3.2",
+		"nette/tester": "^2.6",
+		"nette/di": "^3.2",
+		"nette/http": "^3.3.2",
+		"latte/latte": "^3.0.22",
+		"tracy/tracy": "^2.9",
+		"mockery/mockery": "^1.6@stable",
+		"phpstan/phpstan": "^2.1@stable",
+		"phpstan/extension-installer": "^1.4@stable",
+		"nette/phpstan-rules": "^1.0"
+	},
+	"conflict": {
+		"nette/bootstrap": "<3.2.5",
+		"nette/http": "<3.3.2"
+	},
+	"autoload": {
+		"classmap": ["src/"],
+		"psr-4": {
+			"Nette\\": "src"
+		}
+	},
+	"minimum-stability": "dev",
+	"scripts": {
+		"phpstan": "phpstan analyse",
+		"tester": "tester tests -s"
+	},
+	"config": {
+		"allow-plugins": {
+			"phpstan/extension-installer": true
+		}
+	}
+}

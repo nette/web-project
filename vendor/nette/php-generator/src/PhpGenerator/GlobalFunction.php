@@ -1,0 +1,44 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\PhpGenerator;
+
+use Nette;
+
+
+/**
+ * Definition of a global function.
+ */
+final class GlobalFunction
+{
+	use Traits\FunctionLike;
+	use Traits\NameAware;
+	use Traits\CommentAware;
+	use Traits\AttributeAware;
+
+	/**
+	 * Creates an instance from a function name or closure reflection.
+	 * @param  string|(\Closure(): mixed)  $function
+	 * @param  bool  $withBody  load function body (requires nikic/php-parser)
+	 */
+	public static function from(string|\Closure $function, bool $withBody = false): self
+	{
+		return (new Factory)->fromFunctionReflection(Nette\Utils\Callback::toReflection($function), $withBody);
+	}
+
+
+	public function __toString(): string
+	{
+		return (new Printer)->printFunction($this);
+	}
+
+
+	public function __clone(): void
+	{
+		$this->parameters = array_map(fn($param) => clone $param, $this->parameters);
+	}
+}

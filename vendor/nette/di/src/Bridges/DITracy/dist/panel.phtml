@@ -1,0 +1,133 @@
+<?php declare(strict_types=1);
+
+use Tracy\Dumper;
+/** @var array<string,Nette\DI\ServiceDescriptor> $services */
+/** @var array<string,mixed>|null $parameters */
+/** @var string $file */
+echo '
+<style class="tracy-debug">
+	#tracy-debug .nette-ContainerPanel table {
+		width: 100%;
+		white-space: nowrap;
+	}
+
+	#tracy-debug .nette-ContainerPanel .created {
+		font-weight: bold;
+	}
+
+	#tracy-debug .nette-ContainerPanel .yes {
+		color: green;
+		font-weight: bold;
+	}
+
+	#tracy-debug .nette-ContainerPanel table pre {
+		display: inline;
+		background: transparent;
+		padding: 0;
+		word-break: normal;
+	}
+</style>
+
+<h1>Nette DI Container</h1>
+
+<div class="tracy-inner nette-ContainerPanel">
+<div class="tracy-inner-container">
+	<p>Source: ';
+echo Tracy\Helpers::editorLink($file) /* pos 34:13 */;
+echo '</p>
+
+	<table class="tracy-sortable">
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Autowired</th>
+				<th>Service</th>
+				<th>Tags</th>
+			</tr>
+		</thead>
+		<tbody>
+';
+foreach ($services as $name => $service) /* pos 46:8 */ {
+	echo '			<tr>
+';
+	$name = (string) $name /* pos 47:5 */;
+	echo '				<td';
+	echo ($ʟ_tmp = ($service->instance !== null ? 'created' : null)) === null ? '' : ' class="' . Tracy\Helpers::escapeHtml($ʟ_tmp) . '"' /* pos 48:16 */;
+	echo '>
+';
+	if (is_numeric($name)) /* pos 49:6 */ {
+		echo '					<small>';
+		echo Tracy\Helpers::escapeHtml($name) /* pos 49:35 */;
+		echo '</small>';
+	} else /* pos 49:50 */ {
+		echo Tracy\Helpers::escapeHtml($name) /* pos 49:56 */;
+	}
+	echo '
+				</td>
+				<td';
+	echo ($ʟ_tmp = ($service->autowired === true ? 'yes' : null)) === null ? '' : ' class="' . Tracy\Helpers::escapeHtml($ʟ_tmp) . '"' /* pos 51:16 */;
+	echo '>
+					';
+	echo Tracy\Helpers::escapeHtml($service->autowired === true ? 'yes' : ($service->autowired === false ? 'no' : '?')) /* pos 52:6 */;
+	echo '
+				</td>
+				<td>
+';
+	if ($service->instance !== null && !$service->instance instanceof Nette\DI\Container) /* pos 55:6 */ {
+		echo '					';
+		echo Dumper::toHtml($service->instance, [Dumper::COLLAPSE => true, Dumper::LIVE => true, Dumper::DEPTH => 5]) /* pos 56:7 */;
+		echo "\n";
+	} elseif ($service->instance !== null) /* pos 57:6 */ {
+		echo '					<code>';
+		echo Tracy\Helpers::escapeHtml(get_class($service->instance)) /* pos 58:13 */;
+		echo '</code>
+';
+	} elseif ($service->type !== null) /* pos 59:6 */ {
+		echo '					<code>';
+		echo Tracy\Helpers::escapeHtml($service->type) /* pos 60:13 */;
+		echo '</code>
+';
+	}
+
+
+	echo '				</td>
+				<td>
+';
+	if (!$service->tags) /* pos 64:6 */ {
+	} elseif (count($service->tags) === 1) /* pos 65:6 */ {
+		echo '					';
+		echo Tracy\Helpers::escapeHtml(key($service->tags)) /* pos 66:7 */;
+		echo ' = ';
+		echo Dumper::toHtml(current($service->tags), [Dumper::COLLAPSE => true]) /* pos 66:29 */;
+		echo "\n";
+	} else /* pos 67:6 */ {
+		echo '					';
+		echo Dumper::toHtml($service->tags, [Dumper::COLLAPSE => true]) /* pos 68:7 */;
+		echo "\n";
+	}
+
+	echo '				</td>
+			</tr>
+';
+
+}
+
+echo '		</tbody>
+	</table>
+
+	<h2>Parameters</h2>
+
+	<div class="nette-ContainerPanel-parameters">
+';
+if ($parameters === null) /* pos 78:3 */ {
+	echo '		<i>disabled via \'di › export › parameters\'</i>
+';
+} else /* pos 80:3 */ {
+	echo '		';
+	echo Dumper::toHtml($parameters) /* pos 81:4 */;
+	echo "\n";
+}
+echo '	</div>
+</div>
+</div>
+';
