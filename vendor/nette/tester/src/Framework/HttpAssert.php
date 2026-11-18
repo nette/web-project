@@ -1,0 +1,248 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Tester.
+ * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Tester;
+
+use function is_int, is_string;
+
+
+/**
+ * HTTP testing helpers.
+ */
+class HttpAssert
+{
+	private function __construct(
+		private string $body,
+		private int $code,
+		/** @var array<string, string> */
+		private array $headers,
+	) {
+	}
+
+
+	/**
+	 * Sends an HTTP request and returns an HttpAssert instance for chaining assertions.
+	 * @param  string[]  $headers  headers as 'Name: Value' strings or name => value pairs
+	 * @param  array<string, string>  $cookies  cookie name => value pairs
+	 * @param  float  $timeout  request timeout in seconds
+	 */
+	public static function fetch(
+		string $url,
+		string $method = 'GET',
+		array $headers = [],
+		array $cookies = [],
+		bool $follow = false,
+		?string $body = null,
+		float $timeout = 30,
+	): self
+	{
+		$ch = curl_init($url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HEADER, true);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $follow);
+		curl_setopt($ch, CURLOPT_TIMEOUT_MS, (int) ($timeout * 1000));
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method) ?: 'GET');
+
+		if ($headers) {
+			$headerList = [];
+			foreach ($headers as $key => $value) {
+				$headerList[] = is_int($key) ? $value : "$key: $value";
+			}
+			curl_setopt($ch, CURLOPT_HTTPHEADER, $headerList);
+		}
+
+		if ($body !== null) {
+			curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+		}
+
+		if ($cookies) {
+			$pairs = [];
+			foreach ($cookies as $name => $value) {
+				$pairs[] = "$name=$value";
+			}
+			curl_setopt($ch, CURLOPT_COOKIE, implode('; ', $pairs));
+		}
+
+		$response = curl_exec($ch);
+		if (!is_string($response)) {
+			throw new \Exception('HTTP request failed: ' . curl_error($ch));
+		}
+
+		$headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+		return new self(
+			substr($response, $headerSize),
+			curl_getinfo($ch, CURLINFO_HTTP_CODE),
+			self::parseHeaders(substr($response, 0, $headerSize)),
+		);
+	}
+
+
+	/**
+	 * Parses headers of the final response (curl also returns redirects and interim responses); repeated headers are combined.
+	 * @return array<string, string>
+	 */
+	private static function parseHeaders(string $s): array
+	{
+		$headers = [];
+		foreach (preg_split('#\r?\n#', $s) as $line) {
+			if (str_starts_with($line, 'HTTP/')) {
+				$headers = [];
+			} elseif (str_contains($line, ':')) {
+				[$name, $value] = explode(':', $line, 2);
+				$name = strtolower(trim($name));
+				$value = trim($value);
+				$headers[$name] = isset($headers[$name]) ? "$headers[$name], $value" : $value;
+			}
+		}
+
+		return $headers;
+	}
+
+
+	/**
+	 * Asserts that the HTTP response code matches the expectation.
+	 * @param int|\Closure(int): bool  $expected
+	 */
+	public function expectCode(int|\Closure $expected): self
+	{
+		if ($expected instanceof \Closure) {
+			Assert::true($expected($this->code), 'HTTP status code validation failed');
+		} else {
+			Assert::same($expected, $this->code, 'HTTP status code validation failed');
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Asserts that the HTTP response code does not match the expectation.
+	 * @param int|\Closure(int): bool  $expected
+	 */
+	public function denyCode(int|\Closure $expected): self
+	{
+		if ($expected instanceof \Closure) {
+			Assert::false($expected($this->code), 'HTTP status code validation failed');
+		} else {
+			Assert::notSame($expected, $this->code, 'HTTP status code validation failed');
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Asserts that a response header exists and optionally matches the expectation.
+	 * @param string|\Closure(string): bool|null  $expected
+	 */
+	public function expectHeader(
+		string $name,
+		string|\Closure|null $expected = null,
+		?string $contains = null,
+		?string $matches = null,
+	): self
+	{
+		$headerValue = $this->headers[strtolower($name)] ?? null;
+		if (!isset($headerValue)) {
+			Assert::$counter++;
+			Assert::fail("Header '$name' should exist");
+		} elseif (is_string($expected)) {
+			Assert::same($expected, $headerValue, "Header '$name' validation failed");
+		} elseif ($expected instanceof \Closure) {
+			Assert::true($expected($headerValue), "Header '$name' validation failed");
+		} elseif ($contains !== null) {
+			Assert::contains($contains, $headerValue, "Header '$name' validation failed");
+		} elseif ($matches !== null) {
+			Assert::match($matches, $headerValue, "Header '$name' validation failed");
+		} else {
+			Assert::$counter++;
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Asserts that a response header does not exist or does not match the expectation.
+	 * @param string|\Closure(string): bool|null  $expected
+	 */
+	public function denyHeader(
+		string $name,
+		string|\Closure|null $expected = null,
+		?string $contains = null,
+		?string $matches = null,
+	): self
+	{
+		$headerValue = $this->headers[strtolower($name)] ?? null;
+		if (!isset($headerValue)) {
+			Assert::$counter++;
+			return $this;
+		}
+
+		if (is_string($expected)) {
+			Assert::notSame($expected, $headerValue, "Header '$name' validation failed");
+		} elseif ($expected instanceof \Closure) {
+			Assert::falsey($expected($headerValue), "Header '$name' validation failed");
+		} elseif ($contains !== null) {
+			Assert::notContains($contains, $headerValue, "Header '$name' validation failed");
+		} elseif ($matches !== null) {
+			Assert::notMatch($matches, $headerValue, "Header '$name' validation failed");
+		} else {
+			Assert::$counter++;
+			Assert::fail("Header '$name' should not exist");
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Asserts that the response body matches the expectation.
+	 * @param string|\Closure(string): bool|null  $expected
+	 */
+	public function expectBody(
+		string|\Closure|null $expected = null,
+		?string $contains = null,
+		?string $matches = null,
+	): self
+	{
+		if (is_string($expected)) {
+			Assert::same($expected, $this->body, 'Body validation failed');
+		} elseif ($expected instanceof \Closure) {
+			Assert::true($expected($this->body), 'Body validation failed');
+		} elseif ($contains !== null) {
+			Assert::contains($contains, $this->body, 'Body validation failed');
+		} elseif ($matches !== null) {
+			Assert::match($matches, $this->body, 'Body validation failed');
+		}
+
+		return $this;
+	}
+
+
+	/**
+	 * Asserts that the response body does not match the expectation.
+	 * @param string|\Closure(string): bool|null  $expected
+	 */
+	public function denyBody(
+		string|\Closure|null $expected = null,
+		?string $contains = null,
+		?string $matches = null,
+	): self
+	{
+		if (is_string($expected)) {
+			Assert::notSame($expected, $this->body, 'Body validation failed');
+		} elseif ($expected instanceof \Closure) {
+			Assert::falsey($expected($this->body), 'Body validation failed');
+		} elseif ($contains !== null) {
+			Assert::notContains($contains, $this->body, 'Body validation failed');
+		} elseif ($matches !== null) {
+			Assert::notMatch($matches, $this->body, 'Body validation failed');
+		}
+		return $this;
+	}
+}

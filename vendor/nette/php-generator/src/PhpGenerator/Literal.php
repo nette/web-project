@@ -1,0 +1,48 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\PhpGenerator;
+
+
+/**
+ * Raw PHP expression written to output as-is without escaping.
+ * Supports Dumper-style placeholders when created with arguments.
+ */
+class Literal
+{
+	/**
+	 * Creates a literal representing a `new ClassName(...)` expression with named arguments.
+	 * @param  mixed[]  $args
+	 */
+	public static function new(string $class, array $args = []): self
+	{
+		return new self('new ' . $class . '(...?:)', [$args]);
+	}
+
+
+	public function __construct(
+		private readonly string $value,
+		/** @var ?mixed[] */
+		private readonly ?array $args = null,
+	) {
+	}
+
+
+	public function __toString(): string
+	{
+		return $this->formatWith(new Dumper);
+	}
+
+
+	/** @internal */
+	public function formatWith(Dumper $dumper): string
+	{
+		return $this->args === null
+			? $this->value
+			: $dumper->format($this->value, ...$this->args);
+	}
+}

@@ -1,0 +1,23 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Security;
+
+
+/**
+ * Represents a role that can be granted access to resources.
+ */
+interface Role
+{
+	/**
+	 * Returns a string identifier of the Role.
+	 */
+	function getRoleId(): string;
+}
+
+
+interface_exists(IRole::class);

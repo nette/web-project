@@ -1,0 +1,68 @@
+{
+	"name": "nette/application",
+	"description": "🏆 Nette Application: the heart of Nette, a component-based MVC framework. Presenters, components that keep their own state, AJAX snippets, and security built in.",
+	"keywords": ["nette", "web framework", "mvc", "mvp", "presenter", "components", "ajax"],
+	"homepage": "https://doc.nette.org/application",
+	"license": ["BSD-3-Clause", "GPL-2.0-only", "GPL-3.0-only"],
+	"authors": [
+		{
+			"name": "David Grudl",
+			"homepage": "https://davidgrudl.com"
+		}
+	],
+	"require": {
+		"php": "8.3 - 8.6",
+		"nette/component-model": "^3.2 || ^4.0",
+		"nette/http": "^3.4",
+		"nette/routing": "^3.1.5",
+		"nette/utils": "^4.1"
+	},
+	"suggest": {
+		"nette/forms": "Allows to use Nette\\Application\\UI\\Form",
+		"latte/latte": "Allows using Latte in templates"
+	},
+	"require-dev": {
+		"nette/tester": "^2.6",
+		"nette/caching": "^3.2",
+		"nette/di": "^3.2",
+		"nette/forms": "^3.2",
+		"nette/robot-loader": "^4.0",
+		"nette/security": "^3.2",
+		"latte/latte": "^3.1.4",
+		"tracy/tracy": "^2.12",
+		"mockery/mockery": "^1.6@stable",
+		"phpstan/phpstan": "^2.2@stable",
+		"phpstan/extension-installer": "^1.4@stable",
+		"nette/phpstan-rules": "^1.0",
+		"jetbrains/phpstorm-attributes": "^1.2"
+	},
+	"conflict": {
+		"nette/caching": "<3.2",
+		"nette/di": "<3.2",
+		"nette/forms": "<3.2",
+		"nette/schema": "<1.3",
+		"latte/latte": "<3.1.5 || >=3.2",
+		"tracy/tracy": "<2.12"
+	},
+	"autoload": {
+		"classmap": ["src/"],
+		"psr-4": {
+			"Nette\\": "src"
+		}
+	},
+	"minimum-stability": "dev",
+	"scripts": {
+		"phpstan": "phpstan analyse",
+		"tester": "tester tests -s"
+	},
+	"extra": {
+		"branch-alias": {
+			"dev-master": "3.3-dev"
+		}
+	},
+	"config": {
+		"allow-plugins": {
+			"phpstan/extension-installer": true
+		}
+	}
+}

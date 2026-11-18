@@ -1,0 +1,36 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Latte (https://latte.nette.org)
+ * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Bridges\ApplicationLatte\Nodes;
+
+use Latte\Compiler\Nodes\StatementNode;
+use Latte\Compiler\PrintContext;
+
+
+/**
+ * <script n:nonce>
+ * Outputs CSP nonce attribute for inline scripts and styles.
+ */
+class NNonceNode extends StatementNode
+{
+	public static function create(): static
+	{
+		return new static;
+	}
+
+
+	public function print(PrintContext $context): string
+	{
+		return 'echo $this->global->uiNonce ? " nonce=\"{$this->global->uiNonce}\"" : "";';
+	}
+
+
+	public function &getIterator(): \Generator
+	{
+		false && yield;
+	}
+}

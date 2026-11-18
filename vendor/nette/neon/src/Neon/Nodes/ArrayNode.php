@@ -1,0 +1,104 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Neon\Nodes;
+
+use Nette\Neon\{Builder, CommentPolicy, Editor, Evaluator, Exception, Journal, Scalars};
+use function is_array;
+
+
+/**
+ * A block or an inline array; its items change only through its methods.
+ */
+abstract class ArrayNode extends ValueNode
+{
+	/** @var list<ArrayItemNode> */
+	public protected(set) array $items = [];
+
+
+	/** @return mixed[] */
+	public function toValue(): array
+	{
+		$value = new Evaluator()->evaluate($this);
+		return is_array($value) ? $value : throw new \LogicException('An array evaluates to an array.');
+	}
+
+
+	/**
+	 * The item with the canonical key, as the value of the document would find it.
+	 */
+	public function findItem(string|int $key): ?ArrayItemNode
+	{
+		$keys = $this->getItemKeys();
+		$found = null;
+		foreach ($this->items as $i => $item) {
+			if ($keys[$i] === (string) $key) {
+				$found = $item; // a later explicit key overwrites the earlier one
+			}
+		}
+		return $found;
+	}
+
+
+	/**
+	 * The key of each item, explicit or implicit: an item without a key gets the greatest integer key so far plus one.
+	 * @return list<string>
+	 * @throws Exception  for an implicit key beyond the 64-bit range
+	 */
+	public function getItemKeys(): array
+	{
+		$max = null;
+		$res = [];
+		foreach ($this->items as $item) {
+			$key = $item->getKeyValue()
+				?? Scalars::nextImplicitKey($max)
+				?? throw new Exception('Implicit key overflow', $item->getPosition());
+			$max = Scalars::maxIntegerKey($max, $key);
+			$res[] = $key;
+		}
+		return $res;
+	}
+
+
+	/**
+	 * Adds an item built from the value, a value of PHP or a node, at the end or before the item at the position.
+	 * @throws Exception  for a key that is there already, or a value that cannot stand in the array
+	 */
+	public function addItem(mixed $value, ?string $key = null, ?int $position = null): ArrayItemNode
+	{
+		$value = Builder::materialize($value); // iterators run before the journal records
+		return Journal::atomic(fn() => Editor::addItem($this, $key, $value, $position));
+	}
+
+
+	/** Removes the item with the comments it owns. */
+	public function removeItem(ArrayItemNode $item, CommentPolicy $comments = CommentPolicy::Drop): void
+	{
+		if ($item->parent !== $this) {
+			throw new \InvalidArgumentException('The item is not in this array.');
+		}
+		Journal::atomic(fn() => Editor::removeItem($item, $comments));
+	}
+
+
+	/**
+	 * Inserts an item taken out of a tree by remove(), reindented to its new place, with its comments.
+	 * @throws Exception  for an item that cannot stand in the array
+	 */
+	public function insert(int $position, ArrayItemNode $item): void
+	{
+		Journal::atomic(fn() => Editor::insertItem($this, $item, $position));
+	}
+
+
+	/** @param  list<ArrayItemNode>  $items */
+	protected function setItems(array $items): void
+	{
+		$this->adopt(...$items);
+		$this->items = $items;
+	}
+}

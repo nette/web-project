@@ -1,0 +1,21 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Latte (https://latte.nette.org)
+ * Copyright (c) 2008 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Latte\Runtime;
+
+
+/** @internal */
+final class Block
+{
+	public ?string $contentType = null;
+
+	/** @var list<\Closure> */
+	public array $functions = [];
+
+	/** index in $functions of the override being rendered */
+	public int $level = 0;
+}

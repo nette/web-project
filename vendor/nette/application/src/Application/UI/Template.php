@@ -1,0 +1,33 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Framework (https://nette.org)
+ * Copyright (c) 2004 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Nette\Application\UI;
+
+
+/**
+ * Represents a template that can be rendered to output.
+ */
+interface Template
+{
+	/**
+	 * Renders template to output.
+	 */
+	function render(): void;
+
+	/**
+	 * Sets the path to the template file.
+	 */
+	function setFile(string $file): static;
+
+	/**
+	 * Returns the path to the template file.
+	 */
+	function getFile(): ?string;
+}
+
+
+interface_exists(ITemplate::class);

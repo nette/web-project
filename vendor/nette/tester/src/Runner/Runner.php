@@ -1,0 +1,304 @@
+<?php declare(strict_types=1);
+
+/**
+ * This file is part of the Nette Tester.
+ * Copyright (c) 2009 David Grudl (https://davidgrudl.com)
+ */
+
+namespace Tester\Runner;
+
+use Tester\{Environment, Helpers};
+
+
+/**
+ * Discovers tests, schedules parallel jobs, and aggregates results.
+ */
+class Runner
+{
+	/** @var list<string>  paths to test files/directories */
+	public array $paths = [];
+
+	/** @var list<string> */
+	public array $ignoreDirs = ['vendor'];
+	public int $threadCount = 1;
+
+	/** time limit for a single test in seconds, overridable by @timeout annotation; null = no limit */
+	public ?float $timeout = null;
+	public TestHandler $testHandler;
+
+	/** @var list<OutputHandler> */
+	public array $outputHandlers = [];
+	public bool $stopOnFail = false;
+
+	/** @var array<string, string>  environment variables for test processes */
+	private array $envVars = [];
+
+	/** @var Job[] */
+	private array $jobs;
+
+	/** @var \WeakMap<Job, \Closure(Job): void>  jobs finished by a callback instead of test assessment */
+	private \WeakMap $jobCallbacks;
+	private bool $interrupted = false;
+	private ?string $tempDir = null;
+	private bool $result;
+
+	/** @var array<string, int>  test signature => result (Test::Prepared|Passed|Failed|Skipped) */
+	private array $lastResults = [];
+	private int $jobCount = 0;
+	private int $finishedCount = 0;
+	private int $testCount = 0;
+
+
+	public function __construct(
+		private PhpInterpreter $interpreter,
+	) {
+		$this->testHandler = new TestHandler($this);
+		$this->jobCallbacks = new \WeakMap;
+	}
+
+
+	public function setEnvironmentVariable(string $name, string $value): void
+	{
+		$this->envVars[$name] = $value;
+	}
+
+
+	/** @return array<string, string> */
+	public function getEnvironmentVariables(): array
+	{
+		return $this->envVars;
+	}
+
+
+	public function addPhpIniOption(string $name, ?string $value = null): void
+	{
+		$this->interpreter = $this->interpreter->withPhpIniOption($name, $value);
+	}
+
+
+	public function setTempDirectory(?string $path): void
+	{
+		$this->tempDir = $path;
+		$this->testHandler->setTempDirectory($path);
+	}
+
+
+	/**
+	 * Runs all tests.
+	 */
+	public function run(): bool
+	{
+		$this->result = true;
+		$this->interrupted = false;
+
+		foreach ($this->outputHandlers as $handler) {
+			$handler->begin();
+		}
+
+		$running = [];
+		try {
+			$this->jobs = [];
+			$this->finishedCount = $this->jobCount = $this->testCount = 0;
+			foreach ($this->paths as $path) {
+				$this->findTests($path);
+			}
+
+			if ($this->tempDir) {
+				usort(
+					$this->jobs,
+					fn(Job $a, Job $b): int => $this->getLastResult($a->getTest()) - $this->getLastResult($b->getTest()),
+				);
+			}
+
+			$threads = range(1, $this->threadCount);
+			$async = $this->threadCount > 1;
+
+			// once interrupted, no new job is started, but the running ones are finished and assessed
+			while (($this->jobs && !$this->interrupted) || $running) {
+				while ($threads && $this->jobs && !$this->interrupted) {
+					$running[] = $job = array_shift($this->jobs);
+					$job->setEnvironmentVariable(Environment::VariableThread, (string) array_shift($threads));
+					foreach ($this->outputHandlers as $handler) {
+						if (method_exists($handler, 'jobStarted')) {
+							$handler->jobStarted($job);
+						}
+					}
+					$job->run(async: $async);
+				}
+
+				if ($async) {
+					foreach ($this->outputHandlers as $handler) {
+						if (method_exists($handler, 'tick')) {
+							$handler->tick($running);
+						}
+					}
+
+					Job::waitForActivity($running);
+				}
+
+				foreach ($running as $key => $job) {
+					if (!$job->isRunning()) {
+						$threads[] = $job->getEnvironmentVariable(Environment::VariableThread);
+						$this->finishedCount++;
+						unset($running[$key]);
+						if (isset($this->jobCallbacks[$job])) {
+							($this->jobCallbacks[$job])($job);
+							unset($this->jobCallbacks[$job]);
+						} else {
+							$this->testHandler->assess($job);
+						}
+					}
+				}
+			}
+		} finally {
+			foreach ($running as $job) {
+				$job->terminate();
+			}
+
+			$error = null;
+			foreach ($this->outputHandlers as $handler) {
+				try {
+					$handler->end();
+				} catch (\Throwable $e) {
+					$error ??= $e;
+				}
+			}
+
+			if ($error) {
+				throw $error;
+			}
+		}
+
+		return $this->result;
+	}
+
+
+	private function findTests(string $path): void
+	{
+		if (strpbrk($path, '*?') === false && !file_exists($path)) {
+			throw new \InvalidArgumentException("File or directory '$path' not found.");
+		}
+
+		if (is_dir($path)) {
+			foreach (glob(str_replace('[', '[[]', $path) . '/*', GLOB_ONLYDIR) ?: [] as $dir) {
+				if (in_array(basename($dir), $this->ignoreDirs, true)) {
+					continue;
+				}
+
+				$this->findTests($dir);
+			}
+
+			$this->findTests($path . '/*.phpt');
+			$this->findTests($path . '/*Test.php');
+
+		} else {
+			foreach (glob(str_replace('[', '[[]', $path)) ?: [] as $file) {
+				if (is_file($file)) {
+					$this->testHandler->initiate(realpath($file) ?: $file);
+				}
+			}
+		}
+	}
+
+
+	/**
+	 * Appends new job to queue. When $onFinished is given, the job is not assessed as a test;
+	 * the callback receives the finished Job instead (used e.g. for TestCase methods discovery).
+	 * @param  ?\Closure(Job): void  $onFinished
+	 */
+	public function addJob(Job $job, ?\Closure $onFinished = null): void
+	{
+		$this->jobs[] = $job;
+		$this->jobCount++;
+		if ($onFinished) {
+			$this->jobCallbacks[$job] = $onFinished;
+		}
+	}
+
+
+	public function prepareTest(Test $test): void
+	{
+		$this->testCount++;
+		foreach ($this->outputHandlers as $handler) {
+			$handler->prepare($test);
+		}
+	}
+
+
+	/**
+	 * Notifies all output handlers that a test has finished, updates the result cache, and stops on failure if configured.
+	 */
+	public function finishTest(Test $test): void
+	{
+		$this->result = $this->result && ($test->getResult() !== Test::Failed);
+
+		foreach ($this->outputHandlers as $handler) {
+			$handler->finish($test);
+		}
+
+		if ($this->tempDir) {
+			$lastResult = &$this->lastResults[$test->getSignature()];
+			if ($lastResult !== $test->getResult()) {
+				file_put_contents($this->getLastResultFilename($test), $lastResult = $test->getResult());
+			}
+		}
+
+		if ($this->stopOnFail && $test->getResult() === Test::Failed) {
+			$this->interrupted = true;
+		}
+	}
+
+
+	public function getInterpreter(): PhpInterpreter
+	{
+		return $this->interpreter;
+	}
+
+
+	public function getJobCount(): int
+	{
+		return $this->jobCount;
+	}
+
+
+	public function getFinishedCount(): int
+	{
+		return $this->finishedCount;
+	}
+
+
+	/**
+	 * Returns the number of discovered tests, including those skipped during initiation.
+	 */
+	public function getTestCount(): int
+	{
+		return $this->testCount;
+	}
+
+
+	private function getLastResult(Test $test): int
+	{
+		$signature = $test->getSignature();
+		if (isset($this->lastResults[$signature])) {
+			return $this->lastResults[$signature];
+		}
+
+		$file = $this->getLastResultFilename($test);
+		if (is_file($file)) {
+			return $this->lastResults[$signature] = (int) Helpers::readFile($file);
+		}
+
+		return $this->lastResults[$signature] = Test::Prepared;
+	}
+
+
+	private function getLastResultFilename(Test $test): string
+	{
+		return $this->tempDir
+			. DIRECTORY_SEPARATOR
+			. pathinfo($test->getFile(), PATHINFO_FILENAME)
+			. '.'
+			. substr(md5($test->getSignature()), 0, 5)
+			. '.result';
+	}
+}

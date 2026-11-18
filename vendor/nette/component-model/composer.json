@@ -1,0 +1,45 @@
+{
+	"name": "nette/component-model",
+	"description": "🧩 Nette Component Model: the tree of named components that presenters, controls and forms in Nette are built on.",
+	"keywords": ["nette", "components", "component tree", "composite"],
+	"homepage": "https://doc.nette.org/component-model",
+	"license": ["BSD-3-Clause", "GPL-2.0-only", "GPL-3.0-only"],
+	"authors": [
+		{
+			"name": "David Grudl",
+			"homepage": "https://davidgrudl.com"
+		}
+	],
+	"require": {
+		"php": "8.3 - 8.6",
+		"nette/utils": "^4.1"
+	},
+	"require-dev": {
+		"nette/tester": "^2.6",
+		"tracy/tracy": "^2.12",
+		"phpstan/phpstan": "^2.1@stable",
+		"phpstan/extension-installer": "^1.4@stable",
+		"nette/phpstan-rules": "^1.0"
+	},
+	"autoload": {
+		"classmap": ["src/"],
+		"psr-4": {
+			"Nette\\": "src"
+		}
+	},
+	"minimum-stability": "dev",
+	"scripts": {
+		"phpstan": "phpstan analyse",
+		"tester": "tester tests -s"
+	},
+	"extra": {
+		"branch-alias": {
+			"dev-master": "4.0-dev"
+		}
+	},
+	"config": {
+		"allow-plugins": {
+			"phpstan/extension-installer": true
+		}
+	}
+}
